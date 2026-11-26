@@ -9,12 +9,14 @@ import java.util.List;
 public interface BookingDAO {
     Booking findById(int bookingId);
     Booking findByReference(String reference);
+    BookingItem findItemById(int itemId);
     List<Booking> findByTouristId(int touristId);
     List<Booking> findByStakeholderId(int stakeholderId);
     List<Booking> findAll(String status);
     int create(Booking booking, List<BookingItem> items);
     boolean updateStatus(int bookingId, String status);
     boolean updateItemStatus(int itemId, String status);
+    boolean updateItemPaymentStatus(int itemId, String paymentStatus);
 
     TouristProfile findTouristProfileByUserId(int userId);
     int createTouristProfile(TouristProfile profile);

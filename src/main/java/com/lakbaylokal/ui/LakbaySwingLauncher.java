@@ -87,13 +87,13 @@ public class LakbaySwingLauncher extends JFrame {
         JPanel actionsCard = createCardPanel("Quick Actions & Launcher");
         actionsCard.setLayout(new GridLayout(4, 1, 8, 8));
 
-        JButton btnOpenApp = new JButton("🚀 Launch Lakbay Lokal Desktop UI");
+        JButton btnOpenApp = new JButton("🚀 Launch Lakbay Lokal Desktop App");
         btnOpenApp.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        btnOpenApp.setBackground(new Color(16, 120, 80));
+        btnOpenApp.setBackground(new Color(4, 120, 87));
         btnOpenApp.setForeground(Color.WHITE);
         btnOpenApp.setFocusPainted(false);
         btnOpenApp.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnOpenApp.addActionListener(e -> openBrowser("http://localhost:" + port));
+        btnOpenApp.addActionListener(e -> launchStandaloneDesktopApp());
 
         JButton btnTestDb = new JButton("🔍 Test MySQL Connection");
         btnTestDb.setFont(new Font("Segoe UI", Font.PLAIN, 12));
@@ -203,6 +203,31 @@ public class LakbaySwingLauncher extends JFrame {
                 "   Username: tourist_ana\n";
 
         JOptionPane.showMessageDialog(this, msg, "Sample Accounts & Test Roles", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    public void launchStandaloneDesktopApp() {
+        try {
+            File rootDir = new File(System.getProperty("user.dir"));
+            File unpackedExe = new File(rootDir, "dist\\win-unpacked\\Lakbay Lokal.exe");
+            File electronExe = new File(rootDir, "node_modules\\electron\\dist\\electron.exe");
+            if (unpackedExe.exists()) {
+                new ProcessBuilder(unpackedExe.getAbsolutePath())
+                        .directory(rootDir)
+                        .start();
+                appendLog("Launched standalone Windows desktop app: " + unpackedExe.getAbsolutePath());
+                return;
+            }
+            if (electronExe.exists()) {
+                new ProcessBuilder(electronExe.getAbsolutePath(), ".")
+                        .directory(rootDir)
+                        .start();
+                appendLog("Launched standalone desktop app window via Electron runtime.");
+                return;
+            }
+            appendLog("Standalone desktop runtime not found; fallback available at http://localhost:" + port);
+        } catch (Exception ex) {
+            appendLog("Failed to launch standalone desktop window: " + ex.getMessage());
+        }
     }
 
     public void openBrowser(String url) {

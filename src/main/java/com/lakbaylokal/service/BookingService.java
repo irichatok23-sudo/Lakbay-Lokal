@@ -33,6 +33,10 @@ public class BookingService {
         return bookingDAO.findById(bookingId);
     }
 
+    public BookingItem getBookingItemById(int itemId) {
+        return bookingDAO.findItemById(itemId);
+    }
+
     public Booking getBookingByReference(String ref) {
         return bookingDAO.findByReference(ref);
     }
@@ -55,6 +59,10 @@ public class BookingService {
 
     public boolean updateItemStatus(int itemId, String status) {
         return bookingDAO.updateItemStatus(itemId, status);
+    }
+
+    public boolean updateItemPaymentStatus(int itemId, String paymentStatus) {
+        return bookingDAO.updateItemPaymentStatus(itemId, paymentStatus);
     }
 
     public TouristProfile getTouristProfileByUserId(int userId) {

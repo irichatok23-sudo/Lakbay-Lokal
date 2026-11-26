@@ -11,6 +11,7 @@ public interface UserDAO {
     User findByEmail(String email);
     List<User> findAll();
     List<User> findByRole(String roleCode);
+    List<User> findFiltered(String roleCode, Integer municipalityId, Integer barangayId);
     int create(User user);
     boolean update(User user);
     boolean updatePassword(int userId, String newHash, String newSalt);

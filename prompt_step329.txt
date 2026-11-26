@@ -1,0 +1,128 @@
+<USER_REQUEST>
+# LAKBAY LOKAL — STAKEHOLDER DASHBOARD CORRECTION AND ENHANCEMENT MASTER PROMPT
+
+## PROJECT CONTEXT
+
+Project: Lakbay Lokal: Community-Based Tourism Information System in Biliran.
+
+The existing application architecture must be preserved:
+
+- Electron desktop application
+- Java backend
+- HTML, CSS, and JavaScript frontend
+- MySQL database through WAMP
+- Separate Flutter client
+
+Project directory:
+
+`C:\Users\ASUS\OneDrive\Desktop\LAKBAY_LOKAL_BACKUP`
+
+This is an existing, working application. Your task is to correct and enhance the Stakeholder Dashboard without rebuilding, replacing, or unnecessarily restructuring the system.
+
+The current system already has six user roles:
+
+1. Tourist
+2. Stakeholder
+3. Barangay Official
+4. LGU Officer
+5. Tourism Office
+6. System Administrator
+
+This task primarily concerns the Stakeholder role.
+
+---
+
+# PHASE 1 — INSPECT THE EXISTING SYSTEM FIRST
+
+Before making any modifications, inspect the current implementation.
+
+Investigate:
+
+1. How stakeholder accounts are connected to their respective businesses.
+2. How tour guides, drivers, boat operators, cooks, and artisans are represented in the database.
+3. How services and offerings are connected to stakeholder businesses.
+4. How tourist bookings are created.
+5. How individual booking service items are assigned to businesses.
+6. How the Accept, Decline, and Mark Done actions work.
+7. Why the current system displays:
+
+   "You can only update services item assigned to your business."
+
+8. Why Accept and Decline cannot currently be clicked or completed.
+9. Whether booking dates, schedules, service prices, payment statuses, and transaction records already exist.
+10. Whether earnings and booking information are correctly restricted by stakeholder ownership.
+
+Inspect the relevant frontend files, Java backend controllers, services, session management, database tables, and API endpoints.
+
+Do not assume the database structure. Inspect the actual schema and existing records.
+
+Before implementation, provide a short report containing:
+
+- Identified problems.
+- Exact files and methods involved.
+- Existing database relationships.
+- Missing or incorrect relationships.
+- Proposed minimal fixes.
+
+Do not reset, recreate, or migrate the database unnecessarily.
+
+---
+
+# PHASE 2 — INDIVIDUAL STAKEHOLDER DASHBOARDS
+
+## A. Main Requirement
+
+Each stakeholder must have their own individual business dashboard inside the existing Stakeholder role.
+
+All stakeholder types remain under the same Stakeholder role, but each authenticated stakeholder account must display its own business information.
+
+Examples:
+
+- Pedro — Tour Guide
+- Maria — Boat Operator
+- Juan — Local Cook
+- Ana — Driver
+- Other registered local tourism stakeholders.
+
+Do not create one shared dashboard that displays all stakeholders' private information.
+
+Do not create unnecessary separate applications for each stakeholder type.
+
+Use the existing Stakeholder Dashboard design as a reusable dashboard template, with its data dynamically loaded according to the authenticated stakeholder account and business.
+
+## B. Individual Dashboard Information
+
+Each stakeholder should see:
+
+1. Overview Dashboard
+2. Destinations
+3. Stakeholders Directory
+4. Bookings & Reservations
+5. Schedule Management
+6. Earnings & Transactions
+7. Reviews & Ratings
+
+The existing design, sidebar appearance, colors, layout, and styling must be preserved as much as possible.
+
+Do not remove existing working modules.
+
+## C. Individual Business Data
+
+When a stakeholder logs in, the system must load only:
+
+- Their own business profile.
+- Their own
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-11-20T10:18:45+08:00.
+
+The user's current state is as follows:
+Active Document: c:\Users\ASUS\OneDrive\Desktop\LAKBAY_LOKAL_BACKUP\src\main\java\com\lakbaylokal\controller\ApiController.java (LANGUAGE_UNSPECIFIED)
+Cursor is on line: 1
+Other open documents:
+- c:\Users\ASUS\OneDrive\Desktop\LAKBAY_LOKAL_BACKUP\src\main\resources\web\js\app.js (LANGUAGE_UNSPECIFIED)
+- c:\Users\ASUS\OneDrive\Desktop\LAKBAY_LOKAL_BACKUP\src\main\resources\web\index.html (LANGUAGE_UNSPECIFIED)
+</ADDITIONAL_METADATA>
+<USER_SETTINGS_CHANGE>
+The user changed setting `Model Selection` from Gemini 3.8 Flash (Medium) to Gemini 3.8 Flash (High). No need to comment on this change if the user doesn't ask about it. If reporting what model you are, please use a human readable name instead of the exact string.
+</USER_SETTINGS_CHANGE>

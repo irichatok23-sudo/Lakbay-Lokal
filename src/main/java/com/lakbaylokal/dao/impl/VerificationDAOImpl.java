@@ -54,6 +54,11 @@ public class VerificationDAOImpl implements VerificationDAO {
 
     @Override
     public List<VerificationRecord> findAll(Integer barangayId, String status) {
+        return findAll(barangayId, null, status);
+    }
+
+    @Override
+    public List<VerificationRecord> findAll(Integer barangayId, Integer municipalityId, String status) {
         List<VerificationRecord> list = new ArrayList<>();
         StringBuilder sql = new StringBuilder(SELECT_BASE).append("WHERE 1=1 ");
         List<Object> params = new ArrayList<>();
@@ -61,6 +66,10 @@ public class VerificationDAOImpl implements VerificationDAO {
         if (barangayId != null && barangayId > 0) {
             sql.append("AND vr.barangay_id = ? ");
             params.add(barangayId);
+        }
+        if (municipalityId != null && municipalityId > 0) {
+            sql.append("AND b.municipality_id = ? ");
+            params.add(municipalityId);
         }
         if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
             sql.append("AND vr.status = ? ");
@@ -86,21 +95,42 @@ public class VerificationDAOImpl implements VerificationDAO {
 
     @Override
     public int create(VerificationRecord r) {
-        String sql = "INSERT INTO verification_records (stakeholder_id, barangay_id, reviewer_id, status, " +
+        String sqlWithPrev = "INSERT INTO verification_records (stakeholder_id, barangay_id, reviewer_id, previous_status, status, " +
+                     "requirements_submitted, remarks) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String sqlBase = "INSERT INTO verification_records (stakeholder_id, barangay_id, reviewer_id, status, " +
                      "requirements_submitted, remarks) VALUES (?, ?, ?, ?, ?, ?)";
-        try (Connection conn = ConnectionFactory.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setInt(1, r.getStakeholderId());
-            ps.setInt(2, r.getBarangayId());
-            ps.setInt(3, r.getReviewerId());
-            ps.setString(4, r.getStatus());
-            ps.setString(5, r.getRequirementsSubmitted());
-            ps.setString(6, r.getRemarks());
+        try (Connection conn = ConnectionFactory.getConnection()) {
+            try (PreparedStatement ps = conn.prepareStatement(sqlWithPrev, Statement.RETURN_GENERATED_KEYS)) {
+                ps.setInt(1, r.getStakeholderId());
+                ps.setInt(2, r.getBarangayId());
+                ps.setInt(3, r.getReviewerId());
+                ps.setString(4, r.getPreviousStatus());
+                ps.setString(5, r.getStatus());
+                ps.setString(6, r.getRequirementsSubmitted());
+                ps.setString(7, r.getRemarks());
 
-            int affected = ps.executeUpdate();
-            if (affected > 0) {
-                try (ResultSet keys = ps.getGeneratedKeys()) {
-                    if (keys.next()) return keys.getInt(1);
+                int affected = ps.executeUpdate();
+                if (affected > 0) {
+                    try (ResultSet keys = ps.getGeneratedKeys()) {
+                        if (keys.next()) return keys.getInt(1);
+                    }
+                }
+            } catch (SQLException e) {
+                // Fallback to base insert if previous_status column is not yet added
+                try (PreparedStatement ps = conn.prepareStatement(sqlBase, Statement.RETURN_GENERATED_KEYS)) {
+                    ps.setInt(1, r.getStakeholderId());
+                    ps.setInt(2, r.getBarangayId());
+                    ps.setInt(3, r.getReviewerId());
+                    ps.setString(4, r.getStatus());
+                    ps.setString(5, r.getRequirementsSubmitted());
+                    ps.setString(6, r.getRemarks());
+
+                    int affected = ps.executeUpdate();
+                    if (affected > 0) {
+                        try (ResultSet keys = ps.getGeneratedKeys()) {
+                            if (keys.next()) return keys.getInt(1);
+                        }
+                    }
                 }
             }
         } catch (SQLException e) {
@@ -115,6 +145,9 @@ public class VerificationDAOImpl implements VerificationDAO {
         r.setStakeholderId(rs.getInt("stakeholder_id"));
         r.setBarangayId(rs.getInt("barangay_id"));
         r.setReviewerId(rs.getInt("reviewer_id"));
+        try {
+            r.setPreviousStatus(rs.getString("previous_status"));
+        } catch (SQLException ignored) {}
         r.setStatus(rs.getString("status"));
         r.setRequirementsSubmitted(rs.getString("requirements_submitted"));
         r.setRemarks(rs.getString("remarks"));

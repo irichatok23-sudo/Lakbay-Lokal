@@ -4,7 +4,7 @@
 -- Default testing password for all pre-seeded accounts: "password123"
 -- Salt: "lakbaysalt2026"
 -- Hash: SHA-256 of "password123lakbaysalt2026" =
--- 4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853
+-- 8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6
 -- ============================================================================
 
 USE lakbay_lokal_db;
@@ -56,18 +56,18 @@ ON DUPLICATE KEY UPDATE name = VALUES(name);
 -- ----------------------------------------------------------------------------
 -- 4. SEED USERS (Password for all: password123)
 -- ----------------------------------------------------------------------------
-INSERT INTO users (user_id, username, password_hash, salt, email, full_name, phone, role_id, barangay_id, status) VALUES
-(1, 'admin', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'admin@lakbaylokal.gov.ph', 'Administrator Maria Santos', '+63 917 000 0001', 1, 9, 'ACTIVE'),
-(2, 'tourismoffice', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'tourism@biliran.gov.ph', 'Director Eduardo Reyes', '+63 917 000 0002', 2, 9, 'ACTIVE'),
-(3, 'lgu_naval', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'lgu.naval@biliran.gov.ph', 'Officer Katrina Gonzales', '+63 917 000 0003', 3, 9, 'ACTIVE'),
-(4, 'brgy_olog', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'brgy.olog@maripipi.gov.ph', 'Captain Ramon Corpin', '+63 917 111 2001', 4, 1, 'ACTIVE'),
-(5, 'guide_pedro', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'pedro.guide@gmail.com', 'Pedro Penduko', '+63 928 111 8888', 5, 1, 'ACTIVE'),
-(6, 'driver_juan', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'juan.transpo@gmail.com', 'Juan Dela Cruz', '+63 928 222 9999', 5, 6, 'ACTIVE'),
-(7, 'boat_capitan', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'maripipi.boats@gmail.com', 'Capitan Danilo Flores', '+63 928 333 7777', 5, 1, 'ACTIVE'),
-(8, 'cook_nanay_luz', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'nanayluz.catering@gmail.com', 'Luzviminda Ocampo', '+63 928 444 6666', 5, 4, 'ACTIVE'),
-(9, 'artisan_rosa', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'maripipi.pottery@gmail.com', 'Rosa Mangahas', '+63 928 555 5555', 5, 2, 'ACTIVE'),
-(10, 'tourist_ana', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'ana.tourist@gmail.com', 'Ana Sophia Cortez', '+63 915 777 3333', 6, NULL, 'ACTIVE')
-ON DUPLICATE KEY UPDATE full_name = VALUES(full_name);
+INSERT INTO users (user_id, username, password_hash, salt, email, full_name, phone, role_id, barangay_id, municipality_id, status) VALUES
+(1, 'admin', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'admin@lakbaylokal.gov.ph', 'Administrator Maria Santos', '+63 917 000 0001', 1, 9, 1, 'ACTIVE'),
+(2, 'tourismoffice', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'tourism@biliran.gov.ph', 'Director Eduardo Reyes', '+63 917 000 0002', 2, 9, 1, 'ACTIVE'),
+(3, 'lgu_naval', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'lgu.naval@biliran.gov.ph', 'Officer Katrina Gonzales', '+63 917 000 0003', 3, NULL, 1, 'ACTIVE'),
+(4, 'brgy_olog', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'brgy.olog@maripipi.gov.ph', 'Captain Ramon Corpin', '+63 917 111 2001', 4, 1, 8, 'ACTIVE'),
+(5, 'guide_pedro', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'pedro.guide@gmail.com', 'Pedro Penduko', '+63 928 111 8888', 5, 1, 8, 'ACTIVE'),
+(6, 'driver_juan', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'juan.transpo@gmail.com', 'Juan Dela Cruz', '+63 928 222 9999', 5, 6, 2, 'ACTIVE'),
+(7, 'boat_capitan', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'maripipi.boats@gmail.com', 'Capitan Danilo Flores', '+63 928 333 7777', 5, 1, 8, 'ACTIVE'),
+(8, 'cook_nanay_luz', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'nanayluz.catering@gmail.com', 'Luzviminda Ocampo', '+63 928 444 6666', 5, 4, 5, 'ACTIVE'),
+(9, 'artisan_rosa', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'maripipi.pottery@gmail.com', 'Rosa Mangahas', '+63 928 555 5555', 5, 2, 8, 'ACTIVE'),
+(10, 'tourist_ana', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'ana.tourist@gmail.com', 'Ana Sophia Cortez', '+63 915 777 3333', 6, NULL, NULL, 'ACTIVE')
+ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), salt = VALUES(salt), full_name = VALUES(full_name), municipality_id = VALUES(municipality_id);
 
 -- ----------------------------------------------------------------------------
 -- 5. SEED TOURIST PROFILES
@@ -119,7 +119,7 @@ ON DUPLICATE KEY UPDATE name = VALUES(name);
 -- ----------------------------------------------------------------------------
 -- 9. SEED TOURISM PACKAGES
 -- ----------------------------------------------------------------------------
-INSERT INTO tourism_packages (package_id, name, description, package_type, price_per_pax, duration_days, min_pax, max_pax, inclusions, exclusions, status, image_url, created_by) VALUES
+INSERT INTO tourism_packages (package_id, name, description, price_per_pax, duration_days, min_pax, max_pax, inclusions, exclusions, status, image_url, created_by) VALUES
 (1, 'Sambawan Island Marine Paradise Escape', 'Experience Biliran’s premier marine sanctuary with roundtrip boat charter from Kawayan, hilltop viewpoint trek, snorkeling guide, and beach boodle feast.', 1850.00, 2, 4, 10, 'Boat charter, entrance fees, certified guide, camping tent/cottage, seafood lunch feast', 'Personal snacks, snorkeling gear rental', 'ACTIVE', 'package_sambawan.jpg', 1),
 (2, 'Biliran Chasing Waterfalls Eco-Trek', 'A full-day thrilling adventure traversing Tinago Falls, Ulan-Ulan Falls, and Reco Falls with habal-habal transport and native lunch.', 1250.00, 1, 2, 8, 'Habal-habal transport, safety helmets, entrance fees to 3 falls, local trek guide, native lunch', 'Tips and personal souvenirs', 'ACTIVE', 'package_waterfalls.jpg', 1),
 (3, 'Higatangan Shifting Sandbar & Heritage Cruise', 'Sail to Higatangan Island, walk the legendary shifting sandbar, and discover local weaving communities.', 1400.00, 1, 4, 8, 'Roundtrip chartered boat, environmental fee, seafood picnic, community guide', 'Alcoholic beverages', 'ACTIVE', 'package_higatangan.jpg', 1),

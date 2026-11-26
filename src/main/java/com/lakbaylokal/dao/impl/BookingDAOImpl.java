@@ -59,6 +59,43 @@ public class BookingDAOImpl implements BookingDAO {
     }
 
     @Override
+    public BookingItem findItemById(int itemId) {
+        String sql = "SELECT bsi.*, ts.service_name, sp.business_name, u.full_name AS stakeholder_name " +
+                     "FROM booking_service_items bsi " +
+                     "JOIN tourism_services ts ON bsi.service_id = ts.service_id " +
+                     "JOIN stakeholder_profiles sp ON bsi.stakeholder_id = sp.profile_id " +
+                     "JOIN users u ON sp.user_id = u.user_id " +
+                     "WHERE bsi.item_id = ?";
+        try (Connection conn = ConnectionFactory.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, itemId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    BookingItem item = new BookingItem();
+                    item.setItemId(rs.getInt("item_id"));
+                    item.setBookingId(rs.getInt("booking_id"));
+                    item.setServiceId(rs.getInt("service_id"));
+                    item.setStakeholderId(rs.getInt("stakeholder_id"));
+                    item.setScheduledTime(rs.getTimestamp("scheduled_time"));
+                    item.setUnitPrice(rs.getBigDecimal("unit_price"));
+                    item.setQuantity(rs.getInt("quantity"));
+                    item.setSubtotal(rs.getBigDecimal("subtotal"));
+                    item.setStatus(rs.getString("status"));
+                    String psVal = rs.getString("payment_status");
+                    item.setPaymentStatus(psVal != null ? psVal : "PENDING");
+                    item.setServiceName(rs.getString("service_name"));
+                    item.setBusinessName(rs.getString("business_name"));
+                    item.setStakeholderName(rs.getString("stakeholder_name"));
+                    return item;
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("[BookingDAO] findItemById error: " + e.getMessage());
+        }
+        return null;
+    }
+
+    @Override
     public List<Booking> findByTouristId(int touristId) {
         List<Booking> list = new ArrayList<>();
         String sql = SELECT_BASE + "WHERE b.tourist_id = ? ORDER BY b.created_at DESC";
@@ -226,6 +263,20 @@ public class BookingDAOImpl implements BookingDAO {
     }
 
     @Override
+    public boolean updateItemPaymentStatus(int itemId, String paymentStatus) {
+        String sql = "UPDATE booking_service_items SET payment_status = ? WHERE item_id = ?";
+        try (Connection conn = ConnectionFactory.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, paymentStatus);
+            ps.setInt(2, itemId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("[BookingDAO] updateItemPaymentStatus error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    @Override
     public TouristProfile findTouristProfileByUserId(int userId) {
         String sql = "SELECT tp.*, u.full_name, u.email, u.phone " +
                      "FROM tourist_profiles tp JOIN users u ON tp.user_id = u.user_id " +
@@ -301,6 +352,8 @@ public class BookingDAOImpl implements BookingDAO {
                     item.setQuantity(rs.getInt("quantity"));
                     item.setSubtotal(rs.getBigDecimal("subtotal"));
                     item.setStatus(rs.getString("status"));
+                    String psVal = rs.getString("payment_status");
+                    item.setPaymentStatus(psVal != null ? psVal : "PENDING");
                     item.setServiceName(rs.getString("service_name"));
                     item.setBusinessName(rs.getString("business_name"));
                     item.setStakeholderName(rs.getString("stakeholder_name"));

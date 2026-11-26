@@ -258,10 +258,13 @@ public class PackageDAOImpl implements PackageDAO {
                 while (rs.next()) {
                     TourismService s = new TourismService();
                     s.setServiceId(rs.getInt("service_id"));
+                    s.setStakeholderId(rs.getInt("stakeholder_id"));
                     s.setServiceName(rs.getString("service_name"));
                     s.setServiceCategory(rs.getString("service_category"));
                     s.setBasePrice(rs.getBigDecimal("base_price"));
                     s.setPricingUnit(rs.getString("pricing_unit"));
+                    s.setMaxCapacity(rs.getInt("max_capacity"));
+                    s.setAvailable(rs.getBoolean("is_available"));
                     s.setBusinessName(rs.getString("business_name"));
                     s.setStakeholderName(rs.getString("stakeholder_name"));
                     list.add(s);

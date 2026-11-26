@@ -15,6 +15,7 @@ public class User {
     private String roleName;
     private Integer barangayId;
     private String barangayName;
+    private Integer municipalityId;
     private String municipalityName;
     private String status;
     private Timestamp createdAt;
@@ -57,6 +58,9 @@ public class User {
 
     public String getBarangayName() { return barangayName; }
     public void setBarangayName(String barangayName) { this.barangayName = barangayName; }
+
+    public Integer getMunicipalityId() { return municipalityId; }
+    public void setMunicipalityId(Integer municipalityId) { this.municipalityId = municipalityId; }
 
     public String getMunicipalityName() { return municipalityName; }
     public void setMunicipalityName(String municipalityName) { this.municipalityName = municipalityName; }

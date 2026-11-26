@@ -11,7 +11,14 @@ public class AuditService {
     private final AuditLogDAO auditLogDAO = new AuditLogDAOImpl();
 
     public void log(Integer userId, String username, String action, String entityName, Integer entityId, String details) {
+        log(userId, username, action, entityName, entityId, "127.0.0.1", details);
+    }
+
+    public void log(Integer userId, String username, String action, String entityName, Integer entityId, String ipAddress, String details) {
         AuditLog l = new AuditLog(userId, username, action, entityName, entityId, details);
+        if (ipAddress != null && !ipAddress.isBlank()) {
+            l.setIpAddress(ipAddress);
+        }
         auditLogDAO.log(l);
     }
 

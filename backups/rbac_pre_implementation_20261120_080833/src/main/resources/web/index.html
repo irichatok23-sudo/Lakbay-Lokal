@@ -1,0 +1,2352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lakbay Lokal | Community-Based Tourism Information System - Biliran</title>
+    <meta name="description" content="A centralized digital platform promoting local destinations, empowering community tourism stakeholders, and managing bookings in Biliran Province, Philippines.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Main Style -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- ======================================================================= -->
+    <!-- DESKTOP WINDOW TITLEBAR (For Electron / Desktop Application)             -->
+    <!-- ======================================================================= -->
+    <div class="desktop-titlebar" id="desktop-window-bar">
+        <div class="desktop-titlebar-brand">
+            <img src="assets/icon.png" alt="Lakbay Lokal" class="desktop-titlebar-icon" onerror="this.style.display='none'">
+            <span>Lakbay Lokal: Community Tourism Information System - Biliran</span>
+        </div>
+        <div class="desktop-titlebar-controls" id="desktop-titlebar-controls">
+            <button class="titlebar-btn" id="btn-win-minimize" onclick="minimizeDesktopWindow()" title="Minimize"><i class="fa-solid fa-minus"></i></button>
+            <button class="titlebar-btn" id="btn-win-maximize" onclick="maximizeDesktopWindow()" title="Maximize / Restore"><i class="fa-regular fa-square"></i></button>
+            <button class="titlebar-btn close" id="btn-win-close" onclick="closeDesktopWindow()" title="Close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- VIEW 0: DEDICATED LOGIN / SIGN IN PAGE (FIRST SCREEN FOR UNAUTHENTICATED) -->
+    <!-- ======================================================================= -->
+    <div id="login-portal-view" class="portal-view active">
+        <div class="glass-portal-card">
+            <!-- Left Panel: Branding & Scenic Island Visual -->
+            <div class="glass-left-panel">
+                <div class="glass-left-brand">
+                    <div class="glass-brand-icon">
+                        <i class="fa-solid fa-compass-drafting"></i>
+                    </div>
+                    <div>
+                        <div class="glass-brand-name">LAKBAY LOKAL</div>
+                        <div class="glass-brand-tagline">Biliran Community Tourism System</div>
+                    </div>
+                </div>
+
+                <div class="glass-left-body">
+                    <h3 class="glass-welcome-title">Mabuhay &amp; Welcome!</h3>
+                    <p class="glass-welcome-desc">
+                        A centralized platform empowering local tour guides, boat operators, habal-habal drivers, homestay cooks, and artisans across Biliran Province, Philippines.
+                    </p>
+
+                    <div class="glass-community-pledge-card">
+                        <i class="fa-solid fa-hand-holding-heart pledge-icon"></i>
+                        <div class="pledge-text">
+                            <strong>Community-Based Tourism:</strong> Every verified booking directly empowers local livelihoods, preserves cultural heritage, and safeguards natural ecological sanctuaries.
+                        </div>
+                    </div>
+
+                    <div class="glass-features-list">
+                        <div class="glass-feat-item"><i class="fa-solid fa-shield-halved"></i> Verified Community Credentials &amp; Clearances</div>
+                        <div class="glass-feat-item"><i class="fa-solid fa-tree"></i> Carrying Capacity &amp; Ecological Safeguards</div>
+                        <div class="glass-feat-item"><i class="fa-solid fa-scale-balanced"></i> Transparent Role-Based Access Control</div>
+                    </div>
+                </div>
+
+                <div class="glass-left-footer">
+                    <span><i class="fa-solid fa-shield-halved"></i> Role-Based Access Control</span>
+                    <span>Province of Biliran • Region VIII</span>
+                </div>
+            </div>
+
+            <!-- Right Panel: Frosted Glass Login Form -->
+            <div class="glass-right-panel">
+                <div class="glass-form-header">
+                    <h2 class="glass-form-heading">Sign In to Lakbay Lokal</h2>
+                    <p class="glass-form-subtext">Enter your credentials to access your assigned role workspace</p>
+                </div>
+
+                <!-- Error Feedback Banner -->
+                <div class="glass-error-banner" id="glass-login-error">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <span id="glass-login-error-text">Invalid username or password.</span>
+                </div>
+
+                <form id="form-glass-login" onsubmit="handleGlassLoginSubmit(event)">
+                    <div class="glass-field-group">
+                        <label class="glass-field-label" for="glass-login-username">Username or Registered Email</label>
+                        <div class="glass-input-wrapper">
+                            <i class="fa-solid fa-user glass-input-icon"></i>
+                            <input type="text" id="glass-login-username" class="glass-input" required autocomplete="username" placeholder="Enter username or email address">
+                        </div>
+                    </div>
+
+                    <div class="glass-field-group">
+                        <label class="glass-field-label" for="glass-login-password">Password</label>
+                        <div class="glass-input-wrapper">
+                            <i class="fa-solid fa-lock glass-input-icon"></i>
+                            <input type="password" id="glass-login-password" class="glass-input" required autocomplete="current-password" placeholder="Enter your password">
+                            <button type="button" class="glass-btn-toggle-pwd" id="btn-toggle-pwd" onclick="togglePasswordVisibility()" title="Show/Hide Password" aria-label="Toggle password visibility">
+                                <i class="fa-solid fa-eye" id="toggle-pwd-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="glass-form-options">
+                        <label class="glass-checkbox-label">
+                            <input type="checkbox" id="glass-remember-me" checked>
+                            <span>Remember session</span>
+                        </label>
+                        <button type="button" class="glass-forgot-link" onclick="openForgotPasswordModal()">
+                            Forgot password?
+                        </button>
+                    </div>
+
+                    <button type="submit" class="glass-btn-submit" id="btn-glass-submit">
+                        <i class="fa-solid fa-right-to-bracket" id="btn-glass-submit-icon"></i>
+                        <span id="btn-glass-submit-text">Sign In</span>
+                    </button>
+                </form>
+
+                <!-- Public Registration Prompts -->
+                <div class="glass-register-section">
+                    <div class="glass-register-divider">
+                        <span>New to Lakbay Lokal? Choose Account Type</span>
+                    </div>
+                    <div class="glass-register-choices">
+                        <button type="button" class="glass-reg-btn tourist" onclick="openRegisterModal('tourist')">
+                            <i class="fa-solid fa-umbrella-beach"></i>
+                            <div class="reg-btn-text">
+                                <span class="reg-btn-title">Register as Tourist</span>
+                                <span class="reg-btn-sub">Explore Biliran and book local services</span>
+                            </div>
+                        </button>
+                        <button type="button" class="glass-reg-btn stakeholder" onclick="openRegisterModal('stakeholder')">
+                            <i class="fa-solid fa-handshake-angle"></i>
+                            <div class="reg-btn-text">
+                                <span class="reg-btn-title">Register as Local Stakeholder</span>
+                                <span class="reg-btn-sub">Guides, drivers, boat operators & artisans</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Pre-seeded Test Accounts Reference Accordion -->
+                <details class="glass-accounts-reference">
+                    <summary><i class="fa-solid fa-circle-info"></i> Pre-seeded Test Accounts Reference (MySQL)</summary>
+                    <div class="glass-accounts-ref-body">
+                        <p class="ref-subtext">Pre-seeded accounts authenticate directly against <code>lakbay_lokal_db</code> with password: <strong>password123</strong></p>
+                        <div class="ref-accounts-grid">
+                            <div class="ref-account-card" onclick="fillLoginForm('tourist_ana')" title="Click to fill test credentials">
+                                <span class="ref-role-tag tourist">Tourist</span>
+                                <span class="ref-account-user">tourist_ana</span>
+                            </div>
+                            <div class="ref-account-card" onclick="fillLoginForm('guide_pedro')" title="Click to fill test credentials">
+                                <span class="ref-role-tag stakeholder">Stakeholder</span>
+                                <span class="ref-account-user">guide_pedro</span>
+                            </div>
+                            <div class="ref-account-card" onclick="fillLoginForm('brgy_olog')" title="Click to fill test credentials">
+                                <span class="ref-role-tag barangay">Barangay Official</span>
+                                <span class="ref-account-user">brgy_olog</span>
+                            </div>
+                            <div class="ref-account-card" onclick="fillLoginForm('lgu_naval')" title="Click to fill test credentials">
+                                <span class="ref-role-tag lgu">LGU Officer</span>
+                                <span class="ref-account-user">lgu_naval</span>
+                            </div>
+                            <div class="ref-account-card" onclick="fillLoginForm('tourismoffice')" title="Click to fill test credentials">
+                                <span class="ref-role-tag tourism">Tourism Office</span>
+                                <span class="ref-account-user">tourismoffice</span>
+                            </div>
+                            <div class="ref-account-card" onclick="fillLoginForm('admin')" title="Click to fill test credentials">
+                                <span class="ref-role-tag admin">System Admin</span>
+                                <span class="ref-account-user">admin</span>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- VIEW 1: PUBLIC TOURISM HOMEPAGE & PORTAL (AUTHENTICATED TOURISTS)        -->
+    <!-- ======================================================================= -->
+    <div id="public-portal-view" class="portal-view">
+        <div class="public-portal-wrapper">
+            
+            <!-- Public Navbar -->
+            <nav class="public-navbar">
+                <div class="nav-brand">
+                    <div class="brand-logo">
+                        <i class="fa-solid fa-compass-drafting brand-icon"></i>
+                    </div>
+                    <div class="brand-text">
+                        <h1 class="brand-title">LAKBAY LOKAL</h1>
+                        <span class="brand-subtitle"><i class="fa-solid fa-location-dot"></i> Biliran Province Tourism Network</span>
+                    </div>
+                </div>
+
+                <ul class="public-nav-links">
+                    <li><a href="#public-hero" class="public-nav-link"><i class="fa-solid fa-house"></i> Home</a></li>
+                    <li><a href="#public-destinations" class="public-nav-link"><i class="fa-solid fa-mountain-sun"></i> Destinations</a></li>
+                    <li><a href="#public-experiences" class="public-nav-link"><i class="fa-solid fa-suitcase-rolling"></i> Experiences</a></li>
+                    <li><a href="#public-stakeholders" class="public-nav-link"><i class="fa-solid fa-people-roof"></i> Local Livelihoods</a></li>
+                    <li><a href="#public-about" class="public-nav-link"><i class="fa-solid fa-circle-info"></i> About Biliran</a></li>
+                </ul>
+
+                <div class="public-nav-actions">
+                    <div id="public-auth-actions" style="display: flex; align-items: center; gap: 0.75rem;">
+                        <button class="btn btn-primary" onclick="showManagementDashboard('packages')">
+                            <i class="fa-solid fa-suitcase-rolling"></i> Plan Tour
+                        </button>
+                        <button class="btn btn-outline" onclick="showManagementDashboard('bookings')">
+                            <i class="fa-solid fa-calendar-check"></i> My Bookings
+                        </button>
+                        <div class="user-pill-tag" style="display: flex; align-items: center; gap: 0.4rem; font-weight: 600; font-size: 0.85rem; color: var(--primary-800); background: var(--primary-50); padding: 0.35rem 0.75rem; border-radius: 999px; border: 1px solid var(--primary-200);">
+                            <i class="fa-solid fa-user-circle"></i>
+                            <span id="public-user-name-label">Tourist</span>
+                        </div>
+                        <button class="btn btn-secondary btn-icon" onclick="logout()" title="Sign Out">
+                            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        </button>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Authenticated Tourist Welcome Hub -->
+            <div id="tourist-hub-banner" class="tourist-hub-banner" style="background: linear-gradient(135deg, var(--primary-900) 0%, var(--primary-700) 60%, var(--cyan-700) 100%); padding: 1.5rem 2rem; color: #ffffff; border-bottom: 1px solid rgba(255,255,255,0.16);">
+                <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+                    <div>
+                        <div style="display: inline-flex; align-items: center; gap: 0.4rem; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.28); color: var(--primary-100); padding: 0.2rem 0.65rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; margin-bottom: 0.4rem;">
+                            <i class="fa-solid fa-compass"></i> Authenticated Tourist Workspace
+                        </div>
+                        <h2 style="font-size: 1.4rem; font-weight: 800; color: #ffffff; margin: 0 0 0.25rem 0;" id="tourist-hub-greeting-text">Mabuhay, Ana Sophia Cortez!</h2>
+                        <p style="margin: 0; color: var(--primary-100); font-size: 0.85rem;">Explore Biliran's natural marvels, reserve accredited guides and boats, and track your trip reservations.</p>
+                    </div>
+                    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="showManagementDashboard('packages')"><i class="fa-solid fa-calendar-plus"></i> Custom Itinerary</button>
+                        <button class="btn btn-outline" style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.4); color: #ffffff;" onclick="showManagementDashboard('bookings')"><i class="fa-solid fa-list-check"></i> My Reservations</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hero Section -->
+            <section class="public-hero-section" id="public-hero">
+                <div class="public-hero-content">
+                    <div class="hero-pill-badge">
+                        <i class="fa-solid fa-shield-heart"></i> Sustainable Community Tourism • Biliran, Philippines
+                    </div>
+                    <h2 class="public-hero-title">Discover the Untouched Wonder of Biliran</h2>
+                    <p class="public-hero-subtitle">
+                        Experience world-class marine sanctuaries, cascading jungle waterfalls, therapeutic volcanic springs, and genuine community hospitality powered directly by accredited local guides, boat operators, cooks, and artisans.
+                    </p>
+
+                    <!-- Interactive Destination Search & Filter in Hero -->
+                    <div class="hero-search-wrapper">
+                        <div class="hero-search-input-box">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="public-hero-search-input" placeholder="Search waterfalls, island sandbars, springs..." oninput="handlePublicSearch()">
+                        </div>
+                        <div class="hero-search-divider"></div>
+                        <select id="public-hero-cat-filter" class="hero-search-select" onchange="handlePublicSearch()">
+                            <option value="ALL">All Categories</option>
+                            <option value="WATERFALL">Waterfalls</option>
+                            <option value="ISLAND_BEACH">Islands & Beaches</option>
+                            <option value="HOT_SPRING">Hot Springs</option>
+                            <option value="CULTURAL_HERITAGE">Cultural Heritage</option>
+                        </select>
+                        <div class="hero-search-divider"></div>
+                        <select id="public-hero-muni-filter" class="hero-search-select" onchange="handlePublicSearch()">
+                            <option value="ALL">All Municipalities</option>
+                            <option value="Naval">Naval</option>
+                            <option value="Almeria">Almeria</option>
+                            <option value="Maripipi">Maripipi</option>
+                            <option value="Caibiran">Caibiran</option>
+                            <option value="Kawayan">Kawayan</option>
+                            <option value="Culaba">Culaba</option>
+                            <option value="Cabucgayan">Cabucgayan</option>
+                            <option value="Biliran">Biliran</option>
+                        </select>
+                        <button class="hero-btn-search" onclick="scrollToSection('public-destinations')">
+                            <i class="fa-solid fa-compass"></i> Explore
+                        </button>
+                    </div>
+
+                    <!-- Fast Statistics Bar -->
+                    <div class="hero-stats-row">
+                        <div class="hero-stat-card">
+                            <span class="hero-stat-num">8</span>
+                            <span class="hero-stat-label">Municipalities</span>
+                        </div>
+                        <div class="hero-stat-card">
+                            <span class="hero-stat-num" id="stat-hero-dest-count">8</span>
+                            <span class="hero-stat-label">Eco-Destinations</span>
+                        </div>
+                        <div class="hero-stat-card">
+                            <span class="hero-stat-num" id="stat-hero-stakeholder-count">5</span>
+                            <span class="hero-stat-label">Verified Stakeholders</span>
+                        </div>
+                        <div class="hero-stat-card">
+                            <span class="hero-stat-num">100%</span>
+                            <span class="hero-stat-label">Direct Community Benefit</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Featured Destinations Section -->
+            <section class="public-section" id="public-destinations">
+                <div class="section-header-center">
+                    <span class="section-tag"><i class="fa-solid fa-mountain-sun"></i> Explore Biliran</span>
+                    <h2 class="section-title">Biliran Destinations & Natural Attractions</h2>
+                    <p class="section-subtitle">
+                        Immerse yourself in clean turquoise marine sanctuaries, towering rain waterfalls, and therapeutic mineral springs.
+                    </p>
+                </div>
+
+                <!-- Category Filter Pills -->
+                <div class="category-filter-pills" id="public-category-pills">
+                    <button class="cat-pill active" data-cat="ALL" onclick="filterPublicCategory('ALL')"><i class="fa-solid fa-border-all"></i> All Attractions</button>
+                    <button class="cat-pill" data-cat="WATERFALL" onclick="filterPublicCategory('WATERFALL')"><i class="fa-solid fa-water"></i> Waterfalls</button>
+                    <button class="cat-pill" data-cat="ISLAND_BEACH" onclick="filterPublicCategory('ISLAND_BEACH')"><i class="fa-solid fa-umbrella-beach"></i> Islands & Beaches</button>
+                    <button class="cat-pill" data-cat="HOT_SPRING" onclick="filterPublicCategory('HOT_SPRING')"><i class="fa-solid fa-temperature-arrow-up"></i> Hot Springs</button>
+                    <button class="cat-pill" data-cat="CULTURAL_HERITAGE" onclick="filterPublicCategory('CULTURAL_HERITAGE')"><i class="fa-solid fa-landmark"></i> Cultural Heritage</button>
+                </div>
+
+                <!-- Public Destination Cards Grid -->
+                <div class="public-cards-grid" id="public-destinations-grid">
+                    <!-- Populated dynamically by JavaScript -->
+                </div>
+            </section>
+
+            <!-- Experiences & Curated Packages Section -->
+            <section class="public-section bg-light" id="public-experiences">
+                <div class="section-header-center">
+                    <span class="section-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> Curated Circuits</span>
+                    <h2 class="section-title">Community Experiences & Travel Circuits</h2>
+                    <p class="section-subtitle">
+                        Choose pre-designed community circuits or connect directly with certified guides and transport operators.
+                    </p>
+                </div>
+
+                <div class="public-cards-grid" id="public-packages-grid">
+                    <!-- Populated dynamically by JavaScript -->
+                </div>
+
+                <!-- Custom Builder Spotlight Banner -->
+                <div class="card mt-4" style="background: linear-gradient(135deg, var(--primary-900) 0%, var(--primary-700) 60%, var(--cyan-700) 100%); color: #ffffff; border: none; border-radius: 20px; padding: 2.5rem; text-align: center;">
+                    <h3 style="font-size: 1.85rem; font-weight: 800; color: #ffffff; margin-bottom: 0.75rem;">
+                        <i class="fa-solid fa-sliders"></i> Want to Build Your Custom Travel Itinerary?
+                    </h3>
+                    <p style="font-size: 1.05rem; color: var(--primary-100); max-width: 680px; margin: 0 auto 1.5rem; line-height: 1.6;">
+                        Select individual tour guides, habal-habal motorcycle drivers, boat charters, and traditional native feasts with instant automated budget calculation.
+                    </p>
+                    <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+                        <button class="btn btn-primary" style="background: #ffffff; color: var(--primary-900); border-color: #ffffff;" onclick="showManagementDashboard('packages'); togglePackageSubTab('custom');">
+                            <i class="fa-solid fa-compass"></i> Open Custom Itinerary Builder
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Community Stakeholders & Livelihood Discovery Section -->
+            <section class="public-section" id="public-stakeholders">
+                <div class="section-header-center">
+                    <span class="section-tag"><i class="fa-solid fa-people-roof"></i> Community Livelihoods</span>
+                    <h2 class="section-title">Empowering Local Tourism Workers</h2>
+                    <p class="section-subtitle">
+                        Lakbay Lokal connects travelers directly with certified local guides, drivers, boat operators, cooks, and artisans across Biliran.
+                    </p>
+                </div>
+
+                <div class="community-grid">
+                    <div class="community-worker-card">
+                        <div class="worker-avatar"><i class="fa-solid fa-person-hiking"></i></div>
+                        <h4 class="worker-name">Pedro Penduko</h4>
+                        <span class="worker-role">Sambawan Marine & Trek Guide</span>
+                        <p class="worker-desc">6 years DOT-certified experience leading snorkelers through Sambawan marine sanctuary and summit viewpoints.</p>
+                        <span class="badge badge-success"><i class="fa-solid fa-certificate"></i> DOT Accredited</span>
+                    </div>
+
+                    <div class="community-worker-card">
+                        <div class="worker-avatar"><i class="fa-solid fa-motorcycle"></i></div>
+                        <h4 class="worker-name">Juan Dela Cruz</h4>
+                        <span class="worker-role">Habal-Habal & Van Driver</span>
+                        <p class="worker-desc">Navigating mountain routes, Almeria waterfalls, and scenic highways with safety gear and local knowledge.</p>
+                        <span class="badge badge-success"><i class="fa-solid fa-certificate"></i> LGU Registered</span>
+                    </div>
+
+                    <div class="community-worker-card">
+                        <div class="worker-avatar"><i class="fa-solid fa-ship"></i></div>
+                        <h4 class="worker-name">Capitan Danilo Flores</h4>
+                        <span class="worker-role">Motorized Boat Operator</span>
+                        <p class="worker-desc">Maripipi Seafarers Cooperative pumpboat operator with 10 years maritime crossing safety record.</p>
+                        <span class="badge badge-success"><i class="fa-solid fa-certificate"></i> MARINA Certified</span>
+                    </div>
+
+                    <div class="community-worker-card">
+                        <div class="worker-avatar"><i class="fa-solid fa-utensils"></i></div>
+                        <h4 class="worker-name">Nanay Luz Ocampo</h4>
+                        <span class="worker-role">Local Cook & Beach Feasts</span>
+                        <p class="worker-desc">Serving traditional native inasal, fresh catch boodle fights, and authentic Biliran sticky rice delicacies.</p>
+                        <span class="badge badge-success"><i class="fa-solid fa-certificate"></i> Barangay Verified</span>
+                    </div>
+
+                    <div class="community-worker-card">
+                        <div class="worker-avatar"><i class="fa-solid fa-palette"></i></div>
+                        <h4 class="worker-name">Rosa Mangahas</h4>
+                        <span class="worker-role">Clay Pottery Artisan</span>
+                        <p class="worker-desc">Generational master potter teaching visitors the art of traditional Maripipi red clay molding.</p>
+                        <span class="badge badge-success"><i class="fa-solid fa-certificate"></i> DTI Registered</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- About Biliran & Sustainable Tourism Section -->
+            <section class="public-section bg-light" id="public-about">
+                <div class="about-dual-grid">
+                    <div>
+                        <span class="section-tag"><i class="fa-solid fa-shield-heart"></i> About Lakbay Lokal</span>
+                        <h2 class="section-title">Community-Driven Tourism in Biliran Province</h2>
+                        <p class="section-subtitle" style="margin-bottom: 1.5rem;">
+                            Biliran is one of the smallest and most ecologically diverse island provinces in the Philippines. From the volcanic peaks of Mt. Biliran to the shifting sandbars of Higatangan and the crystal waters of Sambawan, our mission is sustainable, community-first preservation.
+                        </p>
+
+                        <div class="about-features-list">
+                            <div class="about-feature-item">
+                                <div class="about-feature-icon"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                                <div>
+                                    <h4 class="about-feature-title">Direct Livelihood Retention</h4>
+                                    <p class="about-feature-desc">100% of guide fees, boat charters, and culinary packages go directly to local barangay families without middleman deductions.</p>
+                                </div>
+                            </div>
+
+                            <div class="about-feature-item">
+                                <div class="about-feature-icon"><i class="fa-solid fa-seedling"></i></div>
+                                <div>
+                                    <h4 class="about-feature-title">Ecological Carrying Capacity</h4>
+                                    <p class="about-feature-desc">Real-time footfall logging by Barangay Officials ensures marine sanctuaries and waterfalls are never overcrowded.</p>
+                                </div>
+                            </div>
+
+                            <div class="about-feature-item">
+                                <div class="about-feature-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                                <div>
+                                    <h4 class="about-feature-title">Verified & Accredited Safety</h4>
+                                    <p class="about-feature-desc">All service providers undergo Barangay and DOT validation, providing tourists with safe and reliable travel experiences.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="about-visual-card" style="background: linear-gradient(135deg, #032219 0%, #064e3b 50%, #0d9488 100%); min-height: 420px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2.5rem; position: relative; border-radius: 24px;">
+                        <i class="fa-solid fa-mountain-sun" style="font-size: 5rem; color: var(--primary-300); margin-bottom: 1.5rem; opacity: 0.9;"></i>
+                        <div class="about-visual-badge">
+                            <h4 style="font-size: 1.1rem; font-weight: 700; color: #ffffff; margin-bottom: 0.25rem;"><i class="fa-solid fa-leaf" style="color: var(--primary-300);"></i> Tinago Falls Eco-Park</h4>
+                            <p style="font-size: 0.82rem; color: var(--primary-100); margin: 0;">Preserved and managed by Barangay Cabibihan, Caibiran, Biliran Province</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Public Footer -->
+            <footer class="public-footer" id="public-footer">
+                <div class="footer-top-grid">
+                    <div>
+                        <div class="footer-brand-title">
+                            <i class="fa-solid fa-compass-drafting" style="color: var(--primary-300);"></i> LAKBAY LOKAL
+                        </div>
+                        <p class="footer-brand-desc">
+                            A Community-Based Tourism Information and Management System empowering local stakeholders across all 8 municipalities of Biliran Province, Region VIII (Eastern Visayas), Philippines.
+                        </p>
+                        <div style="display: flex; gap: 0.75rem;">
+                            <span class="badge badge-success"><i class="fa-solid fa-island-tropical"></i> Eastern Visayas</span>
+                            <span class="badge badge-info"><i class="fa-solid fa-server"></i> Spring Boot + MySQL</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="footer-col-title">Explore</h4>
+                        <ul class="footer-links-list">
+                            <li><a href="#public-destinations" class="footer-link">Destinations</a></li>
+                            <li><a href="#public-experiences" class="footer-link">Curated Packages</a></li>
+                            <li><a href="#public-stakeholders" class="footer-link">Local Guides</a></li>
+                            <li><a href="#public-about" class="footer-link">About Biliran</a></li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h4 class="footer-col-title">Participating LGUs</h4>
+                        <ul class="footer-links-list">
+                            <li><span class="footer-link">Naval (Capital)</span></li>
+                            <li><span class="footer-link">Almeria Waterfalls</span></li>
+                            <li><span class="footer-link">Maripipi & Sambawan</span></li>
+                            <li><span class="footer-link">Caibiran & Tinago</span></li>
+                            <li><span class="footer-link">Kawayan & Higatangan</span></li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h4 class="footer-col-title">Tourism Support</h4>
+                        <p class="footer-brand-desc" style="margin-bottom: 0.75rem;">
+                            Provincial Tourism Office: <br>
+                            <strong style="color: #ffffff;">tourism@biliran.gov.ph</strong>
+                        </p>
+                        <p class="footer-brand-desc">
+                            Emergency Hotline: <br>
+                            <strong style="color: var(--primary-300);">+63 917 000 0002</strong>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="footer-bottom-bar">
+                    <span>&copy; 2026 Lakbay Lokal Tourism Network • All Rights Reserved.</span>
+                    <span>Designed for Sustainable Tourism • Biliran Province, Philippines</span>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- VIEW 2: MANAGEMENT PORTAL & 6-ROLE DASHBOARD (16 SYSTEM MODULES)        -->
+    <!-- ======================================================================= -->
+    <div id="management-portal-view" class="portal-view">
+        <div id="app-container" class="app-layout">
+            
+            <!-- Top Navbar for Management View -->
+            <header class="top-navbar" id="main-header">
+                <div class="nav-brand">
+                    <div class="brand-logo">
+                        <i class="fa-solid fa-compass-drafting brand-icon"></i>
+                    </div>
+                    <div class="brand-text">
+                        <h1 class="brand-title">LAKBAY LOKAL</h1>
+                        <span class="brand-subtitle"><i class="fa-solid fa-location-dot"></i> Biliran Province Tourism Network</span>
+                    </div>
+                </div>
+
+                <!-- Trusted Database Role & Jurisdiction Badge (Read-Only) -->
+                <div class="role-display-pill" id="header-role-container" style="display: flex; align-items: center; gap: 0.6rem; background: var(--primary-50); border: 1px solid var(--primary-200); padding: 0.4rem 0.85rem; border-radius: 999px;">
+                    <div class="role-badge-tag" id="header-role-badge-tag" style="display: flex; align-items: center; gap: 0.4rem; font-weight: 700; font-size: 0.8rem; color: var(--primary-800);">
+                        <i class="fa-solid fa-shield-halved" style="color: var(--primary-600);"></i>
+                        <span id="header-user-role-label">SYSTEM_ADMIN</span>
+                    </div>
+                    <span class="role-scope-subtag" id="header-user-scope-label" style="font-size: 0.75rem; color: var(--slate-600); border-left: 1px solid var(--slate-300); padding-left: 0.5rem; display: none;"></span>
+                </div>
+
+                <!-- User Auth & Navigation Bar -->
+                <div class="nav-user-actions" id="user-actions-bar">
+                    <button class="btn btn-outline" id="btn-return-public" onclick="showPublicPortal()" title="Return to Public Tourism Homepage">
+                        <i class="fa-solid fa-earth-americas"></i> Public Portal
+                    </button>
+                    
+                    <div id="auth-logged-section" class="logged-user-profile">
+                        <div class="user-avatar" id="header-user-avatar">
+                            <i class="fa-solid fa-user-tie"></i>
+                        </div>
+                        <div class="user-meta">
+                            <span class="user-name" id="header-user-name">Administrator Maria</span>
+                            <span class="user-role-badge" id="header-role-badge">SYSTEM_ADMIN</span>
+                        </div>
+                        <button class="btn-icon" id="btn-logout" title="Sign Out" onclick="logout()">
+                            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main App Body: Sidebar + Module Viewports -->
+            <div class="app-body">
+                
+                <!-- Left Sidebar Navigation with 16 Modules -->
+                <aside class="sidebar" id="main-sidebar">
+                    <div class="sidebar-menu-wrapper">
+                        <ul class="nav-menu" id="sidebar-nav-menu">
+                            <!-- Dashboard -->
+                            <li class="nav-item" id="nav-item-overview">
+                                <a href="#overview" class="nav-link active" onclick="switchTab('overview')">
+                                    <i class="fa-solid fa-chart-pie nav-icon"></i>
+                                    <span>Overview Dashboard</span>
+                                </a>
+                            </li>
+                            <!-- Destination Management -->
+                            <li class="nav-item" id="nav-item-destinations">
+                                <a href="#destinations" class="nav-link" onclick="switchTab('destinations')">
+                                    <i class="fa-solid fa-mountain-sun nav-icon"></i>
+                                    <span>Destinations</span>
+                                </a>
+                            </li>
+                            <!-- Tourism Info Management -->
+                            <li class="nav-item" id="nav-item-announcements">
+                                <a href="#announcements" class="nav-link" onclick="switchTab('announcements')">
+                                    <i class="fa-solid fa-bullhorn nav-icon"></i>
+                                    <span>Tourism Information</span>
+                                </a>
+                            </li>
+                            <!-- Local Stakeholder Management -->
+                            <li class="nav-item" id="nav-item-stakeholders">
+                                <a href="#stakeholders" class="nav-link" onclick="switchTab('stakeholders')">
+                                    <i class="fa-solid fa-people-roof nav-icon"></i>
+                                    <span>Stakeholders Directory</span>
+                                </a>
+                            </li>
+                            <!-- Service & Experience Management -->
+                            <li class="nav-item" id="nav-item-services">
+                                <a href="#services" class="nav-link" onclick="switchTab('services')">
+                                    <i class="fa-solid fa-handshake-angle nav-icon"></i>
+                                    <span>Services &amp; Offerings</span>
+                                </a>
+                            </li>
+                            <!-- Package Management & Builder -->
+                            <li class="nav-item" id="nav-item-packages">
+                                <a href="#packages" class="nav-link" onclick="switchTab('packages')">
+                                    <i class="fa-solid fa-suitcase-rolling nav-icon"></i>
+                                    <span>Packages &amp; Builder</span>
+                                </a>
+                            </li>
+                            <!-- Booking & Reservation Management -->
+                            <li class="nav-item" id="nav-item-bookings">
+                                <a href="#bookings" class="nav-link" onclick="switchTab('bookings')">
+                                    <i class="fa-solid fa-calendar-check nav-icon"></i>
+                                    <span>Bookings &amp; Reservations</span>
+                                    <span class="nav-counter-badge" id="bookings-counter">3</span>
+                                </a>
+                            </li>
+                            <!-- Stakeholder Verification -->
+                            <li class="nav-item role-restricted" id="nav-item-verifications">
+                                <a href="#verifications" class="nav-link" onclick="switchTab('verifications')">
+                                    <i class="fa-solid fa-shield-halved nav-icon"></i>
+                                    <span>Stakeholder Verification</span>
+                                </a>
+                            </li>
+                            <!-- Barangay Tourism Records -->
+                            <li class="nav-item role-restricted" id="nav-item-barangay-records">
+                                <a href="#barangay-records" class="nav-link" onclick="switchTab('barangay-records')">
+                                    <i class="fa-solid fa-map-location-dot nav-icon"></i>
+                                    <span>Barangay Records</span>
+                                </a>
+                            </li>
+                            <!-- Tourism Office & LGU Monitoring -->
+                            <li class="nav-item role-restricted" id="nav-item-lgu-monitoring">
+                                <a href="#lgu-monitoring" class="nav-link" onclick="switchTab('lgu-monitoring')">
+                                    <i class="fa-solid fa-building-columns nav-icon"></i>
+                                    <span>LGU &amp; Tourism Office</span>
+                                </a>
+                            </li>
+                            <!-- Reviews and Feedback -->
+                            <li class="nav-item" id="nav-item-reviews">
+                                <a href="#reviews" class="nav-link" onclick="switchTab('reviews')">
+                                    <i class="fa-solid fa-star nav-icon"></i>
+                                    <span>Reviews &amp; Ratings</span>
+                                </a>
+                            </li>
+                            <!-- Reports and Analytics -->
+                            <li class="nav-item role-restricted" id="nav-item-reports">
+                                <a href="#reports" class="nav-link" onclick="switchTab('reports')">
+                                    <i class="fa-solid fa-chart-line nav-icon"></i>
+                                    <span>Reports &amp; Analytics</span>
+                                </a>
+                            </li>
+                            <!-- User and Role Management -->
+                            <li class="nav-item role-restricted" id="nav-item-admin">
+                                <a href="#admin" class="nav-link" onclick="switchTab('admin')">
+                                    <i class="fa-solid fa-users-gear nav-icon"></i>
+                                    <span>Users &amp; Roles</span>
+                                </a>
+                            </li>
+                            <!-- System Settings -->
+                            <li class="nav-item role-restricted" id="nav-item-settings">
+                                <a href="#settings" class="nav-link" onclick="switchTab('settings')">
+                                    <i class="fa-solid fa-sliders nav-icon"></i>
+                                    <span>System Settings</span>
+                                </a>
+                            </li>
+                            <!-- Audit Logs -->
+                            <li class="nav-item role-restricted" id="nav-item-audit">
+                                <a href="#audit-logs" class="nav-link" onclick="switchTab('audit-logs')">
+                                    <i class="fa-solid fa-fingerprint nav-icon"></i>
+                                    <span>Security Audit Logs</span>
+                                </a>
+                            </li>
+                            <!-- Backup and Recovery -->
+                            <li class="nav-item role-restricted" id="nav-item-backup">
+                                <a href="#backup-recovery" class="nav-link" onclick="switchTab('backup-recovery')">
+                                    <i class="fa-solid fa-database nav-icon"></i>
+                                    <span>Backup &amp; Recovery</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="sidebar-footer">
+                        <div class="connection-status-pill online" id="sidebar-db-status">
+                            <span class="status-dot"></span>
+                            <span class="status-text">Backend Connected (:8080)</span>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Main Content Area with All 16 Modules -->
+                <main class="main-content" id="main-content-viewport">
+                    
+                    <!-- Alert Banner / Announcements Ticker -->
+                    <div class="notice-bar" id="live-notice-bar">
+                        <i class="fa-solid fa-bell notice-icon"></i>
+                        <span id="notice-text">Welcome to Lakbay Lokal! Experience Sambawan Island, Tinago Falls, and community-guided circuits in Biliran Province.</span>
+                    </div>
+
+                    <!-- Role-Specific Workspace Banner -->
+                    <div class="role-workspace-banner" id="role-workspace-banner" style="display: none;">
+                        <div class="role-banner-content">
+                            <div class="role-banner-tag" id="role-banner-tag"><i class="fa-solid fa-shield-halved"></i> Authorized Workspace</div>
+                            <h2 class="role-banner-title" id="role-banner-title">Welcome back</h2>
+                            <p class="role-banner-desc" id="role-banner-desc">Manage records, review submissions, and coordinate community tourism initiatives.</p>
+                        </div>
+                        <div class="role-banner-scope-pill" id="role-banner-scope-pill">
+                            <i class="fa-solid fa-location-dot"></i> <span id="role-banner-scope-text">Provincial Scope</span>
+                        </div>
+                    </div>
+
+                    <!-- ======================================================= -->
+                    <!-- MODULE 1: OVERVIEW DASHBOARD                            -->
+                    <!-- ======================================================= -->
+                    <section class="tab-pane active" id="pane-overview">
+                        <div id="overview-verification-warning"></div>
+                        <div class="page-header">
+                            <div>
+                                <h2 class="page-title">Community Tourism Overview</h2>
+                                <p class="page-desc">Real-time indicators across destinations, bookings, community livelihoods, and tourist footfall.</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn btn-secondary" onclick="refreshDashboardData()">
+                                    <i class="fa-solid fa-rotate"></i> Refresh Data
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Hero Banner -->
+                        <div class="hero-showcase-card">
+                            <div class="hero-overlay"></div>
+                            <div class="hero-content">
+                                <span class="hero-tag"><i class="fa-solid fa-island-tropical"></i> Featured Eco-Destination</span>
+                                <h3 class="hero-heading">Sambawan Island Marine Sanctuary</h3>
+                                <p class="hero-caption">Marvel at Biliran’s premier marine sanctuary featuring rocky volcanic hills, crystal turquoise waters, and certified community boat & trekking guides from Maripipi.</p>
+                                <div class="hero-badges">
+                                    <span><i class="fa-solid fa-star"></i> 5.0 Rating</span>
+                                    <span><i class="fa-solid fa-ticket"></i> ₱120 Entrance Fee</span>
+                                    <span><i class="fa-solid fa-users"></i> Certified Guides Available</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- KPI Stat Cards -->
+                        <div class="kpi-grid" id="kpi-cards-grid">
+                            <div class="kpi-card">
+                                <div class="kpi-icon-wrapper emerald">
+                                    <i class="fa-solid fa-mountain-sun"></i>
+                                </div>
+                                <div class="kpi-info">
+                                    <span class="kpi-title">Active Destinations</span>
+                                    <h3 class="kpi-value" id="kpi-destinations">8</h3>
+                                    <span class="kpi-subtext">Across 8 Municipalities</span>
+                                </div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-icon-wrapper teal">
+                                    <i class="fa-solid fa-user-check"></i>
+                                </div>
+                                <div class="kpi-info">
+                                    <span class="kpi-title">Verified Stakeholders</span>
+                                    <h3 class="kpi-value" id="kpi-stakeholders">5</h3>
+                                    <span class="kpi-subtext">Guides, Drivers, Boatmen</span>
+                                </div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-icon-wrapper amber">
+                                    <i class="fa-solid fa-calendar-check"></i>
+                                </div>
+                                <div class="kpi-info">
+                                    <span class="kpi-title">Active Bookings</span>
+                                    <h3 class="kpi-value" id="kpi-bookings">3</h3>
+                                    <span class="kpi-subtext">Community reservations</span>
+                                </div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-icon-wrapper blue">
+                                    <i class="fa-solid fa-person-walking-luggage"></i>
+                                </div>
+                                <div class="kpi-info">
+                                    <span class="kpi-title">Recorded Visitors</span>
+                                    <h3 class="kpi-value" id="kpi-visitors">480</h3>
+                                    <span class="kpi-subtext">Footfall this month</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Overview Columns -->
+                        <div class="overview-dual-grid">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title"><i class="fa-solid fa-compass"></i> Top Rated Destinations</h3>
+                                    <button class="btn btn-link" onclick="switchTab('destinations')">View All</button>
+                                </div>
+                                <div class="card-body" id="overview-top-destinations">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title"><i class="fa-solid fa-clock-rotate-left"></i> Recent Activity Log</h3>
+                                    <button class="btn btn-link" onclick="switchTab('audit-logs')">Full Audit</button>
+                                </div>
+                                <div class="card-body" id="overview-recent-activity">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ======================================================= -->
+                    <!-- MODULE 2: DESTINATION MANAGEMENT                        -->
+                    <!-- ======================================================= -->
+                    <section class="tab-pane" id="pane-destinations">
+                        <div class="page-header">
+                            <div>
+                                <h2 class="page-title">Biliran Destinations & Attractions</h2>
+                                <p class="page-desc">Discover waterfalls, marine sanctuaries, volcanic springs, and heritage crafts across Biliran.</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn btn-primary" id="btn-add-destination" onclick="openAddDestinationModal()">
+                                    <i class="fa-solid fa-plus"></i> Add Destination
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Filter Bar -->
+                        <div class="filter-toolbar">
+                            <div class="search-box">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input type="text" id="dest-search-input" placeholder="Search destinations, falls, islands..." oninput="filterDestinations()">
+                            </div>
+                            <div class="filter-controls">
+                                <select id="dest-category-filter" class="form-select" onchange="filterDestinations()">
+                                    <option value="ALL">All Categories</option>
+                                    <option value="WATERFALL">Waterfalls</option>
+                                    <option value="ISLAND_BEACH">Islands & Beaches</option>
+                                    <option value="HOT_SPRING">Hot Springs</option>
+                                    <option value="CULTURAL_HERITAGE">Cultural Heritage</option>
+                                    <option value="CAVE_MOUNTAIN">Caves & Mountains</option>
+                                </select>
+                                <select id="dest-barangay-filter" class="form-select" onchange="filterDestinations()">
+                                    <option value="ALL">All Barangays</option>
+                                    <!-- Populated dynamically -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Destinations Grid -->
+                        <div class="card-grid" id="destinations-grid">
+                            <!-- Populated by JS -->
+                        </div>
+                    </section>
+
+                    <!-- ======================================================= -->
+                    <!-- MODULE 3: TOURISM INFORMATION & ANNOUNCEMENTS           -->
+                    <!-- ======================================================= -->
+                    <section class="tab-pane" id="pane-announcements">
+                        <div class="page-header">
+                            <div>
+                                <h2 class="page-title">Tourism Information Management</h2>
+                                <p class="page-desc">Official announcements, upcoming festivals, weather advisories, and eco-tourism guidelines.</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn btn-primary" id="btn-add-announcement" onclick="openAddAnnouncementModal()">
+                                    <i class="fa-solid fa-plus"></i> Post Update
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="announcements-grid" id="announcements-cards-grid">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </section>
+
+                    <!-- ======================================================= -->
+                    <!-- MODULE 4: LOCAL STAKEHOLDER MANAGEMENT                  -->
+                    <!-- ======================================================= -->
+                    <section class="tab-pane" id="pane-stakeholders">
+                        <div class="page-header">
+                            <div>
+                                <h2 class="page-title">Community Tourism Stakeholders</h2>
+                                <p class="page-desc">Tour guides, drivers, boat operators, local cooks, and artisans empowering community livelihood.</p>
+                            </div>
+                            <div class="header-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                <button class="btn btn-outline" id="btn-my-stakeholder-profile" onclick="openMyStakeholderProfileModal()" style="display: none;">
+                                    <i class="fa-solid fa-id-badge"></i> My Stakeholder Profile
+                                </button>
+                                <button class="btn btn-primary" id="btn-register-stakeholder" onclick="openRegisterStakeholderModal()" style="display: none;">
+                                    <i class="fa-solid fa-user-check"></i> Register Stakeholder
+                                </button>
+                                <button class="btn btn-primary" id="btn-add-stakeholder" onclick="openAddServiceModal()">
+                                    <i class="fa-solid fa-plus"></i> Register Service
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="filter-toolbar">
+                            <div class="filter-controls">
+                                <select id="stakeholder-category-filter" class="form-select" onchange="loadStakeholdersList()">
+                                    <option value="ALL">All Categories</option>
+                                    <option value="TOUR_GUIDE">Tour Guides</option>
+                                    <option value="TRANSPORT_DRIVER">Transport & Habal-Habal Drivers</option>
+                                    <option value="BOAT_OPERATOR">Motorized Boat Operators</option>
+                                    <option value="LOCAL_COOK">Local Cooks & Caterers</option>
+                                    <option value="ARTISAN">Handicraft & Pottery Artisans</option>
+                                </select>
+                                <select id="stakeholder-status-filter" class="form-select" onchange="loadStakeholdersList()">
+                                    <option value="ALL">All Verification Statuses</option>
+                                    <option value="VERIFIED">Verified Only</option>
+                                    <option value="PENDING">Pending Verification</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="card-grid" id="stakeholders-grid">
+                            <!-- Populated by JS -->
+                        </div>
+                    </section>
+
+                    <!-- ======================================================= -->
+                    <!-- MODULE 5: SERVICES & OFFERINGS MANAGEMENT               -->
+                    <!-- ======================================================= -->
+                    <section class="tab-pane" id="pane-services">
+                        <div class="page-header">
+                            <div>
+                                <h2 class="page-title">Community Tourism Services & Offerings</h2>
+                                <p class="page-desc">Manage service descriptions, rates, capacities, and availability for travelers.</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn btn-primary" id="btn-add-service" onclick="openAddServiceModal()">
+                                    <i class="fa-solid fa-plus"></i> Add Service Offering
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Verification Status Warning for Unverified Stakeholders -->
+                        <div id="services-verification-warning"></div>
+
+                        <div class="card">
+                            <div class="table-responsive">
+                                <table class="data-table" id="services-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Service Name</th>
+                                            <th>Provider</th>
+                                            <th>Category</th>
+                                            <th>Rate / Pricing</th>
+                                            <th>Max Capacity</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="services-table-body">
+                                        <!-- Populated dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ======================================================= -->
+                    <!-- MODULE 6: PACKAGE MANAGEMENT & CUSTOM BUILDER           -->
+                    <!-- ======================================================= -->
+                    <section class="tab-pane" id="pane-packages">
+                        <div class="page-header">
+                            <div>
+                                <h2 class="page-title">Tourism Packages & Custom Experience Builder</h2>
+                                <p class="page-desc">Select pre-designed community circuits or build your personalized Biliran itinerary.</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn btn-primary" id="btn-add-package" onclick="openAddPackageModal()">
+                                    <i class="fa-solid fa-plus"></i> Create Curated Package
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Package Sub-navigation -->
+                        <div class="sub-nav-tabs">
+                            <button class="sub-tab active" id="tab-btn-predesigned" onclick="togglePackageSubTab('predesigned')">
+                                <i class="fa-solid fa-map-location-dot"></i> Curated Tourism Packages
+                            </button>
+                            <button class="sub-tab" id="tab-btn-custom" onclick="togglePackageSubTab('custom')">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> Build Custom Travel Experience
+                            </button>
+                        </div>
+
+                        <!-- Curated Packages View -->
+                        <div id="subview-predesigned-packages">
+                            <div class="card-grid" id="packages-grid">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
+
+                        <!-- Custom Experience Builder View -->
+                        <div id="subview-custom-builder" style="display: none;">
+                            <div class="builder-layout">
+                                <!-- Left: Selections -->
+                                <div class="builder-forms">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h3 class="card-title"><i class="fa-solid fa-sliders"></i> 1. Travel Specifications</h3>
+                                        </div>
+                                        <div class="card-body grid-2-col">
+                                            <div class="form-group">
+                                                <label class="form-label">Start Travel Date</label>
+                                                <input type="date" id="builder-date-start" class="form-input" onchange="updateCustomCalculation()">
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label">End Travel Date</label>
+                                                <input type="date" id="builder-date-end" class="form-input" onchange="updateCustomCalculation()">
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label">Number of Pax (Travelers)</label>
+                                                <input type="number" id="builder-pax" class="form-input" min="1" max="25" value="2" onchange="updateCustomCalculation()">
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label">Special Requests / Notes</label>
+                                                <input type="text" id="builder-notes" class="form-input" placeholder="Dietary, photography, senior assistance...">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h3 class="card-title"><i class="fa-solid fa-handshake-angle"></i> 2. Select Community Stakeholder Services</h3>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="text-muted mb-3">Connect directly with verified local guides, drivers, boat operators, cooks, and craft artisans.</p>
+                                            <div class="service-checkbox-list" id="builder-services-list">
+                                                <!-- Dynamically injected available services -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Right: Itinerary & Budget Summary Sticky Card -->
+                                <div class="builder-summary-card">
+                                    <div class="card sticky-card">
+                                        <div class="card-header">
+                                            <h3 class="card-title"><i class="fa-solid fa-receipt"></i> Custom Package Estimate</h3>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="summary-breakdown" id="builder-items-breakdown">
+                                                <p class="text-muted text-center py-4">Select services above to calculate your custom experience budget.</p>
+                                            </div>
+                                            <hr class="divider">
+                                            <div class="summary-total-row">
+                                                <span class="total-label">Estimated Total Amount:</span>
+                                                <span class="total-price" id="builder-total-price">₱0.00</span>
+                                            </div>
+                                            <div class="summary-pax-row">
+                                                <span class="text-muted">Per Person:</span>
+                                                <span class="font-bold" id="builder-perpax-price">₱0.00</span>
+                                            </div>
+                                            <button class="btn btn-primary btn-block mt-4" id="btn-book-custom" onclick="submitCustomBooking()">
+                                                <i class="fa-solid fa-check-circle"></i> Confirm & Book Itinerary
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ======================================================= -->
+                    <!-- MODULE 7: BOOKINGS & RESERVATIONS                       -->
+                    <!-- ======================================================= -->
+                    <section class="tab-pane" id="pane-bookings">
+                        <div class="page-header">
+                            <div>
+                                <h2 class="page-title">Bookings & Reservations Ledger</h2>
+                                <p class="page-desc">Manage package reservations, service assignments, confirmations, and travel itineraries.</p>
+                            </div>
+                            <div class="header-actions">
+                                <select id="bookings-status-filter" class="form-select" onchange="loadBookingsList()">
+                                    <option value="ALL">All Statuses</option>
+                                    <option value="PENDING">Pending</option>
+                                    <option value="ACCEPTED">Accepted</option>
+                                    <option value="CONFIRMED">Confirmed</option>
+                                    <option value="COMPLETED">Completed</option>
+                                    <option value="CANCELLED">Cancelled</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="table-responsive">
+                                <table class="data-table" id="bookings-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Ref Code</th>
+                                            <th>Tourist</th>
+                                            <th>Package / Details</th>
+                                            <th>Travel Dates</th>
+                                            <th>Pax</th>
+                                            <th>Total Amount</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bookings-table-body">
+                                        <!-- Injected dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ======================================================= -->
+                    <!-- MODULE 8: STAKEHOLDER VERIFICATION                      -->
+                    <!-- ======================================================= -->
+                    <section class="tab-pane" id="pane-verifications">
+                        <div class="page-header">
+                            <div>
+                                <h2 class="page-title">Barangay Tourism Verification</h2>
+                                <p class="page-desc">Review local stakeholder accreditation, validate destination permits, and approve applications.</p>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title"><i class="fa-solid fa-stamp"></i> Stakeholder Accreditation Queue</h3>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table" id="verifications-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Stakeholder</th>
+                                            <th>Category</th>
+                                            <th>Barangay</th>
+                                            <th>Accreditation / ID</th>
+                                            <th>Verification Status</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="verifications-table-body">
+                                        <!-- Injected dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ======================================================= -->
+                    <!-- MODULE 9: BARANGAY TOURISM RECORDS                      -->
+                    <!-- ======================================================= -->
+                    <section class="tab-pane" id="pane-barangay-records">
+                        <div class="page-header">
+                            <div>
+                                <h2 class="page-title">Barangay Tourism Records & Jurisdiction</h2>
+                                <p class="page-desc">Official tourism registries, focal persons, and destination coverage across Biliran's barangays.</p>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title"><i class="fa-solid fa-map-location"></i> Participating Barangays Overview</h3>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table" id="barangay-full-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Barangay Name</th>
+                                            <th>Municipality</th>
+                                            <th>Focal Person</th>
+                                            <th>Contact Phone</th>
+                                            <th>Destinations</th>
+                                            <th>Stakeholders</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="barangay-full-body">
+                                        <!-- Populated dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ======================================================= -->
+                    <!-- MODULE 10: TOURISM OFFICE & LGU MONITORING              -->
+                    <!-- ======================================================= -->
+                    <section class="tab-pane" id="pane-lgu-monitoring">
+                        <div class="page-header">
+                            <div>
+                                <h2 class="page-title">LGU & Tourism Office Strategic Monitoring</h2>
+                                <p class="page-desc">Provincial carrying capacity tracking, inter-barangay metrics, and tourism trend intelligence.</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn btn-secondary" onclick="exportReportCSV()">
+                                    <i class="fa-solid fa-file-csv"></i> Export Metrics
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h3 class="card-title"><i class="fa-solid fa-chart-line"></i> Carrying Capacity & Environmental Thresholds</h3>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted mb-3">Real-time status based on recorded tourist arrivals versus municipal eco-carrying thresholds:</p>
+                                <div class="grid-3-col" id="carrying-capacity-grid">
+                                    <div class="card p-3" style="background: #f0fdf4; border-color: #bbf7d0;">
+                                        <h4 style="color: #166534;"><i class="fa-solid fa-circle-check"></i> Sambawan Marine</h4>
+                                        <p style="font-size: 0.85rem; margin-top: 0.25rem;">Capacity: 250 pax/day | Current: <strong>65%</strong> (Safe)</p>
+                                    </div>
+                                    <div class="card p-3" style="background: #f0fdf4; border-color: #bbf7d0;">
+                                        <h4 style="color: #166534;"><i class="fa-solid fa-circle-check"></i> Tinago Falls</h4>
+                                        <p style="font-size: 0.85rem; margin-top: 0.25rem;">Capacity: 400 pax/day | Current: <strong>48%</strong> (Safe)</p>
+                                    </div>
+                                    <div class="card p-3" style="background: #fffbeb; border-color: #fde68a;">
+                                        <h4 style="color: #92400e;"><i class="fa-solid fa-triangle-exclamation"></i> Higatangan Sandbar</h4>
+                                        <p style="font-size: 0.85rem; margin-top: 0.25rem;">Capacity: 180 pax/day | Current: <strong>78%</strong> (Moderate)</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ======================================================= -->
+                    <!-- MODULE 11: REVIEWS & FEEDBACK                           -->
+                    <!-- ======================================================= -->
+                    <section class="tab-pane" id="pane-reviews">
+                        <div class="page-header">
+                            <div>
+                                <h2 class="page-title">Community Reviews & Tourist Feedback</h2>
+                                <p class="page-desc">Authentic ratings from tourists after completed travel experiences in Biliran.</p>
+                            </div>
+                        </div>
+
+                        <div class="reviews-container" id="reviews-list-container">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </section>
+
+                    <!-- ======================================================= -->
+                    <!-- MODULE 12: REPORTS & ANALYTICS                          -->
+                    <!-- ======================================================= -->
+                    <section class="tab-pane" id="pane-reports">
+                        <div class="page-header">
+                            <div>
+                                <h2 class="page-title">Tourism Monitoring & Consolidated Reports</h2>
+                                <p class="page-desc">Tourist footfall tracking, municipal performance analytics, and livelihood reports for LGU & Tourism Office.</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn btn-outline" onclick="openArrivalEntryModal()">
+                                    <i class="fa-solid fa-pen-to-square"></i> Record Footfall
+                                </button>
+                                <button class="btn btn-secondary" onclick="exportReportCSV()">
+                                    <i class="fa-solid fa-file-csv"></i> Export CSV
+                                </button>
+                                <button class="btn btn-primary" onclick="printReport()">
+                                    <i class="fa-solid fa-print"></i> Print Report
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Destination Footfall Analytics Table -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h3 class="card-title"><i class="fa-solid fa-chart-column"></i> Destination Footfall & Revenue Summary</h3>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table" id="footfall-report-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Destination</th>
+                                            <th>Category</th>
+                                            <th>Municipality / Barangay</th>
+                                            <th>Local</th>
+                                            <th>Domestic</th>
+                                            <th>Foreign</th>
+                                            <th>Total Footfall</th>
+                                            <th>Revenue (PHP)</th>
+                                            <th>Rating</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="footfall-report-body">
+                                        <!-- Injected dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Municipal & Barangay Coverage Table -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title"><i class="fa-solid fa-map-location"></i> Barangay Tourism Summary Coverage</h3>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table" id="barangay-report-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Barangay</th>
+                                            <th>Municipality</th>
+                                            <th>Official Contact</th>
+                                            <th>Phone</th>
+                                            <th>Destinations</th>
+                                            <th>Registered Stakeholders</th>
+                                            <th>Verified</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="barangay-report-body">
+                                        <!-- Injected dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ======================================================= -->
+                    <!-- MODULE 13: USER AND ROLE MANAGEMENT                     -->
+                    <!-- ======================================================= -->
+                    <section class="tab-pane" id="pane-admin">
+                        <div class="page-header">
+                            <div>
+                                <h2 class="page-title">User Accounts & Role Permissions</h2>
+                                <p class="page-desc">Manage account access, assign roles, toggle account statuses, and reset passwords.</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn btn-primary" onclick="openCreateUserModal()">
+                                    <i class="fa-solid fa-user-plus"></i> New User Account
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- User Account Management -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h3 class="card-title"><i class="fa-solid fa-users-gear"></i> System User Registry</h3>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table" id="users-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Username</th>
+                                            <th>Full Name</th>
+                                            <th>Email</th>
+                                            <th>Role</th>
+                                            <th>Jurisdiction</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="users-table-body">
+                                        <!-- Injected dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ======================================================= -->
+                    <!-- MODULE 14: SYSTEM SETTINGS                              -->
+                    <!-- ======================================================= -->
+                    <section class="tab-pane" id="pane-settings">
+                        <div class="page-header">
+                            <div>
+                                <h2 class="page-title">System Settings & Parameters</h2>
+                                <p class="page-desc">Configure tourism parameters, carrying capacity thresholds, notifications, and provincial alerts.</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn btn-primary" onclick="saveSystemSettings()">
+                                    <i class="fa-solid fa-floppy-disk"></i> Save Settings
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-body">
+                                <form id="form-system-settings" onsubmit="event.preventDefault(); saveSystemSettings();">
+                                    <div class="grid-2-col">
+                                        <div class="form-group">
+                                            <label class="form-label" for="setting-app-name">Platform Name</label>
+                                            <input type="text" id="setting-app-name" class="form-input" value="Lakbay Lokal - Biliran Tourism Information System" oninput="markSettingModified('appName')">
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label" for="setting-province">Provincial Jurisdiction</label>
+                                            <input type="text" id="setting-province" class="form-input" value="Biliran Province, Region VIII, Philippines" oninput="markSettingModified('province')">
+                                        </div>
+                                    </div>
+                                    <div class="grid-2-col">
+                                        <div class="form-group">
+                                            <label class="form-label" for="setting-capacity-threshold">Carrying Capacity Alert Threshold (%)</label>
+                                            <input type="number" id="setting-capacity-threshold" class="form-input" min="50" max="100" value="85" oninput="markSettingModified('capacityThreshold')" onchange="markSettingModified('capacityThreshold')">
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label" for="setting-currency">Default Currency</label>
+                                            <select id="setting-currency" class="form-select" onchange="markSettingModified('currency')">
+                                                <option value="PHP (Philippine Peso ₱)">PHP (Philippine Peso ₱)</option>
+                                                <option value="USD (US Dollar $)">USD (US Dollar $)</option>
+                                                <option value="EUR (Euro €)">EUR (Euro €)</option>
+                                                <option value="JPY (Japanese Yen ¥)">JPY (Japanese Yen ¥)</option>
+                                                <option value="SGD (Singapore Dollar S$)">SGD (Singapore Dollar S$)</option>
+                                                <option value="AUD (Australian Dollar A$)">AUD (Australian Dollar A$)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="setting-broadcast-msg">Live Broadcast Notice (Top Banner)</label>
+                                        <textarea id="setting-broadcast-msg" class="form-textarea" rows="2" oninput="markSettingModified('broadcastMsg')">Welcome to Lakbay Lokal! Experience Sambawan Island, Tinago Falls, and community-guided circuits in Biliran Province.</textarea>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ======================================================= -->
+                    <!-- MODULE 15: SECURITY AUDIT LOGS                          -->
+                    <!-- ======================================================= -->
+                    <section class="tab-pane" id="pane-audit-logs">
+                        <div class="page-header">
+                            <div>
+                                <h2 class="page-title">Security & System Activity Audit Logs</h2>
+                                <p class="page-desc">Tamper-evident chronological record of logins, administrative modifications, verifications, and backups.</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn btn-secondary" onclick="loadAuditLogs()">
+                                    <i class="fa-solid fa-rotate"></i> Refresh Logs
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title"><i class="fa-solid fa-fingerprint"></i> Audit Trail History</h3>
+                                <span class="badge badge-success">Tamper-Evident SHA Logging</span>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table" id="audit-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Timestamp</th>
+                                            <th>User</th>
+                                            <th>Action</th>
+                                            <th>Entity</th>
+                                            <th>IP Address</th>
+                                            <th>Details</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="audit-table-body">
+                                        <!-- Injected dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ======================================================= -->
+                    <!-- MODULE 16: BACKUP AND RECOVERY                          -->
+                    <!-- ======================================================= -->
+                    <section class="tab-pane" id="pane-backup-recovery">
+                        <div class="page-header">
+                            <div>
+                                <h2 class="page-title">Database Backup & Disaster Recovery</h2>
+                                <p class="page-desc">Generate portable SQL dumps and monitor automated snapshots of MySQL lakbay_lokal_db.</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn btn-primary" onclick="triggerDbBackup()">
+                                    <i class="fa-solid fa-database"></i> Generate SQL Backup Dump
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-body">
+                                <div style="display: flex; align-items: flex-start; gap: 1.25rem;">
+                                    <div style="font-size: 2.5rem; color: #059669;"><i class="fa-solid fa-server"></i></div>
+                                    <div>
+                                        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.35rem;">MySQL Relational Database State</h3>
+                                        <p class="text-muted" style="margin-bottom: 0.75rem;">Connected to <strong>lakbay_lokal_db</strong> on port 3306. 18 tables + 3 analytical views.</p>
+                                        <div id="backup-status-result" class="alert alert-info" style="display: none; padding: 0.75rem 1rem; border-radius: 8px; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46;">
+                                            <!-- Injected dynamically -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- FORGOT PASSWORD WORKFLOW MODAL                                          -->
+    <!-- ======================================================================= -->
+    <div class="modal-backdrop" id="modal-forgot-password">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fa-solid fa-key"></i> Account Password Recovery</h3>
+                <button class="btn-close" onclick="closeModal('modal-forgot-password')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-forgot-password" onsubmit="handleForgotPasswordSubmit(event)">
+                    <p class="text-muted mb-3" style="font-size: 0.9rem;">
+                        Enter your registered username or email address below along with your new password. The backend securely updates your credentials in <code>lakbay_lokal_db</code>.
+                    </p>
+                    <div id="forgot-error-banner" class="alert alert-danger" style="display: none; padding: 0.6rem 0.9rem; font-size: 0.85rem; border-radius: 6px; margin-bottom: 1rem;">
+                        <i class="fa-solid fa-circle-exclamation"></i> <span id="forgot-error-text">User not found</span>
+                    </div>
+                    <div id="forgot-success-banner" class="alert alert-success" style="display: none; padding: 0.6rem 0.9rem; font-size: 0.85rem; border-radius: 6px; margin-bottom: 1rem; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46;">
+                        <i class="fa-solid fa-circle-check"></i> <span id="forgot-success-text">Password reset successfully. You may now sign in.</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="forgot-identifier">Username or Email</label>
+                        <input type="text" id="forgot-identifier" class="form-input" required placeholder="e.g. guide_pedro or tourist_ana">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="forgot-new-password">New Password</label>
+                        <input type="password" id="forgot-new-password" class="form-input" required minlength="6" placeholder="Enter new password (min. 6 characters)">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="forgot-sec-answer">Security Verification (Hometown/Barangay)</label>
+                        <input type="text" id="forgot-sec-answer" class="form-input" placeholder="e.g. Biliran, Naval, or Maripipi">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block" id="btn-forgot-submit">
+                        <i class="fa-solid fa-rotate-right"></i> Reset and Update Password
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- PUBLIC REGISTRATION MODAL (TOURIST & LOCAL STAKEHOLDER)                 -->
+    <!-- ======================================================================= -->
+    <div class="modal-backdrop" id="modal-register">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-register-title"><i class="fa-solid fa-user-plus"></i> Create Lakbay Lokal Account</h3>
+                <button class="btn-close" onclick="closeModal('modal-register')">&times;</button>
+            </div>
+
+            <!-- Registration Type Tabs -->
+            <div class="reg-modal-tabs">
+                <button type="button" class="reg-modal-tab active" id="tab-btn-tourist" onclick="switchRegisterTab('tourist')">
+                    <i class="fa-solid fa-umbrella-beach"></i> Tourist Registration
+                </button>
+                <button type="button" class="reg-modal-tab" id="tab-btn-stakeholder" onclick="switchRegisterTab('stakeholder')">
+                    <i class="fa-solid fa-handshake-angle"></i> Local Stakeholder Registration
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <!-- TOURIST REGISTRATION FORM -->
+                <form id="form-register" onsubmit="handleRegisterSubmit(event)">
+                    <div class="modal-error-banner" id="tourist-reg-error" style="display: none;"></div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Full Name <span class="text-danger">*</span></label>
+                            <input type="text" id="reg-fullname" class="form-input" required placeholder="e.g. Maria Clara de los Santos">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Username <span class="text-danger">*</span></label>
+                            <input type="text" id="reg-username" class="form-input" required placeholder="Choose a username">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email Address <span class="text-danger">*</span></label>
+                        <input type="email" id="reg-email" class="form-input" required placeholder="maria@example.com">
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Password <span class="text-danger">*</span></label>
+                            <input type="password" id="reg-password" class="form-input" required placeholder="Minimum 6 characters">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Confirm Password <span class="text-danger">*</span></label>
+                            <input type="password" id="reg-confirmpassword" class="form-input" required placeholder="Re-type password">
+                        </div>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Contact Phone</label>
+                            <input type="tel" id="reg-phone" class="form-input" placeholder="+63 912 345 6789">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Origin City / Hometown</label>
+                            <input type="text" id="reg-origincity" class="form-input" placeholder="e.g. Tacloban City, Cebu, Manila">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block" id="btn-tourist-reg-submit">
+                        <i class="fa-solid fa-user-plus"></i> Complete Tourist Registration
+                    </button>
+                    <div class="modal-back-link">
+                        <span>Already have an account?</span>
+                        <a href="javascript:void(0)" onclick="closeModal('modal-register')">Return to Sign In</a>
+                    </div>
+                </form>
+
+                <!-- STAKEHOLDER REGISTRATION FORM -->
+                <form id="form-stakeholder-register" style="display: none;" onsubmit="handleStakeholderRegisterSubmit(event)">
+                    <div class="modal-error-banner" id="stakeholder-reg-error" style="display: none;"></div>
+
+                    <div class="form-info-note">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <div>
+                            <strong>Official Barangay Verification Required:</strong>
+                            New stakeholder applications are placed in <code>PENDING</code> status. Your assigned Barangay Official will review and verify your profile before your tourism offerings become visible to travelers.
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Full Name <span class="text-danger">*</span></label>
+                            <input type="text" id="stkreg-fullname" class="form-input" required placeholder="e.g. Danilo Espina">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Username <span class="text-danger">*</span></label>
+                            <input type="text" id="stkreg-username" class="form-input" required placeholder="Choose a username">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Email Address <span class="text-danger">*</span></label>
+                        <input type="email" id="stkreg-email" class="form-input" required placeholder="danilo@example.com">
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Password <span class="text-danger">*</span></label>
+                            <input type="password" id="stkreg-password" class="form-input" required placeholder="Minimum 6 characters">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Confirm Password <span class="text-danger">*</span></label>
+                            <input type="password" id="stkreg-confirmpassword" class="form-input" required placeholder="Re-type password">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Business / Service Provider Name <span class="text-danger">*</span></label>
+                        <input type="text" id="stkreg-businessname" class="form-input" required placeholder="e.g. Sambawan Island Boat Services, Maripipi Trek Guides">
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Stakeholder Category <span class="text-danger">*</span></label>
+                            <select id="stkreg-category" class="form-input" required>
+                                <option value="TOUR_GUIDE">Tour Guide (Trekking, Heritage, Eco-tour)</option>
+                                <option value="TRANSPORT_DRIVER">Transport Driver (Habal-habal, Van, Tricycle)</option>
+                                <option value="BOAT_OPERATOR">Boat Operator / Bangkero</option>
+                                <option value="LOCAL_COOK">Local Cook / Food & Delicacies Provider</option>
+                                <option value="ARTISAN">Artisan / Handcrafter / Souvenirs</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Years of Experience <span class="text-danger">*</span></label>
+                            <input type="number" id="stkreg-yearsexp" class="form-input" min="0" max="60" value="1" required>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Municipality <span class="text-danger">*</span></label>
+                            <select id="stkreg-municipality" class="form-input" required onchange="onStakeholderMuniChange()">
+                                <option value="">-- Select Municipality --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Barangay <span class="text-danger">*</span></label>
+                            <select id="stkreg-barangay" class="form-input" required>
+                                <option value="">-- Select Municipality First --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Contact Number <span class="text-danger">*</span></label>
+                            <input type="tel" id="stkreg-phone" class="form-input" required placeholder="+63 912 345 6789">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Accreditation / Permit No. <small class="text-muted">(Optional)</small></label>
+                            <input type="text" id="stkreg-permit" class="form-input" placeholder="e.g. DOT-BIL-2026-0045">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Short Description / Specialization <span class="text-danger">*</span></label>
+                        <textarea id="stkreg-bio" class="form-input" rows="3" required placeholder="Describe your tourism offerings, routes covered, safety training, language skills, or craft specialties..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block" id="btn-stkreg-submit">
+                        <i class="fa-solid fa-paper-plane"></i> Submit Stakeholder Application
+                    </button>
+                    <div class="modal-back-link">
+                        <span>Already have an account?</span>
+                        <a href="javascript:void(0)" onclick="closeModal('modal-register')">Return to Sign In</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- BOOKING CREATION MODAL                                                  -->
+    <!-- ======================================================================= -->
+    <div class="modal-backdrop" id="modal-booking">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fa-solid fa-calendar-plus"></i> Reserve Package</h3>
+                <button class="btn-close" onclick="closeModal('modal-booking')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-package-booking" onsubmit="handlePackageBookingSubmit(event)">
+                    <input type="hidden" id="book-package-id">
+                    <input type="hidden" id="book-service-id">
+                    <input type="hidden" id="book-stakeholder-id">
+                    <input type="hidden" id="book-pricing-unit">
+                    <input type="hidden" id="book-unit-price">
+                    <div class="form-group">
+                        <label class="form-label">Selected Package / Service</label>
+                        <input type="text" id="book-package-name" class="form-input" readonly>
+                    </div>
+                    <div class="form-group grid-2-col">
+                        <div>
+                            <label class="form-label">Travel Date Start</label>
+                            <input type="date" id="book-date-start" class="form-input" required>
+                        </div>
+                        <div>
+                            <label class="form-label">Travel Date End</label>
+                            <input type="date" id="book-date-end" class="form-input" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Number of Pax</label>
+                        <input type="number" id="book-pax" class="form-input" min="1" max="25" value="2" required onchange="calculatePackageBookingTotal()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Special Requests / Notes</label>
+                        <textarea id="book-notes" class="form-textarea" placeholder="Provide any special instructions..."></textarea>
+                    </div>
+                    <div class="summary-total-row my-3">
+                        <span class="total-label">Total Amount:</span>
+                        <span class="total-price" id="book-total-amount">₱0.00</span>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Submit Reservation</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- REVIEW SUBMISSION MODAL                                                 -->
+    <!-- ======================================================================= -->
+    <div class="modal-backdrop" id="modal-review">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fa-solid fa-star"></i> Submit Rating &amp; Feedback</h3>
+                <button class="btn-close" onclick="closeModal('modal-review')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-review" onsubmit="handleReviewSubmit(event)">
+                    <input type="hidden" id="review-booking-id">
+                    <input type="hidden" id="review-target-type">
+                    <input type="hidden" id="review-target-id">
+                    <div id="review-target-info" style="margin-bottom: 12px; font-size: 0.88rem; padding: 8px 12px; background: rgba(37, 99, 235, 0.08); border-radius: 6px; color: var(--primary-700);"></div>
+                    <div class="form-group">
+                        <label class="form-label">Experience Rating</label>
+                        <div class="star-rating-selector" id="star-selector">
+                            <i class="fa-solid fa-star star active" data-val="1" onclick="setRatingVal(1)"></i>
+                            <i class="fa-solid fa-star star active" data-val="2" onclick="setRatingVal(2)"></i>
+                            <i class="fa-solid fa-star star active" data-val="3" onclick="setRatingVal(3)"></i>
+                            <i class="fa-solid fa-star star active" data-val="4" onclick="setRatingVal(4)"></i>
+                            <i class="fa-solid fa-star star active" data-val="5" onclick="setRatingVal(5)"></i>
+                        </div>
+                        <input type="hidden" id="review-rating-val" value="5">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Your Review &amp; Community Feedback</label>
+                        <textarea id="review-comment" class="form-textarea" required placeholder="Share your experience to guide future travelers and help our community stakeholders!"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Publish Review</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- VERIFICATION ACTION MODAL (Barangay Officials)                           -->
+    <!-- ======================================================================= -->
+    <div class="modal-backdrop" id="modal-verification-action">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fa-solid fa-shield-check"></i> Evaluate Stakeholder Application</h3>
+                <button class="btn-close" onclick="closeModal('modal-verification-action')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-verify-stakeholder" onsubmit="handleVerificationSubmit(event)">
+                    <input type="hidden" id="verify-stakeholder-id">
+                    <input type="hidden" id="verify-barangay-id">
+                    <div class="form-group">
+                        <label class="form-label">Stakeholder Name</label>
+                        <input type="text" id="verify-stakeholder-name" class="form-input" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Evaluation Decision</label>
+                        <select id="verify-decision" class="form-select">
+                            <option value="APPROVED">Approve &amp; Issue Barangay Verification</option>
+                            <option value="REJECTED">Reject / Return with Deficiencies</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Requirements Inspected</label>
+                        <textarea id="verify-requirements" class="form-textarea" placeholder="e.g. Barangay Clearance, Valid ID, Coast Guard License / DOT Training Certificate"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Remarks / Official Notes</label>
+                        <textarea id="verify-remarks" class="form-textarea" placeholder="Add official inspection notes..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Confirm Evaluation</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- ARRIVAL RECORD MODAL                                                    -->
+    <!-- ======================================================================= -->
+    <div class="modal-backdrop" id="modal-arrival-entry">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fa-solid fa-clipboard-user"></i> Record Destination Footfall</h3>
+                <button class="btn-close" onclick="closeModal('modal-arrival-entry')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-arrival-entry" onsubmit="handleArrivalSubmit(event)">
+                    <div class="form-group">
+                        <label class="form-label">Destination</label>
+                        <select id="arr-destination-id" class="form-select" required>
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Log Date</label>
+                        <input type="date" id="arr-date" class="form-input" required>
+                    </div>
+                    <div class="grid-3-col">
+                        <div class="form-group">
+                            <label class="form-label">Local (Biliran)</label>
+                            <input type="number" id="arr-local" class="form-input" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Domestic (PH)</label>
+                            <input type="number" id="arr-domestic" class="form-input" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Foreign</label>
+                            <input type="number" id="arr-foreign" class="form-input" min="0" value="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Entrance Fee Revenue (PHP)</label>
+                        <input type="number" id="arr-revenue" class="form-input" min="0" step="0.01" value="0.00">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Record Visitor Count</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- ADD DESTINATION MODAL                                                   -->
+    <!-- ======================================================================= -->
+    <div class="modal-backdrop" id="modal-add-destination">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-add-destination-title"><i class="fa-solid fa-map-location-dot"></i> Add New Destination</h3>
+                <button class="btn-close" onclick="closeModal('modal-add-destination')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-add-destination" onsubmit="handleAddDestinationSubmit(event)">
+                    <input type="hidden" id="dest-form-id">
+                    <div class="form-group">
+                        <label class="form-label">Destination Name</label>
+                        <input type="text" id="dest-form-name" class="form-input" required placeholder="e.g. Casiawan Falls">
+                    </div>
+                    <div class="form-group grid-2-col">
+                        <div>
+                            <label class="form-label">Category</label>
+                            <select id="dest-form-category" class="form-select">
+                                <option value="WATERFALL">Waterfall</option>
+                                <option value="ISLAND_BEACH">Island / Beach</option>
+                                <option value="HOT_SPRING">Hot Spring</option>
+                                <option value="CULTURAL_HERITAGE">Cultural Heritage</option>
+                                <option value="CAVE_MOUNTAIN">Cave / Mountain</option>
+                                <option value="AGRICULTURAL_ECO">Agricultural / Eco-Park</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Barangay</label>
+                            <select id="dest-form-barangay" class="form-select" required>
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea id="dest-form-desc" class="form-textarea" required placeholder="Describe features, scenery, highlights..."></textarea>
+                    </div>
+                    <div class="form-group grid-2-col">
+                        <div>
+                            <label class="form-label">Entrance Fee (PHP)</label>
+                            <input type="number" id="dest-form-fee" class="form-input" min="0" step="0.01" value="50.00">
+                        </div>
+                        <div>
+                            <label class="form-label">Operating Hours</label>
+                            <input type="text" id="dest-form-hours" class="form-input" value="6:00 AM - 5:00 PM">
+                        </div>
+                    </div>
+                    <div class="form-group grid-2-col">
+                        <div>
+                            <label class="form-label">Location Coordinates / Landmark</label>
+                            <input type="text" id="dest-form-coords" class="form-input" placeholder="e.g. 11.5367, 124.5244">
+                        </div>
+                        <div>
+                            <label class="form-label">Operational Status</label>
+                            <select id="dest-form-status" class="form-select">
+                                <option value="ACTIVE">Active / Open</option>
+                                <option value="MAINTENANCE">Under Maintenance</option>
+                                <option value="INACTIVE">Temporarily Closed</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Official Contact / Tourism Officer</label>
+                        <input type="text" id="dest-form-contact" class="form-input" placeholder="e.g. tourism@biliran.gov.ph">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Save Destination</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- ADD SERVICE MODAL                                                       -->
+    <!-- ======================================================================= -->
+    <div class="modal-backdrop" id="modal-add-service">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-add-service-title"><i class="fa-solid fa-handshake-angle"></i> Register Service Offering</h3>
+                <button class="btn-close" onclick="closeModal('modal-add-service')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-add-service" onsubmit="handleAddServiceSubmit(event)">
+                    <input type="hidden" id="svc-form-id">
+                    <div class="form-group">
+                        <label class="form-label">Service Offering Name</label>
+                        <input type="text" id="svc-form-name" class="form-input" required placeholder="e.g. Sambawan Island Snorkel Guide">
+                    </div>
+                    <div class="form-group grid-2-col">
+                        <div>
+                            <label class="form-label">Category</label>
+                            <select id="svc-form-category" class="form-select">
+                                <option value="GUIDING">Tour Guiding</option>
+                                <option value="TRANSPORT">Land Transport / Habal-Habal</option>
+                                <option value="BOAT_CHARTER">Pumpboat Charter</option>
+                                <option value="FOOD_CATERING">Local Food &amp; Catering</option>
+                                <option value="HANDICRAFT">Pottery &amp; Craft Artisan</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Pricing Unit</label>
+                            <select id="svc-form-unit" class="form-select">
+                                <option value="PER_PERSON">Per Person</option>
+                                <option value="PER_GROUP">Per Group</option>
+                                <option value="PER_TRIP">Per Trip</option>
+                                <option value="PER_ITEM">Per Item / Day</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group grid-2-col">
+                        <div>
+                            <label class="form-label">Base Rate (PHP)</label>
+                            <input type="number" id="svc-form-price" class="form-input" min="0" step="0.01" value="500.00" required>
+                        </div>
+                        <div>
+                            <label class="form-label">Max Group Capacity</label>
+                            <input type="number" id="svc-form-capacity" class="form-input" min="1" max="50" value="6" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description of Service &amp; Inclusions</label>
+                        <textarea id="svc-form-desc" class="form-textarea" required placeholder="Provide clear details on what is included..."></textarea>
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="checkbox" id="svc-form-available" checked>
+                        <label for="svc-form-available" class="form-label" style="margin-bottom: 0; cursor: pointer;">Service is currently available for tourist bookings</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Save Service</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- ADD ANNOUNCEMENT MODAL                                                  -->
+    <!-- ======================================================================= -->
+    <div class="modal-backdrop" id="modal-add-announcement">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-add-announcement-title"><i class="fa-solid fa-bullhorn"></i> Post Tourism Information &amp; Advisory</h3>
+                <button class="btn-close" onclick="closeModal('modal-add-announcement')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-add-announcement" onsubmit="handleAddAnnouncementSubmit(event)">
+                    <input type="hidden" id="anno-form-id">
+                    <div class="form-group">
+                        <label class="form-label">Announcement Title</label>
+                        <input type="text" id="anno-form-title" class="form-input" required placeholder="e.g. Sambawan Island Summer Regatta 2026">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Advisory Category</label>
+                        <select id="anno-form-type" class="form-select">
+                            <option value="ANNOUNCEMENT">General Notice / Announcement</option>
+                            <option value="FESTIVAL">Festival &amp; Cultural Event</option>
+                            <option value="EVENT">Tourism Event</option>
+                            <option value="TRAVEL_GUIDELINE">Weather / Eco-Tourism &amp; Travel Guideline</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Advisory Content / Message</label>
+                        <textarea id="anno-form-content" class="form-textarea" rows="4" required placeholder="Details for tourists, operators, and officials..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Publish Update</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- CREATE USER MODAL (Admin)                                               -->
+    <!-- ======================================================================= -->
+    <div class="modal-backdrop" id="modal-create-user">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fa-solid fa-user-plus"></i> Create System User Account</h3>
+                <button class="btn-close" onclick="closeModal('modal-create-user')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-create-user" onsubmit="handleCreateUserSubmit(event)">
+                    <div class="form-group">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" id="user-form-fullname" class="form-input" required placeholder="e.g. Roberto Gomez">
+                    </div>
+                    <div class="form-group grid-2-col">
+                        <div>
+                            <label class="form-label">Username</label>
+                            <input type="text" id="user-form-username" class="form-input" required placeholder="e.g. lgu_caibiran">
+                        </div>
+                        <div>
+                            <label class="form-label">Password</label>
+                            <input type="password" id="user-form-password" class="form-input" required placeholder="Initial password">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" id="user-form-email" class="form-input" required placeholder="official@biliran.gov.ph">
+                    </div>
+                    <div class="form-group grid-2-col">
+                        <div>
+                            <label class="form-label">Assigned Role</label>
+                            <select id="user-form-role" class="form-select" required>
+                                <option value="6">Tourist</option>
+                                <option value="5">Local Stakeholder</option>
+                                <option value="4">Barangay Official</option>
+                                <option value="3">LGU Officer</option>
+                                <option value="2">Tourism Office</option>
+                                <option value="1">System Administrator</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Jurisdiction Barangay</label>
+                            <select id="user-form-barangay" class="form-select">
+                                <option value="">Provincial / None</option>
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Create User Account</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- CREATE / EDIT CURATED PACKAGE MODAL                                     -->
+    <!-- ======================================================================= -->
+    <div class="modal-backdrop" id="modal-add-package">
+        <div class="modal-dialog" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-add-package-title"><i class="fa-solid fa-suitcase-rolling"></i> Create Curated Tourism Package</h3>
+                <button class="btn-close" onclick="closeModal('modal-add-package')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-add-package" onsubmit="handleSavePackageSubmit(event)">
+                    <input type="hidden" id="pkg-form-id">
+                    <div class="form-group">
+                        <label class="form-label">Package Name</label>
+                        <input type="text" id="pkg-form-name" class="form-input" required placeholder="e.g. Sambawan &amp; Maripipi Heritage Circuit">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea id="pkg-form-desc" class="form-textarea" rows="2" required placeholder="Describe the curated travel itinerary..."></textarea>
+                    </div>
+                    <div class="form-group grid-2-col">
+                        <div>
+                            <label class="form-label">Price Per Person (PHP)</label>
+                            <input type="number" id="pkg-form-price" class="form-input" min="0" step="0.01" value="1200.00" required>
+                        </div>
+                        <div>
+                            <label class="form-label">Duration (Days)</label>
+                            <input type="number" id="pkg-form-duration" class="form-input" min="1" max="14" value="1" required>
+                        </div>
+                    </div>
+                    <div class="form-group grid-2-col">
+                        <div>
+                            <label class="form-label">Minimum Pax</label>
+                            <input type="number" id="pkg-form-minpax" class="form-input" min="1" max="50" value="2" required>
+                        </div>
+                        <div>
+                            <label class="form-label">Maximum Pax</label>
+                            <input type="number" id="pkg-form-maxpax" class="form-input" min="1" max="50" value="10" required>
+                        </div>
+                    </div>
+                    <div class="form-group grid-2-col">
+                        <div>
+                            <label class="form-label">Inclusions</label>
+                            <input type="text" id="pkg-form-inclusions" class="form-input" value="Accredited local guide, transport, entrance fees">
+                        </div>
+                        <div>
+                            <label class="form-label">Exclusions</label>
+                            <input type="text" id="pkg-form-exclusions" class="form-input" value="Personal expenses, optional tipping">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Included Destinations</label>
+                        <div id="pkg-form-destinations-list" style="max-height: 110px; overflow-y: auto; border: 1px solid var(--slate-200); border-radius: 6px; padding: 0.5rem;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Assigned Stakeholder Services</label>
+                        <div id="pkg-form-services-list" style="max-height: 110px; overflow-y: auto; border: 1px solid var(--slate-200); border-radius: 6px; padding: 0.5rem;"></div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Save Curated Package</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- STAKEHOLDER PROFILE & REGISTRATION MODAL                                -->
+    <!-- ======================================================================= -->
+    <div class="modal-backdrop" id="modal-stakeholder-profile">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-stakeholder-profile-title"><i class="fa-solid fa-id-badge"></i> Stakeholder Profile</h3>
+                <button class="btn-close" onclick="closeModal('modal-stakeholder-profile')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-stakeholder-profile" onsubmit="handleSaveStakeholderProfileSubmit(event)">
+                    <input type="hidden" id="stk-form-id">
+                    <div id="stk-new-account-fields" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">Owner Full Name</label>
+                            <input type="text" id="stk-form-fullname" class="form-input" placeholder="e.g. Roberto Dela Cruz">
+                        </div>
+                        <div class="form-group grid-2-col">
+                            <div>
+                                <label class="form-label">Account Username</label>
+                                <input type="text" id="stk-form-username" class="form-input" placeholder="e.g. guide_roberto">
+                            </div>
+                            <div>
+                                <label class="form-label">Initial Password</label>
+                                <input type="password" id="stk-form-password" class="form-input" value="password123">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email Address</label>
+                            <input type="email" id="stk-form-email" class="form-input" placeholder="stakeholder@lakbaylokal.ph">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Business / Provider Name</label>
+                        <input type="text" id="stk-form-business" class="form-input" required placeholder="e.g. Pedro's Eco-Guiding Services">
+                    </div>
+                    <div class="form-group grid-2-col">
+                        <div>
+                            <label class="form-label">Category</label>
+                            <select id="stk-form-category" class="form-select">
+                                <option value="TOUR_GUIDE">Tour Guide</option>
+                                <option value="TRANSPORT_DRIVER">Transport &amp; Habal-Habal Driver</option>
+                                <option value="BOAT_OPERATOR">Motorized Boat Operator</option>
+                                <option value="LOCAL_COOK">Local Cook &amp; Caterer</option>
+                                <option value="ARTISAN">Handicraft &amp; Pottery Artisan</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Barangay</label>
+                            <select id="stk-form-barangay" class="form-select" required></select>
+                        </div>
+                    </div>
+                    <div class="form-group grid-2-col">
+                        <div>
+                            <label class="form-label">Accreditation / Permit No.</label>
+                            <input type="text" id="stk-form-accred" class="form-input" placeholder="e.g. BIL-TG-2025-001">
+                        </div>
+                        <div>
+                            <label class="form-label">Years of Experience</label>
+                            <input type="number" id="stk-form-exp" class="form-input" min="0" max="60" value="3">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Contact Phone</label>
+                        <input type="text" id="stk-form-phone" class="form-input" placeholder="e.g. 0917-555-0199">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Bio / Specializations</label>
+                        <textarea id="stk-form-bio" class="form-textarea" rows="3" placeholder="Describe guiding certifications, vessel capacity, or specialty crafts..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Save Stakeholder Profile</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- EDIT BARANGAY RECORD MODAL                                              -->
+    <!-- ======================================================================= -->
+    <div class="modal-backdrop" id="modal-edit-barangay">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fa-solid fa-map-location"></i> Update Barangay Tourism Record</h3>
+                <button class="btn-close" onclick="closeModal('modal-edit-barangay')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-edit-barangay" onsubmit="handleUpdateBarangaySubmit(event)">
+                    <input type="hidden" id="brgy-edit-id">
+                    <div class="form-group">
+                        <label class="form-label">Barangay</label>
+                        <input type="text" id="brgy-edit-name" class="form-input" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tourism Focal Person / Barangay Captain</label>
+                        <input type="text" id="brgy-edit-contact-person" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Official Contact Phone</label>
+                        <input type="text" id="brgy-edit-contact-number" class="form-input" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Save Barangay Record</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- ADMIN EDIT USER MODAL & RESET PASSWORD MODAL                            -->
+    <!-- ======================================================================= -->
+    <div class="modal-backdrop" id="modal-edit-user">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fa-solid fa-user-pen"></i> Edit User Account</h3>
+                <button class="btn-close" onclick="closeModal('modal-edit-user')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-edit-user" onsubmit="handleEditUserSubmit(event)">
+                    <input type="hidden" id="edit-user-id">
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <input type="text" id="edit-user-username" class="form-input" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" id="edit-user-fullname" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" id="edit-user-email" class="form-input" required>
+                    </div>
+                    <div class="form-group grid-2-col">
+                        <div>
+                            <label class="form-label">Assigned Role</label>
+                            <select id="edit-user-role" class="form-select" required>
+                                <option value="6">Tourist</option>
+                                <option value="5">Local Stakeholder</option>
+                                <option value="4">Barangay Official</option>
+                                <option value="3">LGU Officer</option>
+                                <option value="2">Tourism Office</option>
+                                <option value="1">System Administrator</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Jurisdiction Barangay</label>
+                            <select id="edit-user-barangay" class="form-select">
+                                <option value="">None (Province-wide)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Update User Account</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="modal-reset-password">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fa-solid fa-key"></i> Admin Reset User Password</h3>
+                <button class="btn-close" onclick="closeModal('modal-reset-password')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-admin-reset-password" onsubmit="handleAdminResetPasswordSubmit(event)">
+                    <input type="hidden" id="reset-pwd-user-id">
+                    <div class="form-group">
+                        <label class="form-label">Target Account</label>
+                        <input type="text" id="reset-pwd-username" class="form-input" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">New Password</label>
+                        <input type="password" id="reset-pwd-new" class="form-input" minlength="6" required placeholder="Enter new password (min. 6 chars)">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Reset Password</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-stack"></div>
+
+    <!-- Scripts -->
+    <script src="js/app.js"></script>
+</body>
+</html>

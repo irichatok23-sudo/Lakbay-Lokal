@@ -6,66 +6,68 @@ import com.lakbaylokal.server.LakbayServer;
 import com.lakbaylokal.ui.LakbaySwingLauncher;
 
 import javax.swing.*;
-import java.awt.GraphicsEnvironment;
+import java.net.BindException;
 
 /**
- * Main application bootstrap for Lakbay Lokal.
- * Initializes the database schema, launches the embedded HTTP service,
- * displays the Java Swing desktop window, and opens the modern Javascript interface.
+ * Main Entrypoint for Lakbay Lokal: A Community-Based Tourism Information System.
+ * Initializes the database schema, seeds Biliran tourism data, starts the embedded HTTP
+ * server, and launches the Java Swing Desktop Controller.
  */
 public class Main {
 
     public static void main(String[] args) {
-        System.out.println("====================================================================");
-        System.out.println("  LAKBAY LOKAL: A COMMUNITY-BASED TOURISM INFORMATION SYSTEM");
-        System.out.println("  Target Locale: Biliran Province, Philippines");
-        System.out.println("  Version: " + AppConfig.getAppVersion());
-        System.out.println("====================================================================");
+        System.out.println("==========================================================");
+        System.out.println("  LAKBAY LOKAL: Community-Based Tourism Information System");
+        System.out.println("  Province of Biliran, Philippines                        ");
+        System.out.println("==========================================================");
 
-        // 1. Initialize Database
-        try {
-            System.out.println("[Bootstrap] Verifying database connection and schema...");
-            boolean dbReady = DatabaseInitializer.initializeIfNeeded();
-            if (dbReady) {
-                System.out.println("[Bootstrap] Database connection established and tables ready.");
-            } else {
-                System.out.println("[Bootstrap] Note: MySQL not yet running on localhost:3306.");
-                System.out.println("[Bootstrap] You can start MySQL via XAMPP / WAMP and click 'Test Connection' in the launcher.");
+        boolean webOnly = false;
+        if (args != null) {
+            for (String arg : args) {
+                if ("--web-only".equalsIgnoreCase(arg) || "--headless".equalsIgnoreCase(arg)) {
+                    webOnly = true;
+                    break;
+                }
             }
-        } catch (Exception e) {
-            System.err.println("[Bootstrap] Database init notice: " + e.getMessage());
         }
 
-        // 2. Start Embedded Web & API Server
+        // 1. Set native OS look and feel for Swing
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception ignored) {
+        }
+
+        // 2. Initialize MySQL schema & seed data if MySQL is running
+        System.out.println("[Boot] Initializing MySQL database & Biliran tourism dataset...");
+        DatabaseInitializer.initializeIfNeeded();
+
+        // 3. Start Embedded HTTP Server for full-featured interactive UI
+        int port = AppConfig.getServerPort();
         LakbayServer server = new LakbayServer();
+        boolean serverStartedHere = false;
         try {
             server.start();
+            serverStartedHere = true;
+        } catch (BindException bindEx) {
+            System.out.println("[Server] Port " + port + " is already in use by an active Lakbay Lokal instance.");
+            System.out.println("[Server] Connecting to existing server at http://localhost:" + port + "/");
         } catch (Exception e) {
-            System.err.println("[Bootstrap] Failed to start server: " + e.getMessage());
-            e.printStackTrace();
-            return;
+            System.err.println("[Error] Could not bind HTTP server on port " + port + ": " + e.getMessage());
         }
 
-        // 3. Register Shutdown Hook
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("[Bootstrap] Shutting down Lakbay Lokal...");
-            server.stop();
-        }));
-
-        // 4. Launch Desktop Swing Window and Open Web UI
-        if (!GraphicsEnvironment.isHeadless()) {
+        // 4. Launch Desktop Swing Controller (without auto-opening a web browser) unless running in headless mode
+        if (!webOnly) {
+            final boolean startedLocal = serverStartedHere;
             SwingUtilities.invokeLater(() -> {
-                try {
-                    UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-                } catch (Exception ignored) {
-                }
-                LakbaySwingLauncher launcher = new LakbaySwingLauncher(server.getPort());
+                LakbaySwingLauncher launcher = new LakbaySwingLauncher(port);
                 launcher.setVisible(true);
-                // Launch default browser
-                launcher.openBrowser("http://localhost:" + server.getPort() + "/");
+                if (!startedLocal) {
+                    launcher.appendLog("Attached to existing Lakbay Lokal server on port " + port + ".");
+                }
+                launcher.launchStandaloneDesktopApp();
             });
         } else {
-            System.out.println("[Bootstrap] Running in headless environment. Open http://localhost:" + server.getPort() + "/ in your browser.");
+            System.out.println("[Boot] Running in headless REST API server mode on http://localhost:" + port + "/");
         }
     }
 }

@@ -2,6 +2,7 @@ package com.lakbaylokal.dao.impl;
 
 import com.lakbaylokal.dao.StakeholderDAO;
 import com.lakbaylokal.database.ConnectionFactory;
+import com.lakbaylokal.model.AuditLog;
 import com.lakbaylokal.model.StakeholderProfile;
 import com.lakbaylokal.model.TourismService;
 
@@ -12,7 +13,7 @@ import java.util.List;
 public class StakeholderDAOImpl implements StakeholderDAO {
 
     private static final String PROFILE_SELECT =
-            "SELECT sp.*, u.full_name AS owner_name, u.email, b.name AS barangay_name, m.name AS municipality_name " +
+            "SELECT sp.*, u.full_name AS owner_name, u.email, b.name AS barangay_name, b.municipality_id, m.name AS municipality_name " +
             "FROM stakeholder_profiles sp " +
             "JOIN users u ON sp.user_id = u.user_id " +
             "JOIN barangays b ON sp.barangay_id = b.barangay_id " +
@@ -50,6 +51,11 @@ public class StakeholderDAOImpl implements StakeholderDAO {
 
     @Override
     public List<StakeholderProfile> findAll(String category, Integer barangayId, String verificationStatus) {
+        return findAll(category, barangayId, null, verificationStatus);
+    }
+
+    @Override
+    public List<StakeholderProfile> findAll(String category, Integer barangayId, Integer municipalityId, String verificationStatus) {
         List<StakeholderProfile> list = new ArrayList<>();
         StringBuilder sql = new StringBuilder(PROFILE_SELECT).append("WHERE 1=1 ");
         List<Object> params = new ArrayList<>();
@@ -62,9 +68,25 @@ public class StakeholderDAOImpl implements StakeholderDAO {
             sql.append("AND sp.barangay_id = ? ");
             params.add(barangayId);
         }
+        if (municipalityId != null && municipalityId > 0) {
+            sql.append("AND b.municipality_id = ? ");
+            params.add(municipalityId);
+        }
         if (verificationStatus != null && !verificationStatus.isBlank() && !"ALL".equalsIgnoreCase(verificationStatus)) {
-            sql.append("AND sp.verification_status = ? ");
-            params.add(verificationStatus);
+            if ("QUEUE".equalsIgnoreCase(verificationStatus)) {
+                sql.append("AND sp.verification_status IN ('PENDING', 'UNDER_REVIEW', 'NEEDS_CORRECTION') ");
+            } else if (verificationStatus.contains(",")) {
+                String[] parts = verificationStatus.split(",");
+                sql.append("AND sp.verification_status IN (");
+                for (int i = 0; i < parts.length; i++) {
+                    sql.append(i > 0 ? ",?" : "?");
+                    params.add(parts[i].trim());
+                }
+                sql.append(") ");
+            } else {
+                sql.append("AND sp.verification_status = ? ");
+                params.add(verificationStatus);
+            }
         }
 
         sql.append("ORDER BY sp.profile_id ASC");
@@ -145,6 +167,150 @@ public class StakeholderDAOImpl implements StakeholderDAO {
         } catch (SQLException e) {
             System.err.println("[StakeholderDAO] updateVerificationStatus error: " + e.getMessage());
             return false;
+        }
+    }
+
+    @Override
+    public boolean resetToPending(int profileId) {
+        String sql = "UPDATE stakeholder_profiles SET verification_status = 'PENDING', verified_by = NULL, verified_at = NULL WHERE profile_id = ?";
+        try (Connection conn = ConnectionFactory.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, profileId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("[StakeholderDAO] resetToPending error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Atomically updates all correctable profile fields AND resets verification
+     * status to PENDING, cleared verified_by and verified_at in a single SQL
+     * UPDATE on one JDBC connection.
+     *
+     * Also inserts the STAKEHOLDER_RESUBMIT audit log entry within the same
+     * transaction so that both the profile update and the audit trail either
+     * succeed together or roll back together.
+     *
+     * @param profile the stakeholder profile with corrected field values set
+     * @return true only if the profile row was actually updated
+     */
+    @Override
+    public boolean resubmitProfile(StakeholderProfile profile) {
+        return resubmitProfile(profile, null);
+    }
+
+    /**
+     * Atomically updates all correctable profile fields AND resets verification
+     * status to PENDING, cleared verified_by and verified_at in a single SQL
+     * UPDATE on one JDBC connection, with custom audit log details participating
+     * in the exact same transaction.
+     *
+     * @param profile the stakeholder profile with corrected field values set
+     * @param auditLog optional specific audit log to insert; if null, defaults are used
+     * @return true only if the profile row was actually updated and transaction committed
+     */
+    @Override
+    public boolean resubmitProfile(StakeholderProfile profile, AuditLog auditLog) {
+        String updateSql =
+            "UPDATE stakeholder_profiles " +
+            "SET business_name       = ?, " +
+            "    accreditation_no    = ?, " +
+            "    contact_number      = ?, " +
+            "    years_experience    = ?, " +
+            "    category            = ?, " +
+            "    verification_status = 'PENDING', " +
+            "    verified_by         = NULL, " +
+            "    verified_at         = NULL " +
+            "WHERE profile_id = ?";
+
+        // The audit INSERT uses the exact schema of audit_logs
+        String auditSql =
+            "INSERT INTO audit_logs " +
+            "(user_id, username, action, entity_name, entity_id, ip_address, details) " +
+            "VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+        Connection conn = null;
+        try {
+            conn = ConnectionFactory.getConnection();
+            conn.setAutoCommit(false);
+
+            // ── 1. Atomic profile update ──────────────────────────────────────
+            boolean updated;
+            try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                ps.setString(1, profile.getBusinessName());
+                ps.setString(2, profile.getAccreditationNo());
+                ps.setString(3, profile.getContactNumber());
+                ps.setInt   (4, profile.getYearsExperience());
+                ps.setString(5, profile.getCategory());
+                ps.setInt   (6, profile.getProfileId());
+                updated = ps.executeUpdate() > 0;
+            }
+
+            if (!updated) {
+                // Nothing was changed — the profile_id may not exist. Roll back cleanly.
+                conn.rollback();
+                System.err.println("[StakeholderDAO] resubmitProfile: no row matched profile_id=" + profile.getProfileId());
+                return false;
+            }
+
+            // ── 2. Audit log within the exact same transaction ────────────────
+            Integer userId = (auditLog != null && auditLog.getUserId() != null && auditLog.getUserId() > 0)
+                    ? auditLog.getUserId()
+                    : (profile.getUserId() > 0 ? profile.getUserId() : null);
+
+            String username = (auditLog != null && auditLog.getUsername() != null && !auditLog.getUsername().isBlank())
+                    ? auditLog.getUsername()
+                    : (profile.getOwnerName() != null ? profile.getOwnerName() : "STAKEHOLDER");
+
+            String action = (auditLog != null && auditLog.getAction() != null)
+                    ? auditLog.getAction()
+                    : "STAKEHOLDER_RESUBMIT";
+
+            String entityName = (auditLog != null && auditLog.getEntityName() != null)
+                    ? auditLog.getEntityName()
+                    : "STAKEHOLDER_PROFILES";
+
+            Integer entityId = (auditLog != null && auditLog.getEntityId() != null && auditLog.getEntityId() > 0)
+                    ? auditLog.getEntityId()
+                    : profile.getProfileId();
+
+            String ipAddress = (auditLog != null && auditLog.getIpAddress() != null && !auditLog.getIpAddress().isBlank())
+                    ? auditLog.getIpAddress()
+                    : "127.0.0.1";
+
+            String details = (auditLog != null && auditLog.getDetails() != null && !auditLog.getDetails().isBlank())
+                    ? auditLog.getDetails()
+                    : ("Resubmitted application: " + profile.getBusinessName() + " (profile_id=" + profile.getProfileId() + ")");
+
+            try (PreparedStatement ps = conn.prepareStatement(auditSql)) {
+                if (userId != null && userId > 0) ps.setInt(1, userId);
+                else ps.setNull(1, java.sql.Types.INTEGER);
+                ps.setString(2, username);
+                ps.setString(3, action);
+                ps.setString(4, entityName);
+                if (entityId != null && entityId > 0) ps.setInt(5, entityId);
+                else ps.setNull(5, java.sql.Types.INTEGER);
+                ps.setString(6, ipAddress);
+                ps.setString(7, details);
+                ps.executeUpdate();
+            }
+
+            conn.commit();
+            return true;
+
+        } catch (SQLException e) {
+            System.err.println("[StakeholderDAO] resubmitProfile error: " + e.getMessage());
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException re) {
+                    System.err.println("[StakeholderDAO] rollback error: " + re.getMessage());
+                }
+            }
+            return false;
+        } finally {
+            if (conn != null) {
+                try { conn.setAutoCommit(true); conn.close(); } catch (SQLException ignored) {}
+            }
         }
     }
 
@@ -309,6 +475,7 @@ public class StakeholderDAOImpl implements StakeholderDAO {
         p.setOwnerName(rs.getString("owner_name"));
         p.setEmail(rs.getString("email"));
         p.setBarangayName(rs.getString("barangay_name"));
+        p.setMunicipalityId(rs.getInt("municipality_id"));
         p.setMunicipalityName(rs.getString("municipality_name"));
         return p;
     }

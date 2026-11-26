@@ -13,6 +13,7 @@ public class BookingItem {
     private int quantity;
     private BigDecimal subtotal;
     private String status;
+    private String paymentStatus = "PENDING";
 
     // Joined fields
     private String serviceName;
@@ -47,6 +48,9 @@ public class BookingItem {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getPaymentStatus() { return paymentStatus; }
+    public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
 
     public String getServiceName() { return serviceName; }
     public void setServiceName(String serviceName) { this.serviceName = serviceName; }

@@ -1,8 +1,4 @@
--- ============================================================================
--- LAKBAY LOKAL: A COMMUNITY-BASED TOURISM INFORMATION SYSTEM
--- DATABASE SCHEMA SCRIPT (MySQL 8.0+)
--- Target Location: Biliran Province, Philippines
--- ============================================================================
+
 
 CREATE DATABASE IF NOT EXISTS lakbay_lokal_db
 CHARACTER SET utf8mb4
@@ -10,13 +6,9 @@ COLLATE utf8mb4_unicode_ci;
 
 USE lakbay_lokal_db;
 
--- Disable foreign key checks during creation
+
 SET FOREIGN_KEY_CHECKS = 0;
 
--- ----------------------------------------------------------------------------
--- 1. ROLES TABLE
--- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS roles;
 CREATE TABLE roles (
     role_id INT AUTO_INCREMENT PRIMARY KEY,
     role_code VARCHAR(30) NOT NULL UNIQUE,
@@ -24,9 +16,6 @@ CREATE TABLE roles (
     description VARCHAR(255)
 ) ENGINE=InnoDB;
 
--- ----------------------------------------------------------------------------
--- 2. MUNICIPALITIES TABLE (Biliran Province)
--- ----------------------------------------------------------------------------
 DROP TABLE IF EXISTS municipalities;
 CREATE TABLE municipalities (
     municipality_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -35,9 +24,6 @@ CREATE TABLE municipalities (
     zip_code VARCHAR(10)
 ) ENGINE=InnoDB;
 
--- ----------------------------------------------------------------------------
--- 3. BARANGAYS TABLE
--- ----------------------------------------------------------------------------
 DROP TABLE IF EXISTS barangays;
 CREATE TABLE barangays (
     barangay_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -49,9 +35,6 @@ CREATE TABLE barangays (
     UNIQUE KEY uq_municipality_barangay (municipality_id, name)
 ) ENGINE=InnoDB;
 
--- ----------------------------------------------------------------------------
--- 4. USERS TABLE
--- ----------------------------------------------------------------------------
 DROP TABLE IF EXISTS users;
 CREATE TABLE users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -63,16 +46,15 @@ CREATE TABLE users (
     phone VARCHAR(30),
     role_id INT NOT NULL,
     barangay_id INT NULL,
+    municipality_id INT NULL,
     status ENUM('ACTIVE', 'PENDING_APPROVAL', 'DEACTIVATED') NOT NULL DEFAULT 'ACTIVE',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (role_id) REFERENCES roles(role_id) ON DELETE RESTRICT ON UPDATE CASCADE,
-    FOREIGN KEY (barangay_id) REFERENCES barangays(barangay_id) ON DELETE SET NULL ON UPDATE CASCADE
+    FOREIGN KEY (barangay_id) REFERENCES barangays(barangay_id) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (municipality_id) REFERENCES municipalities(municipality_id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- ----------------------------------------------------------------------------
--- 5. TOURIST PROFILES TABLE
--- ----------------------------------------------------------------------------
 DROP TABLE IF EXISTS tourist_profiles;
 CREATE TABLE tourist_profiles (
     profile_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -83,11 +65,8 @@ CREATE TABLE tourist_profiles (
     emergency_phone VARCHAR(30),
     travel_preferences TEXT,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB
 
--- ----------------------------------------------------------------------------
--- 6. STAKEHOLDER PROFILES TABLE
--- ----------------------------------------------------------------------------
 DROP TABLE IF EXISTS stakeholder_profiles;
 CREATE TABLE stakeholder_profiles (
     profile_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -98,7 +77,7 @@ CREATE TABLE stakeholder_profiles (
     accreditation_no VARCHAR(60),
     contact_number VARCHAR(30),
     years_experience INT DEFAULT 1,
-    verification_status ENUM('PENDING', 'VERIFIED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
+    verification_status ENUM('PENDING', 'UNDER_REVIEW', 'NEEDS_CORRECTION', 'VERIFIED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
     verified_by INT NULL,
     verified_at DATETIME NULL,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -106,9 +85,6 @@ CREATE TABLE stakeholder_profiles (
     FOREIGN KEY (verified_by) REFERENCES users(user_id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- ----------------------------------------------------------------------------
--- 7. TOURISM SERVICES TABLE
--- ----------------------------------------------------------------------------
 DROP TABLE IF EXISTS tourism_services;
 CREATE TABLE tourism_services (
     service_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -124,9 +100,6 @@ CREATE TABLE tourism_services (
     FOREIGN KEY (stakeholder_id) REFERENCES stakeholder_profiles(profile_id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- ----------------------------------------------------------------------------
--- 8. DESTINATIONS TABLE
--- ----------------------------------------------------------------------------
 DROP TABLE IF EXISTS destinations;
 CREATE TABLE destinations (
     destination_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -147,9 +120,6 @@ CREATE TABLE destinations (
     FOREIGN KEY (validated_by) REFERENCES users(user_id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- ----------------------------------------------------------------------------
--- 9. TOURISM PACKAGES TABLE
--- ----------------------------------------------------------------------------
 DROP TABLE IF EXISTS tourism_packages;
 CREATE TABLE tourism_packages (
     package_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -169,9 +139,6 @@ CREATE TABLE tourism_packages (
     FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- ----------------------------------------------------------------------------
--- 10. PACKAGE DESTINATIONS (Junction Table)
--- ----------------------------------------------------------------------------
 DROP TABLE IF EXISTS package_destinations;
 CREATE TABLE package_destinations (
     package_id INT NOT NULL,
@@ -182,9 +149,6 @@ CREATE TABLE package_destinations (
     FOREIGN KEY (destination_id) REFERENCES destinations(destination_id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- ----------------------------------------------------------------------------
--- 11. PACKAGE SERVICES (Junction Table)
--- ----------------------------------------------------------------------------
 DROP TABLE IF EXISTS package_services;
 CREATE TABLE package_services (
     package_id INT NOT NULL,
@@ -194,9 +158,6 @@ CREATE TABLE package_services (
     FOREIGN KEY (service_id) REFERENCES tourism_services(service_id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- ----------------------------------------------------------------------------
--- 12. BOOKINGS TABLE
--- ----------------------------------------------------------------------------
 DROP TABLE IF EXISTS bookings;
 CREATE TABLE bookings (
     booking_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -216,9 +177,6 @@ CREATE TABLE bookings (
     FOREIGN KEY (package_id) REFERENCES tourism_packages(package_id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- ----------------------------------------------------------------------------
--- 13. BOOKING SERVICE ITEMS (Service-level stakeholder reservations)
--- ----------------------------------------------------------------------------
 DROP TABLE IF EXISTS booking_service_items;
 CREATE TABLE booking_service_items (
     item_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -235,9 +193,6 @@ CREATE TABLE booking_service_items (
     FOREIGN KEY (stakeholder_id) REFERENCES stakeholder_profiles(profile_id) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- ----------------------------------------------------------------------------
--- 14. REVIEWS TABLE
--- ----------------------------------------------------------------------------
 DROP TABLE IF EXISTS reviews;
 CREATE TABLE reviews (
     review_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -252,16 +207,13 @@ CREATE TABLE reviews (
     FOREIGN KEY (tourist_id) REFERENCES tourist_profiles(profile_id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- ----------------------------------------------------------------------------
--- 15. VERIFICATION RECORDS TABLE
--- ----------------------------------------------------------------------------
 DROP TABLE IF EXISTS verification_records;
 CREATE TABLE verification_records (
     verification_id INT AUTO_INCREMENT PRIMARY KEY,
     stakeholder_id INT NOT NULL,
     barangay_id INT NOT NULL,
     reviewer_id INT NOT NULL,
-    status ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL,
+    status ENUM('PENDING', 'APPROVED', 'REJECTED', 'REQUEST_CORRECTION') NOT NULL,
     requirements_submitted TEXT,
     remarks TEXT,
     decision_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -270,9 +222,6 @@ CREATE TABLE verification_records (
     FOREIGN KEY (reviewer_id) REFERENCES users(user_id) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- ----------------------------------------------------------------------------
--- 16. ANNOUNCEMENTS TABLE (Tourism Information Management)
--- ----------------------------------------------------------------------------
 DROP TABLE IF EXISTS announcements;
 CREATE TABLE announcements (
     announcement_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -289,9 +238,6 @@ CREATE TABLE announcements (
     FOREIGN KEY (published_by) REFERENCES users(user_id) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- ----------------------------------------------------------------------------
--- 17. TOURISM ARRIVAL LOGS TABLE (Monitoring & Footfall)
--- ----------------------------------------------------------------------------
 DROP TABLE IF EXISTS tourism_arrival_logs;
 CREATE TABLE tourism_arrival_logs (
     log_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -307,9 +253,6 @@ CREATE TABLE tourism_arrival_logs (
     FOREIGN KEY (recorded_by) REFERENCES users(user_id) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- ----------------------------------------------------------------------------
--- 18. AUDIT LOGS TABLE (System Security & Tamper-Evident History)
--- ----------------------------------------------------------------------------
 DROP TABLE IF EXISTS audit_logs;
 CREATE TABLE audit_logs (
     log_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -324,12 +267,10 @@ CREATE TABLE audit_logs (
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- Enable foreign key checks
+
 SET FOREIGN_KEY_CHECKS = 1;
 
--- ----------------------------------------------------------------------------
--- INDEXES FOR PERFORMANCE OPTIMIZATION
--- ----------------------------------------------------------------------------
+
 CREATE INDEX idx_users_role ON users(role_id);
 CREATE INDEX idx_users_status ON users(status);
 CREATE INDEX idx_destinations_barangay ON destinations(barangay_id);

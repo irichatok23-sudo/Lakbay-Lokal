@@ -9,12 +9,13 @@
 const state = {
     authToken: localStorage.getItem('lakbay_token') || null,
     currentUser: null,
-    activeRole: 'SYSTEM_ADMIN', // Default role view
+    activeRole: null, // Strictly assigned from verified database user record
     activeTab: 'overview',
     destinations: [],
     packages: [],
     stakeholders: [],
     services: [],
+    municipalities: [],
     barangays: [],
     bookings: [],
     announcements: [],
@@ -29,33 +30,299 @@ const state = {
     }
 };
 
-const API_BASE = '/api';
+const API_BASE = (typeof window !== 'undefined' && (window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null'))
+    ? 'http://127.0.0.1:8080/api'
+    : '/api';
 
+// Global Renderer Diagnostics & Error Boundary Logging
+if (typeof window !== 'undefined') {
+    window.addEventListener('error', (event) => {
+        console.error('[Renderer uncaughtException]', event.error ? (event.error.stack || event.error.message) : event.message, 'at', (event.filename || '') + ':' + (event.lineno || ''));
+    });
+    window.addEventListener('unhandledrejection', (event) => {
+        console.error('[Renderer unhandledRejection]', event.reason ? (event.reason.stack || event.reason.message || event.reason) : event.reason);
+    });
+}
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 // ------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
+// TOP-RATED & MOST RECOMMENDED DESTINATION RECOMMENDER HERO CAROUSEL
+// ------------------------------------------------------------------------------
+const heroCarouselState = {
+    recommendations: [], // Top 4 ranked destinations from reviews
+    current: 0,
+    autoTimer: null
+};
+
+const HERO_RANK_TAGS = [
+    { label: '#1 MOST RECOMMENDED', icon: 'fa-trophy', color: '#fbbf24' },
+    { label: '#2 HIGHLY RECOMMENDED', icon: 'fa-award', color: '#60a5fa' },
+    { label: '#3 TOP RATED', icon: 'fa-star', color: '#34d399' },
+    { label: '#4 POPULAR PICK', icon: 'fa-heart', color: '#f472b6' }
+];
+
+function updateHeroRecommender(destList) {
+    const list = (destList && destList.length > 0) ? destList : (state.destinations || []);
+    if (!list || list.length === 0) return;
+
+    // Rank destinations using verified tourist review ratings and review volume
+    const ranked = [...list].sort((a, b) => {
+        const ratingA = Number(a.averageRating || a.avgRating) || 5.0;
+        const ratingB = Number(b.averageRating || b.avgRating) || 5.0;
+        const countA = Number(a.reviewCount) || 0;
+        const countB = Number(b.reviewCount) || 0;
+
+        // Bayesian-weighted score (prior 5.0 with weight 2)
+        const scoreA = (ratingA * countA + 5.0 * 2) / (countA + 2);
+        const scoreB = (ratingB * countB + 5.0 * 2) / (countB + 2);
+
+        if (Math.abs(scoreB - scoreA) > 0.05) return scoreB - scoreA;
+        if (countB !== countA) return countB - countA;
+        return ratingB - ratingA;
+    });
+
+    heroCarouselState.recommendations = ranked.slice(0, 4);
+    if (heroCarouselState.current >= heroCarouselState.recommendations.length) {
+        heroCarouselState.current = 0;
+    }
+
+    initHeroCarousel();
+}
+
+function initHeroCarousel() {
+    const thumbsContainer = document.getElementById('hero-thumbnails-container');
+    const dotsContainer   = document.getElementById('hero-dots-container');
+    const recs = heroCarouselState.recommendations;
+    if (!thumbsContainer || !dotsContainer || !recs || recs.length === 0) return;
+
+    thumbsContainer.innerHTML = '';
+    dotsContainer.innerHTML   = '';
+
+    recs.forEach(function(dest, i) {
+        const photo = getDestinationImage(dest) || 'assets/sambawan_island.jpg';
+        const safeName = dest.name || 'Biliran Destination';
+
+        // Thumbnail button
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'hero-thumb-btn' + (i === heroCarouselState.current ? ' active' : '');
+        btn.setAttribute('aria-label', `View #${i + 1}: ${safeName}`);
+        btn.title = `#${i + 1} ${safeName}`;
+        (function(idx) { btn.onclick = function(e) { if (e) e.stopPropagation(); goToHeroSlide(idx); }; })(i);
+        var img = document.createElement('img');
+        img.src = photo;
+        img.alt = safeName;
+        img.onerror = (function(b) { return function() { b.style.display = 'none'; }; })(btn);
+        btn.appendChild(img);
+        thumbsContainer.appendChild(btn);
+
+        // Dot indicator
+        var dot = document.createElement('button');
+        dot.type = 'button';
+        dot.className = 'hero-dot' + (i === heroCarouselState.current ? ' active' : '');
+        dot.setAttribute('aria-label', `Recommendation Slide ${i + 1}`);
+        (function(idx) { dot.onclick = function(e) { if (e) e.stopPropagation(); goToHeroSlide(idx); }; })(i);
+        dotsContainer.appendChild(dot);
+    });
+
+    updateHeroSlideUI();
+    startHeroAutoplay();
+}
+
+function goToHeroSlide(index) {
+    const recs = heroCarouselState.recommendations;
+    if (!recs || recs.length === 0) return;
+    heroCarouselState.current = (index + recs.length) % recs.length;
+    updateHeroSlideUI();
+    resetHeroAutoplay();
+}
+
+function nextHeroSlide() {
+    goToHeroSlide(heroCarouselState.current + 1);
+}
+
+function prevHeroSlide() {
+    goToHeroSlide(heroCarouselState.current - 1);
+}
+
+function updateHeroSlideUI() {
+    const recs    = heroCarouselState.recommendations;
+    if (!recs || recs.length === 0) return;
+    const current = heroCarouselState.current;
+    const dest    = recs[current];
+    if (!dest) return;
+
+    const img     = document.getElementById('hero-carousel-img');
+    const counter = document.getElementById('hero-slide-counter');
+    const thumbs  = document.querySelectorAll('.hero-thumb-btn');
+    const dots    = document.querySelectorAll('.hero-dot');
+
+    const tagTextEl = document.getElementById('hero-tag-text');
+    const tagIconEl = document.getElementById('hero-tag-icon');
+    const titleEl   = document.getElementById('hero-dest-title');
+    const descEl    = document.getElementById('hero-dest-desc');
+    const ratingEl  = document.getElementById('hero-rating-val');
+    const feeEl     = document.getElementById('hero-fee-val');
+    const guidesEl  = document.getElementById('hero-guides-val');
+
+    const rankInfo = HERO_RANK_TAGS[current] || HERO_RANK_TAGS[0];
+    if (tagTextEl) tagTextEl.textContent = rankInfo.label;
+    if (tagIconEl) tagIconEl.className = `fa-solid ${rankInfo.icon}`;
+    if (titleEl)   titleEl.textContent = dest.name || 'Biliran Destination';
+    if (descEl)    descEl.textContent = dest.description || 'Experience authentic community-based tourism in Biliran Province.';
+
+    const avgRating = Number(dest.averageRating || dest.avgRating || 5.0).toFixed(1);
+    const revCount  = Number(dest.reviewCount) || 0;
+    if (ratingEl) {
+        ratingEl.textContent = `${avgRating} (${revCount} ${revCount === 1 ? 'Review' : 'Reviews'})`;
+    }
+
+    if (feeEl) {
+        const fee = Number(dest.entranceFee) || 0;
+        feeEl.textContent = fee > 0 ? `₱${fee.toFixed(2)} Entrance Fee` : 'Free Entry';
+    }
+
+    if (guidesEl) {
+        let guideCount = 0;
+        if (state.stakeholders && Array.isArray(state.stakeholders)) {
+            guideCount = state.stakeholders.filter(s => {
+                const isVerified = (s.verificationStatus === 'VERIFIED' || s.isVerified);
+                const isMatch = (dest.municipalityId && s.municipalityId === dest.municipalityId) ||
+                                (dest.barangayId && s.barangayId === dest.barangayId);
+                return isVerified && isMatch;
+            }).length;
+        }
+        guidesEl.textContent = guideCount > 0 ? `${guideCount} Certified Guides Available` : 'Certified Guides Available';
+    }
+
+    const photoSrc = getDestinationImage(dest) || 'assets/sambawan_island.jpg';
+    if (img) {
+        img.style.opacity   = '0';
+        img.style.transform = 'scale(1.03)';
+        setTimeout(function() {
+            img.src = photoSrc;
+            img.alt = dest.name || 'Top Recommended Destination';
+            img.onerror = function() { handleHeroImageFallback(img); };
+            img.onload  = function() {
+                img.style.opacity   = '1';
+                img.style.transform = 'scale(1)';
+            };
+        }, 160);
+    }
+
+    if (counter) counter.textContent = `${current + 1} / ${recs.length}`;
+
+    thumbs.forEach(function(t, i) { t.classList.toggle('active', i === current); });
+    dots.forEach(function(d, i)   { d.classList.toggle('active', i === current); });
+}
+
+function exploreCurrentHeroDestination(event) {
+    if (event) event.stopPropagation();
+    const recs = heroCarouselState.recommendations;
+    if (!recs || recs.length === 0) return;
+    const dest = recs[heroCarouselState.current];
+    if (!dest) return;
+
+    if (state.activeRole === 'TOURIST') {
+        promptInquireOrBook(dest.name, dest.destinationId);
+    } else {
+        const grid = document.getElementById('destinations-grid');
+        if (grid) {
+            grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            showToast(`Viewing details for #${heroCarouselState.current + 1}: ${dest.name}`, 'info');
+        }
+    }
+}
+
+function handleHeroImageFallback(img) {
+    if (img) {
+        img.onerror = null;
+        img.style.opacity = '0';
+        var bg = document.getElementById('hero-bg-layer');
+        if (bg) bg.style.background = 'linear-gradient(135deg, #0b1324 0%, #0f2838 50%, #1e3a5f 100%)';
+    }
+}
+
+function startHeroAutoplay() {
+    clearInterval(heroCarouselState.autoTimer);
+    heroCarouselState.autoTimer = setInterval(function() {
+        nextHeroSlide();
+    }, 5500);
+}
+
+function resetHeroAutoplay() {
+    clearInterval(heroCarouselState.autoTimer);
+    startHeroAutoplay();
+}
+
+
 // ------------------------------------------------------------------------------
 // INITIALIZATION & LIFECYCLE
 // ------------------------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', async () => {
     initDefaultDates();
     checkDesktopEnvironment();
-    await loadBarangays();
-    await loadDestinations();
-    await loadPackages();
-    await loadStakeholderServices();
-    await loadStakeholdersList();
-    await loadAnnouncementsList();
+
+    // Attach explicit listener to login form
+    const loginForm = document.getElementById('form-glass-login');
+    if (loginForm) {
+        loginForm.onsubmit = function(evt) {
+            return handleGlassLoginSubmit(evt);
+        };
+    }
+
+    // Auto-dismiss modals when clicking directly on backdrop
+    document.querySelectorAll('.modal-backdrop').forEach(m => {
+        m.addEventListener('click', (e) => {
+            if (e.target === m) closeModal(m.id);
+        });
+    });
+
+    // Verify existing authentication token if present
+    const isAuthenticated = await verifyExistingSession();
+
+    if (isAuthenticated && state.currentUser) {
+        // Authenticated user session active: load app data and redirect to assigned role homepage
+        try {
+            await loadInitialData();
+        } catch (e) {
+            console.warn('Initial data load notice:', e);
+        }
+        redirectToRoleHomepage(state.currentUser.roleCode);
+    } else {
+        // Unauthenticated visitor: strictly show Login Portal first
+        showLoginView();
+    }
+    // Initialize hero carousel (works regardless of auth state)
+    initHeroCarousel();
+});
+
+async function loadInitialData() {
+    await Promise.allSettled([
+        loadMunicipalities(),
+        loadBarangays(),
+        loadDestinations(),
+        loadPackages(),
+        loadStakeholderServices(),
+        loadStakeholdersList(),
+        loadAnnouncementsList(),
+        loadSystemSettings()
+    ]);
     
-    // Render public homepage sections
     renderPublicDestinations(state.destinations);
     renderPublicPackages(state.packages);
     updateHeroCounters();
-
-    // Verify existing authentication token if present
-    await verifyExistingSession();
-    
-    // Background KPIs
     loadKPIs();
-});
+}
 
 function initDefaultDates() {
     const today = new Date();
@@ -86,9 +353,7 @@ function checkDesktopEnvironment() {
         if (titlebar) titlebar.style.display = 'flex';
         console.log('[Desktop] Running in native Electron desktop mode.');
     } else {
-        // In standard browser, show titlebar brand cleanly without redundant OS buttons
-        const controls = document.getElementById('desktop-titlebar-controls');
-        if (controls) controls.style.display = 'none';
+        if (titlebar) titlebar.style.display = 'none';
     }
 }
 
@@ -113,18 +378,147 @@ function closeDesktopWindow() {
 }
 
 // ------------------------------------------------------------------------------
-// VIEW & PORTAL ROUTING (PUBLIC HOMEPAGE VS MANAGEMENT DASHBOARD)
+// VIEW & PORTAL ROUTING (LOGIN VS PUBLIC TOURIST HUB VS MANAGEMENT DASHBOARD)
 // ------------------------------------------------------------------------------
-function showPublicPortal() {
-    document.getElementById('public-portal-view')?.classList.add('active');
-    document.getElementById('management-portal-view')?.classList.remove('active');
+function showLoginView() {
+    const loginPortal = document.getElementById('login-portal-view');
+    const publicPortal = document.getElementById('public-portal-view');
+    const mgmtPortal = document.getElementById('management-portal-view');
+
+    if (mgmtPortal) {
+        mgmtPortal.classList.remove('active');
+        mgmtPortal.style.display = 'none';
+    }
+    if (publicPortal) {
+        publicPortal.classList.remove('active');
+        publicPortal.style.display = 'none';
+    }
+    if (loginPortal) {
+        loginPortal.classList.add('active');
+        loginPortal.style.display = 'flex';
+        loginPortal.style.pointerEvents = 'auto';
+    }
+
+    // Force close and dismiss ALL modal dialogs and overlays completely
+    closeAllModals();
+
+    // Reset submission lock flag
+    isSubmittingLogin = false;
+
+    // Reset login inputs
+    const uInput = document.getElementById('glass-login-username');
+    const pInput = document.getElementById('glass-login-password');
+    const remBox = document.getElementById('glass-remember-me');
+    const btn = document.getElementById('btn-glass-submit');
+    const btnText = document.getElementById('btn-glass-submit-text');
+    const btnIcon = document.getElementById('btn-glass-submit-icon');
+    const errBox = document.getElementById('glass-login-error');
+    const errText = document.getElementById('glass-login-error-text');
+
+    if (uInput) {
+        uInput.value = '';
+        uInput.disabled = false;
+        uInput.readOnly = false;
+        uInput.removeAttribute('disabled');
+        uInput.removeAttribute('readonly');
+        uInput.style.pointerEvents = 'auto';
+        uInput.style.userSelect = 'text';
+        uInput.tabIndex = 0;
+    }
+    if (pInput) {
+        pInput.value = '';
+        pInput.disabled = false;
+        pInput.readOnly = false;
+        pInput.removeAttribute('disabled');
+        pInput.removeAttribute('readonly');
+        pInput.style.pointerEvents = 'auto';
+        pInput.style.userSelect = 'text';
+        pInput.tabIndex = 0;
+    }
+    if (remBox) {
+        remBox.checked = false;
+    }
+    if (btn) {
+        btn.disabled = false;
+        btn.removeAttribute('disabled');
+        btn.style.pointerEvents = 'auto';
+    }
+    if (btnText) btnText.textContent = 'Sign In';
+    if (btnIcon) btnIcon.className = 'fa-solid fa-right-to-bracket';
+
+    if (errBox) {
+        errBox.classList.remove('show');
+        errBox.style.display = 'none';
+    }
+    if (errText) errText.textContent = '';
+
+    // Reattach explicit listener to login form to guarantee repeated interactivity
+    const loginForm = document.getElementById('form-glass-login');
+    if (loginForm) {
+        loginForm.onsubmit = function(evt) {
+            return handleGlassLoginSubmit(evt);
+        };
+    }
+
+    // Restore desktop window and input focus
+    if (window.desktopAPI?.restoreFocus) {
+        window.desktopAPI.restoreFocus();
+    }
+    window.focus();
+    setTimeout(() => {
+        if (uInput) {
+            uInput.focus();
+        }
+    }, 50);
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function showManagementDashboard(tabId = 'overview') {
-    document.getElementById('public-portal-view')?.classList.remove('active');
-    document.getElementById('management-portal-view')?.classList.add('active');
-    switchTab(tabId);
+function showPublicPortal() {
+    if (!state.currentUser) {
+        showLoginView();
+        return;
+    }
+    const loginPortal = document.getElementById('login-portal-view');
+    const publicPortal = document.getElementById('public-portal-view');
+    const mgmtPortal = document.getElementById('management-portal-view');
+    if (loginPortal) {
+        loginPortal.classList.remove('active');
+        loginPortal.style.display = 'none';
+    }
+    if (publicPortal) {
+        publicPortal.classList.add('active');
+        publicPortal.style.display = 'block';
+    }
+    if (mgmtPortal) {
+        mgmtPortal.classList.remove('active');
+        mgmtPortal.style.display = 'none';
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showManagementDashboard(tabId = null) {
+    if (!state.currentUser) {
+        showLoginView();
+        return;
+    }
+    const loginPortal = document.getElementById('login-portal-view');
+    const publicPortal = document.getElementById('public-portal-view');
+    const mgmtPortal = document.getElementById('management-portal-view');
+    if (loginPortal) {
+        loginPortal.classList.remove('active');
+        loginPortal.style.display = 'none';
+    }
+    if (publicPortal) {
+        publicPortal.classList.remove('active');
+        publicPortal.style.display = 'none';
+    }
+    if (mgmtPortal) {
+        mgmtPortal.classList.add('active');
+        mgmtPortal.style.display = 'block';
+    }
+    const targetTab = tabId || (state.activeRole === 'TOURIST' ? 'destinations' : 'overview');
+    switchTab(targetTab);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -139,69 +533,188 @@ function scrollToSection(sectionId) {
 // AUTHENTICATION & SESSION MANAGEMENT
 // ------------------------------------------------------------------------------
 async function verifyExistingSession() {
-    if (state.authToken) {
-        try {
-            const res = await fetch(`${API_BASE}/auth/me`, {
-                headers: { 'X-Auth-Token': state.authToken }
-            });
-            if (res.ok) {
-                const user = await res.json();
-                setAuthenticatedUser(user, state.authToken);
-                return;
-            }
-        } catch (e) {
-            console.warn('Session verification notice:', e);
-        }
+    if (!state.authToken) {
+        return false;
     }
+    try {
+        const res = await fetch(`${API_BASE}/auth/me`, {
+            headers: { 'X-Auth-Token': state.authToken }
+        });
+        if (res.ok) {
+            const user = await res.json();
+            if (user && user.userId && user.roleCode && user.success !== false && user.code !== 401) {
+                setAuthenticatedUser(user, state.authToken);
+                return true;
+            }
+        }
+        // Token invalid or expired in database
+        state.authToken = null;
+        state.currentUser = null;
+        state.activeRole = null;
+        localStorage.removeItem('lakbay_token');
+        return false;
+    } catch (e) {
+        console.warn('Session verification notice:', e);
+        return false;
+    }
+}
+
+function openGlassLogin() {
+    showLoginView();
 }
 
 function setAuthenticatedUser(user, token) {
     state.currentUser = user;
     state.authToken = token;
-    state.activeRole = user.roleCode || 'SYSTEM_ADMIN';
+    state.activeRole = user.roleCode;
     if (token) localStorage.setItem('lakbay_token', token);
 
-    // Update Public Navbar Status
-    const pGuest = document.getElementById('public-guest-actions');
-    const pAuth = document.getElementById('public-auth-actions');
-    const roleLabel = document.getElementById('public-user-role-label');
-    if (pGuest) pGuest.style.display = 'none';
-    if (pAuth) pAuth.style.display = 'flex';
-    if (roleLabel) roleLabel.textContent = user.roleCode;
-
-    // Update Management Header UI
+    // Update Header user info & role badge
     const hName = document.getElementById('header-user-name');
     const hBadge = document.getElementById('header-role-badge');
+    const hRoleLabel = document.getElementById('header-user-role-label');
+    const hScopeLabel = document.getElementById('header-user-scope-label');
     if (hName) hName.textContent = user.fullName || user.username;
-    if (hBadge) hBadge.textContent = user.roleCode;
+    if (hBadge) hBadge.textContent = user.roleName || user.roleCode;
+    const roleDisplayMap = { 'STAKEHOLDER': 'Community Worker', 'LGU_OFFICER': 'Municipal Tourism Officer', 'TOURIST': 'Tourist', 'BARANGAY_OFFICIAL': 'Barangay Official', 'TOURISM_OFFICE': 'Tourism Office', 'SYSTEM_ADMIN': 'System Administrator' };
+    if (hRoleLabel) hRoleLabel.textContent = roleDisplayMap[user.roleCode] || user.roleName || formatCategory(user.roleCode);
+    if (hBadge && roleDisplayMap[user.roleCode]) hBadge.textContent = roleDisplayMap[user.roleCode];
+    if (hScopeLabel) {
+        if (user.barangayName) {
+            hScopeLabel.textContent = `Brgy. ${user.barangayName}`;
+            hScopeLabel.style.display = 'inline';
+        } else if (user.municipalityName) {
+            hScopeLabel.textContent = user.municipalityName;
+            hScopeLabel.style.display = 'inline';
+        } else {
+            hScopeLabel.style.display = 'none';
+        }
+    }
 
-    // Sync Role View Selector
-    const sel = document.getElementById('role-view-select');
-    if (sel) sel.value = state.activeRole;
+    // Update Public portal greeting
+    const pName = document.getElementById('public-user-name-label');
+    if (pName) pName.textContent = user.fullName || user.username;
+    const tGreet = document.getElementById('tourist-hub-greeting-text');
+    if (tGreet) tGreet.textContent = `Mabuhay, ${user.fullName || user.username}!`;
 
     applyRolePermissions(state.activeRole);
 }
 
-// ------------------------------------------------------------------------------
-// GLASSMORPHISM LOGIN PORTAL LOGIC
-// ------------------------------------------------------------------------------
-function openGlassLogin() {
-    const m = document.getElementById('modal-glass-login');
-    if (m) {
-        m.classList.add('open');
-        const err = document.getElementById('glass-login-error');
-        if (err) err.classList.remove('show');
-        setTimeout(() => {
-            document.getElementById('glass-login-username')?.focus();
-        }, 100);
+function redirectToRoleHomepage(roleCode) {
+    const loginPortal = document.getElementById('login-portal-view');
+    const publicPortal = document.getElementById('public-portal-view');
+    const mgmtPortal = document.getElementById('management-portal-view');
+
+    if (publicPortal) {
+        publicPortal.classList.remove('active');
+        publicPortal.style.display = 'none';
+    }
+    if (mgmtPortal) {
+        mgmtPortal.classList.add('active');
+        mgmtPortal.style.display = 'block';
+    }
+    if (loginPortal) {
+        loginPortal.classList.remove('active');
+        loginPortal.style.display = 'none';
+    }
+
+    const banner = document.getElementById('role-workspace-banner');
+    const bTag = document.getElementById('role-banner-tag');
+    const bTitle = document.getElementById('role-banner-title');
+    const bDesc = document.getElementById('role-banner-desc');
+    const bScope = document.getElementById('role-banner-scope-text');
+
+    switch (roleCode) {
+        case 'TOURIST':
+            // 4.A: Tourist Homepage - Direct to Destinations Workspace (Overview removed for tourists)
+            if (publicPortal) publicPortal.classList.remove('active');
+            if (mgmtPortal) mgmtPortal.classList.add('active');
+            if (banner) {
+                if (bTag) bTag.innerHTML = '<i class="fa-solid fa-umbrella-beach"></i> Tourist Experience Workspace';
+                if (bTitle) bTitle.textContent = `Welcome, ${state.currentUser.fullName || state.currentUser.username}`;
+                if (bDesc) bDesc.textContent = 'Discover approved destinations, customize itineraries, explore verified community providers, and track bookings.';
+                if (bScope) bScope.textContent = 'Tourist Personal Workspace';
+            }
+            switchTab('destinations');
+            break;
+
+        case 'STAKEHOLDER':
+            // 4.B: Local Tourism Stakeholder Homepage - Overview Dashboard & assigned bookings
+            if (publicPortal) publicPortal.classList.remove('active');
+            if (mgmtPortal) mgmtPortal.classList.add('active');
+            if (banner) {
+                if (bTag) bTag.innerHTML = '<i class="fa-solid fa-handshake-angle"></i> Community Worker Desk';
+                if (bTitle) bTitle.textContent = `Welcome, ${state.currentUser.fullName || state.currentUser.username}`;
+                if (bDesc) bDesc.textContent = 'Maintain your tourism offerings, daily rates, availability, and guest reservations in Biliran.';
+                if (bScope) bScope.textContent = state.currentUser.municipalityName ? `${state.currentUser.municipalityName} Community Worker` : 'Community Worker';
+            }
+            switchTab('overview');
+            break;
+
+        case 'BARANGAY_OFFICIAL':
+            // 4.C: Barangay Official Homepage - Verifications Desk (Restricted to their barangay)
+            if (publicPortal) publicPortal.classList.remove('active');
+            if (mgmtPortal) mgmtPortal.classList.add('active');
+            if (banner) {
+                if (bTag) bTag.innerHTML = '<i class="fa-solid fa-shield-halved"></i> Barangay Tourism Jurisdiction Desk';
+                const brgyName = state.currentUser.barangayName || 'Ol-og';
+                if (bTitle) bTitle.textContent = `Barangay Tourism Portal - Brgy. ${brgyName}`;
+                if (bDesc) bDesc.textContent = `Review community stakeholder accreditations, monitor registrations, and verify tourism records within Brgy. ${brgyName}.`;
+                if (bScope) bScope.textContent = `Brgy. ${brgyName} Jurisdiction`;
+            }
+            switchTab('verifications');
+            break;
+
+        case 'LGU_OFFICER':
+            // 4.D: LGU Official Homepage - Municipal Tourism Monitoring & Carrying Capacity
+            if (publicPortal) publicPortal.classList.remove('active');
+            if (mgmtPortal) mgmtPortal.classList.add('active');
+            if (banner) {
+                if (bTag) bTag.innerHTML = '<i class="fa-solid fa-building-columns"></i> Municipal Tourism Office Desk';
+                const muniName = state.currentUser.municipalityName || 'Naval';
+                if (bTitle) bTitle.textContent = `LGU Tourism Operations - Municipality of ${muniName}`;
+                if (bDesc) bDesc.textContent = 'Track carrying capacity thresholds, monitor community participants, and review consolidated municipal reports.';
+                if (bScope) bScope.textContent = `Municipality of ${muniName}`;
+            }
+            switchTab('lgu-monitoring');
+            break;
+
+        case 'TOURISM_OFFICE':
+            // 4.E: Tourism Office Personnel Homepage - Destinations & Provincial Packages
+            if (publicPortal) publicPortal.classList.remove('active');
+            if (mgmtPortal) mgmtPortal.classList.add('active');
+            if (banner) {
+                if (bTag) bTag.innerHTML = '<i class="fa-solid fa-compass-drafting"></i> Provincial Tourism Information Management';
+                if (bTitle) bTitle.textContent = 'Biliran Provincial Tourism Office Dashboard';
+                if (bDesc) bDesc.textContent = 'Manage destination records, oversee curated tourism packages, post advisories, and review stakeholder listings across all 8 municipalities.';
+                if (bScope) bScope.textContent = 'Provincial Jurisdiction';
+            }
+            switchTab('destinations');
+            break;
+
+        case 'SYSTEM_ADMIN':
+            // 4.F: System Administrator Homepage - Users, Roles, Security Audit & Settings
+            if (publicPortal) publicPortal.classList.remove('active');
+            if (mgmtPortal) mgmtPortal.classList.add('active');
+            if (banner) {
+                if (bTag) bTag.innerHTML = '<i class="fa-solid fa-users-gear"></i> System Administration & Governance Console';
+                if (bTitle) bTitle.textContent = 'System Administrator Dashboard';
+                if (bDesc) bDesc.textContent = 'Manage user accounts, assign database roles, review tamper-evident audit logs, and configure system settings.';
+                if (bScope) bScope.textContent = 'Full System Administrative Scope';
+            }
+            switchTab('admin');
+            break;
+
+        default:
+            if (publicPortal) publicPortal.classList.add('active');
+            if (mgmtPortal) mgmtPortal.classList.remove('active');
+            break;
     }
 }
 
-function closeGlassLogin() {
-    const m = document.getElementById('modal-glass-login');
-    if (m) m.classList.remove('open');
-}
-
+// ------------------------------------------------------------------------------
+// LOGIN & FORGOT PASSWORD WORKFLOW
+// ------------------------------------------------------------------------------
 function togglePasswordVisibility() {
     const pwdInput = document.getElementById('glass-login-password');
     const icon = document.getElementById('toggle-pwd-icon');
@@ -215,12 +728,22 @@ function togglePasswordVisibility() {
     }
 }
 
+let isSubmittingLogin = false;
+
 async function handleGlassLoginSubmit(e) {
-    e.preventDefault();
-    const u = document.getElementById('glass-login-username')?.value.trim();
-    const p = document.getElementById('glass-login-password')?.value;
+    if (e) {
+        if (typeof e.preventDefault === 'function') e.preventDefault();
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+    }
+    if (isSubmittingLogin) return false;
+
+    const uInput = document.getElementById('glass-login-username');
+    const pInput = document.getElementById('glass-login-password');
+    const u = uInput ? String(uInput.value || '').trim() : '';
+    const p = pInput ? String(pInput.value || '') : '';
     const btn = document.getElementById('btn-glass-submit');
     const btnText = document.getElementById('btn-glass-submit-text');
+    const btnIcon = document.getElementById('btn-glass-submit-icon');
     const errBox = document.getElementById('glass-login-error');
     const errText = document.getElementById('glass-login-error-text');
 
@@ -229,11 +752,14 @@ async function handleGlassLoginSubmit(e) {
             errText.textContent = 'Please enter both username and password.';
             errBox.classList.add('show');
         }
-        return;
+        return false;
     }
 
+    isSubmittingLogin = true;
     if (btnText) btnText.textContent = 'Verifying credentials...';
+    if (btnIcon) btnIcon.className = 'fa-solid fa-spinner fa-spin';
     if (btn) btn.disabled = true;
+    if (errBox) errBox.classList.remove('show');
 
     try {
         const res = await fetch(`${API_BASE}/auth/login`, {
@@ -242,12 +768,51 @@ async function handleGlassLoginSubmit(e) {
             body: JSON.stringify({ username: u, password: p })
         });
         const data = await res.json();
-        if (data.success) {
+        if (data.success && data.user) {
+            const rememberMe = document.getElementById('glass-remember-me')?.checked;
+            if (rememberMe) {
+                localStorage.setItem('lakbay_remembered_user', u);
+            } else {
+                localStorage.removeItem('lakbay_remembered_user');
+            }
+
+            if (data.stakeholderProfileId && !data.user.stakeholderProfileId) {
+                data.user.stakeholderProfileId = data.stakeholderProfileId;
+            }
+            if (data.verificationStatus && !data.user.verificationStatus) {
+                data.user.verificationStatus = data.verificationStatus;
+            }
+            if (data.category && !data.user.category) {
+                data.user.category = data.category;
+            }
+            if (data.businessName && !data.user.businessName) {
+                data.user.businessName = data.businessName;
+            }
             setAuthenticatedUser(data.user, data.token);
-            closeGlassLogin();
-            showToast(`Welcome, ${data.user.fullName} (${data.user.roleCode})!`, 'success');
-            showManagementDashboard('overview');
-            refreshAllData();
+            if (btnText) btnText.textContent = 'Initializing dashboard...';
+            try {
+                await loadInitialData();
+                redirectToRoleHomepage(data.user.roleCode);
+                showToast(`Welcome, ${data.user.fullName || data.user.username} (${data.user.roleCode})!`, 'success');
+            } catch (initErr) {
+                console.error('[Dashboard Initialization Failure]', initErr);
+                const loginPortal = document.getElementById('login-portal-view');
+                const mgmtPortal = document.getElementById('management-portal-view');
+                if (loginPortal) {
+                    loginPortal.classList.add('active');
+                    loginPortal.style.display = 'flex';
+                }
+                if (mgmtPortal) {
+                    mgmtPortal.classList.remove('active');
+                    mgmtPortal.style.display = 'none';
+                }
+                if (errBox && errText) {
+                    errText.textContent = 'Dashboard initialization error: ' + (initErr.message || initErr) + '. Please try again.';
+                    errBox.classList.add('show');
+                    errBox.style.display = 'flex';
+                }
+                return false;
+            }
         } else {
             if (errBox && errText) {
                 errText.textContent = data.message || 'Invalid username or password.';
@@ -256,50 +821,124 @@ async function handleGlassLoginSubmit(e) {
         }
     } catch (err) {
         if (errBox && errText) {
-            errText.textContent = 'Authentication network error: ' + err.message;
+            errText.textContent = 'Authentication server connection error: ' + err.message;
             errBox.classList.add('show');
         }
     } finally {
-        if (btnText) btnText.textContent = 'Sign In to Dashboard';
+        if (btnText) btnText.textContent = 'Sign In';
+        if (btnIcon) btnIcon.className = 'fa-solid fa-right-to-bracket';
+        if (btn) btn.disabled = false;
+        isSubmittingLogin = false;
+    }
+    return false;
+}
+window.handleGlassLoginSubmit = handleGlassLoginSubmit;
+window.togglePasswordVisibility = togglePasswordVisibility;
+
+function fillLoginForm(username) {
+    const uField = document.getElementById('glass-login-username');
+    if (uField && username) uField.value = username;
+}
+
+function openForgotPasswordModal() {
+    const errBanner = document.getElementById('forgot-error-banner');
+    const succBanner = document.getElementById('forgot-success-banner');
+    if (errBanner) errBanner.style.display = 'none';
+    if (succBanner) succBanner.style.display = 'none';
+    openModal('modal-forgot-password');
+}
+
+async function handleForgotPasswordSubmit(e) {
+    e.preventDefault();
+    const ident = document.getElementById('forgot-identifier')?.value.trim();
+    const newPwd = document.getElementById('forgot-new-password')?.value;
+    const btn = document.getElementById('btn-forgot-submit');
+    const errBanner = document.getElementById('forgot-error-banner');
+    const errText = document.getElementById('forgot-error-text');
+    const succBanner = document.getElementById('forgot-success-banner');
+    const succText = document.getElementById('forgot-success-text');
+
+    if (!ident || !newPwd) return;
+    if (newPwd.length < 6) {
+        if (errBanner && errText) {
+            errText.textContent = 'New password must be at least 6 characters.';
+            errBanner.style.display = 'block';
+        }
+        return;
+    }
+
+    if (btn) btn.disabled = true;
+    if (errBanner) errBanner.style.display = 'none';
+    if (succBanner) succBanner.style.display = 'none';
+
+    try {
+        const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier: ident, newPassword: newPwd })
+        });
+        const data = await res.json();
+        if (data.success) {
+            if (succBanner && succText) {
+                succText.textContent = data.message || 'Password reset successfully. You may now sign in.';
+                succBanner.style.display = 'block';
+            }
+            showToast('Password updated in database! Please sign in.', 'success');
+            setTimeout(() => {
+                closeModal('modal-forgot-password');
+                const uField = document.getElementById('glass-login-username');
+                if (uField) uField.value = ident;
+                const pField = document.getElementById('glass-login-password');
+                if (pField) pField.value = '';
+            }, 1600);
+        } else {
+            if (errBanner && errText) {
+                errText.textContent = data.message || 'Failed to reset password.';
+                errBanner.style.display = 'block';
+            }
+        }
+    } catch (err) {
+        if (errBanner && errText) {
+            errText.textContent = 'Connection error: ' + err.message;
+            errBanner.style.display = 'block';
+        }
+    } finally {
         if (btn) btn.disabled = false;
     }
 }
 
-async function quickLoginRole(username) {
-    const uField = document.getElementById('glass-login-username');
-    const pField = document.getElementById('glass-login-password');
-    if (uField) uField.value = username;
-    if (pField) pField.value = 'password123';
-
-    const form = document.getElementById('form-glass-login');
-    if (form) {
-        const evt = new Event('submit', { cancelable: true });
-        form.dispatchEvent(evt);
-    }
-}
-
-function openForgotPasswordModal() {
-    closeGlassLogin();
-    openModal('modal-forgot-password');
-}
-
-function handleForgotPasswordSubmit(e) {
-    e.preventDefault();
-    const ident = document.getElementById('forgot-identifier')?.value;
-    closeModal('modal-forgot-password');
-    showToast(`Password recovery request submitted for ${ident}. Jurisdiction administrator has been notified.`, 'info');
-}
-
 async function handleRegisterSubmit(e) {
     e.preventDefault();
-    const payload = {
-        fullName: document.getElementById('reg-fullname').value,
-        email: document.getElementById('reg-email').value,
-        username: document.getElementById('reg-username').value,
-        password: document.getElementById('reg-password').value,
-        phone: document.getElementById('reg-phone').value,
-        originCity: document.getElementById('reg-origincity').value
+    const errBanner = document.getElementById('tourist-reg-error');
+    const showErr = (msg) => {
+        if (errBanner) { errBanner.textContent = msg; errBanner.style.display = ''; }
+        showToast(msg, 'error');
     };
+
+    const fullName = document.getElementById('reg-fullname').value.trim();
+    const username = document.getElementById('reg-username').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-password').value;
+    const confirmPwd = document.getElementById('reg-confirmpassword').value;
+    const phone = document.getElementById('reg-phone').value.trim();
+    const originCity = document.getElementById('reg-origincity').value.trim();
+
+    if (errBanner) errBanner.style.display = 'none';
+
+    if (!fullName || !username || !email || !password) {
+        return showErr('Please fill in all required fields.');
+    }
+    if (password.length < 6) {
+        return showErr('Password must be at least 6 characters.');
+    }
+    if (password !== confirmPwd) {
+        return showErr('Passwords do not match. Please re-enter your password.');
+    }
+
+    const btn = document.getElementById('btn-tourist-reg-submit');
+    if (btn) btn.disabled = true;
+
+    const payload = { fullName, email, username, password, phone, originCity };
 
     try {
         const res = await fetch(`${API_BASE}/auth/register`, {
@@ -310,14 +949,27 @@ async function handleRegisterSubmit(e) {
         const data = await res.json();
         if (data.success) {
             closeModal('modal-register');
-            showToast('Registration successful! Signing in...', 'success');
-            await quickLoginRole(payload.username);
+            showToast('Tourist account created! Please sign in with your new credentials.', 'success');
+            fillLoginForm(username);
         } else {
-            showToast(data.message || 'Registration failed', 'error');
+            showErr(data.message || 'Registration failed. Please try again.');
         }
     } catch (err) {
-        showToast('Registration error: ' + err.message, 'error');
+        showErr('Registration error: ' + err.message);
+    } finally {
+        if (btn) btn.disabled = false;
     }
+}
+
+function handleLogout() {
+    confirmLogout();
+}
+window.handleLogout = handleLogout;
+window.confirmLogout = confirmLogout;
+window.logout = logout;
+
+function confirmLogout() {
+    logout();
 }
 
 function logout() {
@@ -327,71 +979,685 @@ function logout() {
             headers: { 'X-Auth-Token': state.authToken }
         }).catch(() => {});
     }
+
+    // Completely clear authentication tokens, current user, active role & tab
     state.authToken = null;
     state.currentUser = null;
+    state.activeRole = null;
+    state.activeTab = null;
+    if (typeof cachedStakeholderData !== 'undefined') {
+        cachedStakeholderData = null;
+    }
     localStorage.removeItem('lakbay_token');
 
-    const pGuest = document.getElementById('public-guest-actions');
-    const pAuth = document.getElementById('public-auth-actions');
-    if (pGuest) pGuest.style.display = 'flex';
-    if (pAuth) pAuth.style.display = 'none';
+    // Clean up restricted panes and dashboard elements
+    const paneEarnings = document.getElementById('pane-earnings');
+    if (paneEarnings) {
+        paneEarnings.classList.remove('active');
+        paneEarnings.style.display = 'none';
+    }
+    const paneSchedule = document.getElementById('pane-schedule');
+    if (paneSchedule) {
+        paneSchedule.classList.remove('active');
+        paneSchedule.style.display = 'none';
+    }
+    const stakeholderDash = document.getElementById('stakeholder-overview-dashboard');
+    if (stakeholderDash) {
+        stakeholderDash.style.display = 'none';
+        stakeholderDash.innerHTML = '';
+    }
 
-    showToast('Signed out successfully.', 'info');
-    showPublicPortal();
+    // Reset user info in headers and role badges
+    const hName = document.getElementById('header-user-name');
+    const hBadge = document.getElementById('header-role-badge');
+    const hRoleLabel = document.getElementById('header-user-role-label');
+    const hScopeLabel = document.getElementById('header-user-scope-label');
+    if (hName) hName.textContent = 'User';
+    if (hBadge) hBadge.textContent = '';
+    if (hRoleLabel) hRoleLabel.textContent = '';
+    if (hScopeLabel) hScopeLabel.style.display = 'none';
+
+    // Reset public greeting labels
+    const pName = document.getElementById('public-user-name-label');
+    if (pName) pName.textContent = '';
+    const tGreet = document.getElementById('tourist-hub-greeting-text');
+    if (tGreet) tGreet.textContent = 'Mabuhay!';
+
+    // Reset role workspace banner & live notice bar
+    const banner = document.getElementById('role-workspace-banner');
+    if (banner) {
+        banner.style.display = 'none';
+        banner.classList.add('banner-hidden');
+    }
+    const noticeBar = document.getElementById('live-notice-bar');
+    if (noticeBar) {
+        noticeBar.style.display = 'none';
+        noticeBar.classList.add('banner-hidden');
+    }
+
+    // Force close any open modals, dialogs, and invisible overlays
+    closeAllModals();
+
+    if (window.location.hash) {
+        window.location.hash = '';
+    }
+
+    showToast('Signed out successfully. Please sign in to continue.', 'info');
+    showLoginView();
 }
 
 // ------------------------------------------------------------------------------
-// ROLE PERMISSIONS & ACCESS CONTROL (16 MODULE RBAC MATRIX)
+// STAKEHOLDER REGISTRATION & VERIFICATION NOTICE
 // ------------------------------------------------------------------------------
-function onRoleViewChanged(newRole) {
-    state.activeRole = newRole;
-    applyRolePermissions(newRole);
-    showToast(`Simulating Active Role: ${newRole}`, 'info');
-    refreshAllData();
+async function handleStakeholderRegisterSubmit(e) {
+    e.preventDefault();
+    const errBanner = document.getElementById('stakeholder-reg-error');
+    const showErr = (msg) => {
+        if (errBanner) { errBanner.textContent = msg; errBanner.style.display = ''; }
+        showToast(msg, 'error');
+    };
+
+    const fullName    = document.getElementById('stkreg-fullname').value.trim();
+    const username    = document.getElementById('stkreg-username').value.trim();
+    const email       = document.getElementById('stkreg-email').value.trim();
+    const password    = document.getElementById('stkreg-password').value;
+    const confirmPwd  = document.getElementById('stkreg-confirmpassword').value;
+    const businessName = document.getElementById('stkreg-businessname').value.trim();
+    const category    = document.getElementById('stkreg-category').value;
+    const municipalityId = parseInt(document.getElementById('stkreg-municipality').value);
+    const barangayId  = parseInt(document.getElementById('stkreg-barangay').value);
+    const phone       = document.getElementById('stkreg-phone').value.trim();
+    const accreditationNo = document.getElementById('stkreg-permit').value.trim();
+    const bio         = document.getElementById('stkreg-bio').value.trim();
+    const yearsExperience = parseInt(document.getElementById('stkreg-yearsexp').value) || 1;
+
+    if (errBanner) errBanner.style.display = 'none';
+
+    // Client-side validation
+    if (!fullName || !username || !email || !password || !businessName || !category || !phone || !bio) {
+        return showErr('Please fill in all required fields marked with *.');
+    }
+    if (password.length < 6) {
+        return showErr('Password must be at least 6 characters.');
+    }
+    if (password !== confirmPwd) {
+        return showErr('Passwords do not match. Please re-enter your password.');
+    }
+    if (!municipalityId || isNaN(municipalityId)) {
+        return showErr('Please select a municipality.');
+    }
+    if (!barangayId || isNaN(barangayId)) {
+        return showErr('Please select a barangay.');
+    }
+
+    const btn = document.getElementById('btn-stkreg-submit');
+    if (btn) btn.disabled = true;
+
+    // Server enforces: role = STAKEHOLDER, verificationStatus = PENDING, no bypass
+    const payload = {
+        fullName, username, email, password,
+        businessName, category, municipalityId, barangayId,
+        phone, accreditationNo, bio, yearsExperience
+    };
+
+    try {
+        const res = await fetch(`${API_BASE}/auth/register-stakeholder`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            closeModal('modal-register');
+            showToast(
+                'Stakeholder application submitted! Your account is PENDING review by your Barangay Official. You may log in now.',
+                'success'
+            );
+            fillLoginForm(username);
+        } else {
+            showErr(data.message || 'Registration failed. Please check your details and try again.');
+        }
+    } catch (err) {
+        showErr('Registration error: ' + err.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+/**
+ * Shows a pending verification banner for STAKEHOLDER role users,
+ * and disables the "Add Service" button if not yet VERIFIED.
+ */
+/**
+ * Shows the verification status banner for STAKEHOLDER role users,
+ * handles correction instructions and resubmission triggers,
+ * and restricts the "Add Service" button if not yet VERIFIED.
+ */
+async function checkStakeholderVerificationNotice() {
+    if (state.activeRole !== 'STAKEHOLDER') return;
+    try {
+        const res = await fetch(`${API_BASE}/stakeholders/my-verification`, {
+            headers: { 'X-Auth-Token': state.authToken }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        state.myVerificationData = data;
+        const status = data.verificationStatus || 'PENDING';
+
+        const overviewBanner = document.getElementById('overview-verification-warning');
+        const servicesBanner = document.getElementById('services-verification-warning');
+        const addServiceBtn = document.getElementById('btn-add-service');
+
+        if (status === 'VERIFIED') {
+            const hasAcc = data.accreditationNo && data.accreditationNo.trim().length > 0;
+            const accInfo = hasAcc ? `DOT/LGU Accreditation: <strong>${escapeHtml(data.accreditationNo)}</strong>` : 'Barangay Verified, accreditation info unavailable';
+            const verifiedBannerHtml = `
+                <div class="verification-status-banner success" style="margin-bottom:1.25rem;">
+                    <div class="vsb-icon">✅</div>
+                    <div class="vsb-content" style="flex: 1;">
+                        <h4>Barangay Verified Business</h4>
+                        <p>Your stakeholder registration is actively verified by your Barangay Official. You can create and offer bookable community tourism services.</p>
+                        <p class="vsb-note" style="margin-top:.4rem;font-size:.82rem;">
+                            ${accInfo} &nbsp;|&nbsp; Business: <strong>${escapeHtml(data.businessName || '-')}</strong>
+                        </p>
+                    </div>
+                    <div>
+                        <button class="btn btn-outline btn-sm" onclick="openStakeholderHistoryModal()">
+                            <i class="fa-solid fa-clock-rotate-left"></i> View History
+                        </button>
+                    </div>
+                </div>`;
+
+            if (overviewBanner) overviewBanner.innerHTML = verifiedBannerHtml;
+            if (servicesBanner) servicesBanner.innerHTML = '';
+            if (addServiceBtn) {
+                addServiceBtn.disabled = false;
+                addServiceBtn.classList.remove('btn-disabled-notice');
+                addServiceBtn.title = 'Add new community tourism service';
+            }
+            return;
+        }
+
+        // Not verified: show appropriate banner and disable Add Service
+        let bannerClass = 'pending';
+        let icon = '🕐';
+        let title = 'Verification Pending';
+        let noteText = 'Your application has been received and is awaiting evaluation by your Barangay Official.';
+        let actionBtnHtml = `
+            <button class="btn btn-outline btn-sm" onclick="openStakeholderHistoryModal()">
+                <i class="fa-solid fa-clock-rotate-left"></i> View History
+            </button>`;
+
+        if (status === 'NEEDS_CORRECTION') {
+            bannerClass = 'warning';
+            icon = '⚠️';
+            title = 'Corrections Required by Barangay Official';
+            noteText = 'Your registration requires additional documents or corrected information before approval.';
+            actionBtnHtml = `
+                <button class="btn btn-warning btn-sm" onclick="openStakeholderResubmitModal()" style="margin-right: 0.4rem;">
+                    <i class="fa-solid fa-file-pen"></i> Edit &amp; Resubmit
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="openStakeholderHistoryModal()">
+                    <i class="fa-solid fa-clock-rotate-left"></i> View History
+                </button>`;
+        } else if (status === 'REJECTED') {
+            bannerClass = 'warning';
+            icon = '❌';
+            title = 'Registration Not Approved / Rejected';
+            noteText = 'Your application was rejected by your Barangay Official. Review the remarks below for details.';
+            actionBtnHtml = `
+                <button class="btn btn-outline btn-sm" onclick="openStakeholderHistoryModal()">
+                    <i class="fa-solid fa-clock-rotate-left"></i> View History
+                </button>`;
+        } else if (status === 'UNDER_REVIEW') {
+            bannerClass = 'info';
+            icon = '🔍';
+            title = 'Application Under Review';
+            noteText = 'Your application is actively undergoing document validation and inspection by your Barangay Official.';
+        }
+
+        const reviewerInfo = data.latestReviewerName ? `<small class="text-muted">Reviewed by: ${escapeHtml(data.latestReviewerName)} on ${data.decisionDate ? data.decisionDate.split(' ')[0] : ''}</small>` : '';
+        const remark = data.latestRemarks ? `<div style="background:rgba(0,0,0,0.04);padding:0.5rem 0.75rem;border-radius:6px;margin:0.4rem 0;"><strong>Official Remarks:</strong> <em>"${escapeHtml(data.latestRemarks)}"</em><br>${reviewerInfo}</div>` : '';
+
+        const bannerHtml = `
+            <div class="verification-status-banner ${bannerClass}" style="margin-bottom:1.25rem;">
+                <div class="vsb-icon">${icon}</div>
+                <div class="vsb-content" style="flex: 1;">
+                    <h4>${title}</h4>
+                    <p>${noteText}</p>
+                    ${remark}
+                    <p class="vsb-note" style="margin-top:.4rem;font-size:.8rem;opacity:.85;">
+                        Current Status: <strong>${status}</strong> &nbsp;|&nbsp; Business: ${escapeHtml(data.businessName || '-')}
+                    </p>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;">
+                    ${actionBtnHtml}
+                </div>
+            </div>`;
+
+        if (overviewBanner) overviewBanner.innerHTML = bannerHtml;
+        if (servicesBanner) servicesBanner.innerHTML = bannerHtml;
+        if (addServiceBtn) {
+            addServiceBtn.disabled = true;
+            addServiceBtn.classList.add('btn-disabled-notice');
+            addServiceBtn.title = 'Service publishing is restricted until your profile is verified by a Barangay Official.';
+        }
+    } catch (e) {
+        console.warn('Could not load stakeholder verification status:', e);
+    }
+}
+
+function openStakeholderResubmitModal() {
+    const d = state.myVerificationData;
+    if (!d) {
+        showToast('Application details not loaded. Refreshing...', 'info');
+        checkStakeholderVerificationNotice();
+        return;
+    }
+    const remarksEl = document.getElementById('resubmit-official-remarks');
+    if (remarksEl) remarksEl.innerText = d.latestRemarks ? `"${d.latestRemarks}"` : 'Please review and update your registration details.';
+
+    const bNameEl = document.getElementById('resubmit-business-name');
+    if (bNameEl) bNameEl.value = d.businessName || '';
+
+    const catEl = document.getElementById('resubmit-category');
+    if (catEl && d.category) catEl.value = d.category;
+
+    const contactEl = document.getElementById('resubmit-contact');
+    if (contactEl) contactEl.value = d.contactNumber || '';
+
+    const expEl = document.getElementById('resubmit-experience');
+    if (expEl) expEl.value = d.yearsExperience != null ? d.yearsExperience : 1;
+
+    const accEl = document.getElementById('resubmit-accreditation');
+    if (accEl) accEl.value = d.accreditationNo || '';
+
+    const notesEl = document.getElementById('resubmit-notes');
+    if (notesEl) notesEl.value = '';
+
+    openModal('modal-stakeholder-resubmit');
+}
+
+async function handleStakeholderResubmitForm(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-resubmit-submit');
+    const originalText = btn ? btn.innerHTML : 'Submit Corrected Application';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
+    }
+
+    const payload = {
+        businessName: document.getElementById('resubmit-business-name')?.value?.trim() || '',
+        category: document.getElementById('resubmit-category')?.value || 'TOUR_GUIDE',
+        contactNumber: document.getElementById('resubmit-contact')?.value?.trim() || '',
+        yearsExperience: parseInt(document.getElementById('resubmit-experience')?.value) || 0,
+        accreditationNo: document.getElementById('resubmit-accreditation')?.value?.trim() || '',
+        remarks: document.getElementById('resubmit-notes')?.value?.trim() || 'Corrected profile fields submitted by stakeholder.'
+    };
+
+    try {
+        const res = await fetch(`${API_BASE}/stakeholders/resubmit`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': state.authToken
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            closeModal('modal-stakeholder-resubmit');
+            showToast('Application resubmitted successfully! It is now in the Barangay review queue.', 'success');
+            await checkStakeholderVerificationNotice();
+            if (typeof loadStakeholderDashboard === 'function') loadStakeholderDashboard();
+        } else {
+            showToast(data.message || 'Resubmission failed.', 'error');
+        }
+    } catch (err) {
+        showToast('Error resubmitting application: ' + err.message, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+}
+
+async function openStakeholderHistoryModal() {
+    const container = document.getElementById('stakeholder-history-content');
+    if (!container) return;
+    container.innerHTML = '<p class="text-muted py-3 text-center"><i class="fa-solid fa-spinner fa-spin"></i> Loading verification records...</p>';
+    openModal('modal-stakeholder-history');
+
+    try {
+        const res = await fetch(`${API_BASE}/stakeholders/my-verification`, {
+            headers: { 'X-Auth-Token': state.authToken }
+        });
+        if (!res.ok) {
+            container.innerHTML = '<p class="text-danger py-2">Failed to load verification history.</p>';
+            return;
+        }
+        const data = await res.json();
+        const history = data.history || [];
+
+        if (history.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-4 text-muted">
+                    <i class="fa-solid fa-inbox" style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5;"></i>
+                    <p style="margin: 0;">No official evaluation records found yet. Your application is currently awaiting initial evaluation.</p>
+                </div>`;
+            return;
+        }
+
+        const STATUS_BADGES = {
+            'APPROVED':           '<span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> APPROVED (VERIFIED)</span>',
+            'VERIFIED':           '<span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> VERIFIED</span>',
+            'REQUEST_CORRECTION': '<span class="badge" style="background:rgba(234,179,8,0.15);color:#854d0e;border:1px solid #ca8a04;"><i class="fa-solid fa-triangle-exclamation"></i> CORRECTION REQUESTED</span>',
+            'NEEDS_CORRECTION':   '<span class="badge" style="background:rgba(234,179,8,0.15);color:#854d0e;border:1px solid #ca8a04;"><i class="fa-solid fa-triangle-exclamation"></i> CORRECTION REQUESTED</span>',
+            'REJECTED':           '<span class="badge badge-danger"><i class="fa-solid fa-circle-xmark"></i> REJECTED</span>',
+            'PENDING':            '<span class="badge badge-warning"><i class="fa-solid fa-clock"></i> PENDING</span>',
+            'UNDER_REVIEW':       '<span class="badge badge-info"><i class="fa-solid fa-magnifying-glass"></i> UNDER REVIEW</span>'
+        };
+
+        let html = `
+            <table class="table" style="width: 100%; font-size: 0.85rem;">
+                <thead>
+                    <tr>
+                        <th style="width: 18%;">Date &amp; Time</th>
+                        <th style="width: 20%;">Decision</th>
+                        <th style="width: 20%;">Reviewing Official</th>
+                        <th style="width: 42%;">Official Remarks &amp; Requirements</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+        history.forEach(item => {
+            const badge = STATUS_BADGES[item.status] || `<span class="badge badge-neutral">${escapeHtml(item.status)}</span>`;
+            const reqs = item.requirementsSubmitted ? `<br><small class="text-muted"><strong>Inspected:</strong> ${escapeHtml(item.requirementsSubmitted)}</small>` : '';
+            html += `
+                <tr>
+                    <td><small>${escapeHtml(item.decisionDate || '-')}</small></td>
+                    <td>${badge}</td>
+                    <td><strong>${escapeHtml(item.reviewerName || 'Barangay Official')}</strong></td>
+                    <td>${escapeHtml(item.remarks || '-')}${reqs}</td>
+                </tr>`;
+        });
+
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (err) {
+        container.innerHTML = `<p class="text-danger py-2">Error: ${escapeHtml(err.message)}</p>`;
+    }
+}
+
+// ------------------------------------------------------------------------------
+// ROLE PERMISSIONS & ACCESS CONTROL (EXACT ROLE SPECIFICATION)
+// ------------------------------------------------------------------------------
+const ROLE_PERMITTED_TABS = {
+    'TOURIST': [
+        'destinations', 'announcements', 'services', 'packages', 'bookings', 'reviews'
+    ],
+    'STAKEHOLDER': [
+        'overview', 'destinations', 'announcements', 'stakeholders', 'services', 'bookings', 'schedule', 'earnings', 'reviews'
+    ],
+    'BARANGAY_OFFICIAL': [
+        'destinations', 'announcements', 'verifications', 'barangay-records', 'reviews', 'reports'
+    ],
+    'LGU_OFFICER': [
+        'destinations', 'announcements', 'stakeholders', 'bookings',
+        'barangay-records', 'lgu-monitoring', 'admin', 'reviews', 'reports'
+    ],
+    'TOURISM_OFFICE': [
+        'overview', 'destinations', 'announcements', 'stakeholders', 'services',
+        'packages', 'bookings', 'verifications', 'barangay-records', 'lgu-monitoring',
+        'admin', 'reviews', 'reports'
+    ],
+    'SYSTEM_ADMIN': [
+        'overview', 'admin', 'roles-permissions', 'settings', 'audit-logs'
+    ]
+};
+
+function canRoleAccessTab(role, tabId) {
+    if (!role) return false;
+    const allowed = ROLE_PERMITTED_TABS[role] || [];
+    return allowed.includes(tabId);
 }
 
 function applyRolePermissions(role) {
-    const isAdmin = role === 'SYSTEM_ADMIN';
-    const isBrgy = role === 'BARANGAY_OFFICIAL' || isAdmin;
-    const isLGU = role === 'LGU_OFFICER' || isAdmin;
-    const isTourism = role === 'TOURISM_OFFICE' || isAdmin;
-    const isStakeholder = role === 'STAKEHOLDER' || isAdmin;
+    const allowedTabs = ROLE_PERMITTED_TABS[role] || [];
+    const navTabMap = {
+        'nav-item-overview': 'overview',
+        'nav-item-destinations': 'destinations',
+        'nav-item-announcements': 'announcements',
+        'nav-item-stakeholders': 'stakeholders',
+        'nav-item-services': 'services',
+        'nav-item-packages': 'packages',
+        'nav-item-bookings': 'bookings',
+        'nav-item-schedule': 'schedule',
+        'nav-item-earnings': 'earnings',
+        'nav-item-verifications': 'verifications',
+        'nav-item-barangay-records': 'barangay-records',
+        'nav-item-lgu-monitoring': 'lgu-monitoring',
+        'nav-item-reviews': 'reviews',
+        'nav-item-reports': 'reports',
+        'nav-item-admin': 'admin',
+        'nav-item-roles-permissions': 'roles-permissions',
+        'nav-item-settings': 'settings',
+        'nav-item-audit': 'audit-logs'
+    };
 
-    // 16 Modules Sidebar Visibility Matrix
-    const navVerif = document.getElementById('nav-item-verifications'); // 8
-    const navBrgyRec = document.getElementById('nav-item-barangay-records'); // 9
-    const navLguMon = document.getElementById('nav-item-lgu-monitoring'); // 10
-    const navReports = document.getElementById('nav-item-reports'); // 12
-    const navAdmin = document.getElementById('nav-item-admin'); // 13
-    const navSettings = document.getElementById('nav-item-settings'); // 14
-    const navAudit = document.getElementById('nav-item-audit'); // 15
-    const navBackup = document.getElementById('nav-item-backup'); // 16
+    for (const [navId, tabId] of Object.entries(navTabMap)) {
+        const el = document.getElementById(navId);
+        if (el) {
+            el.style.display = allowedTabs.includes(tabId) ? 'block' : 'none';
+        }
+    }
 
-    if (navVerif) navVerif.style.display = (isBrgy) ? 'block' : 'none';
-    if (navBrgyRec) navBrgyRec.style.display = (isBrgy || isLGU || isTourism || isAdmin) ? 'block' : 'none';
-    if (navLguMon) navLguMon.style.display = (isLGU || isTourism || isAdmin) ? 'block' : 'none';
-    if (navReports) navReports.style.display = (isLGU || isTourism || isBrgy || isAdmin) ? 'block' : 'none';
-    if (navAdmin) navAdmin.style.display = (isAdmin) ? 'block' : 'none';
-    if (navSettings) navSettings.style.display = (isAdmin) ? 'block' : 'none';
-    if (navAudit) navAudit.style.display = (isAdmin) ? 'block' : 'none';
-    if (navBackup) navBackup.style.display = (isAdmin) ? 'block' : 'none';
+    // Role-specific sidebar label for Account Directory
+    const adminNavSpan = document.querySelector('#nav-item-admin span');
+    if (adminNavSpan) {
+        if (role === 'TOURISM_OFFICE') adminNavSpan.textContent = 'LGU Officers Directory';
+        else if (role === 'LGU_OFFICER') adminNavSpan.textContent = 'Barangay Officials Directory';
+        else adminNavSpan.textContent = 'User Account Management';
+    }
 
-    // Action button permissions
+    // Explicit Role Security: Earnings & Schedule restricted exclusively to STAKEHOLDER
+    const navEarnings = document.getElementById('nav-item-earnings');
+    const paneEarnings = document.getElementById('pane-earnings');
+    if (role === 'STAKEHOLDER') {
+        if (navEarnings) navEarnings.style.display = 'block';
+        if (paneEarnings) paneEarnings.style.display = '';
+    } else {
+        if (navEarnings) navEarnings.style.display = 'none';
+        if (paneEarnings) {
+            paneEarnings.classList.remove('active');
+            paneEarnings.style.display = 'none';
+        }
+    }
+
+    const navSchedule = document.getElementById('nav-item-schedule');
+    const paneSchedule = document.getElementById('pane-schedule');
+    if (role === 'STAKEHOLDER') {
+        if (navSchedule) navSchedule.style.display = 'block';
+        if (paneSchedule) paneSchedule.style.display = '';
+    } else {
+        if (navSchedule) navSchedule.style.display = 'none';
+        if (paneSchedule) {
+            paneSchedule.classList.remove('active');
+            paneSchedule.style.display = 'none';
+        }
+    }
+
+    // Explicit Overview Stakeholder Section security: Hide completely for non-stakeholders
+    const stakeholderDash = document.getElementById('stakeholder-overview-dashboard');
+    if (stakeholderDash) {
+        if (role === 'STAKEHOLDER') {
+            stakeholderDash.style.display = 'block';
+        } else {
+            stakeholderDash.style.display = 'none';
+            stakeholderDash.innerHTML = '';
+        }
+    }
+
+    // Overview tab: explicitly hide completely for TOURIST and LGU_OFFICER
+    const paneOverview = document.getElementById('pane-overview');
+    if (paneOverview) {
+        if (role === 'TOURIST' || role === 'LGU_OFFICER') {
+            paneOverview.classList.remove('active');
+            paneOverview.style.display = 'none';
+        } else {
+            paneOverview.style.display = '';
+        }
+    }
+
+    // Destinations tab: LGU_OFFICER may view municipality-scoped destinations (backend enforces municipalityId scope)
+    const paneDest = document.getElementById('pane-destinations');
+    if (paneDest) {
+        paneDest.style.display = '';
+    }
+
+    // Overview dashboard components per role:
+    // 1. Community Tourism Overview (header & KPI cards):
+    //    Remove for: TOURIST, STAKEHOLDER, BARANGAY_OFFICIAL
+    const overviewPageHeader = document.getElementById('overview-page-header');
+    const kpiCardsGrid = document.getElementById('kpi-cards-grid');
+    const hideCommunityOverview = (role === 'TOURIST' || role === 'STAKEHOLDER' || role === 'BARANGAY_OFFICIAL');
+    if (overviewPageHeader) {
+        overviewPageHeader.style.display = hideCommunityOverview ? 'none' : 'flex';
+    }
+    if (kpiCardsGrid) {
+        kpiCardsGrid.style.display = hideCommunityOverview ? 'none' : 'grid';
+    }
+
+    // 2. Recent Activity Log:
+    //    Remove for: STAKEHOLDER, BARANGAY_OFFICIAL, TOURISM_OFFICE (and TOURIST)
+    const cardRecentActivity = document.getElementById('card-recent-activity');
+    const hideRecentActivity = (role === 'TOURIST' || role === 'STAKEHOLDER' || role === 'BARANGAY_OFFICIAL' || role === 'TOURISM_OFFICE');
+    if (cardRecentActivity) {
+        cardRecentActivity.style.display = hideRecentActivity ? 'none' : 'block';
+    }
+
+    const isTourism = role === 'TOURISM_OFFICE';
+    const isLGU = role === 'LGU_OFFICER';
+    const isBrgy = role === 'BARANGAY_OFFICIAL';
+    const isStakeholder = role === 'STAKEHOLDER';
+
+    // Stakeholders navigation item & page header terminology by role:
+    // Community Worker sees "Local Tourism Partner Network"; all other roles see "Community Worker Directory"
+    const navStakeholders = document.getElementById('nav-item-stakeholders');
+    const navStakeholdersSpan = navStakeholders ? navStakeholders.querySelector('span') : null;
+    const paneStakeholdersTitle = document.querySelector('#pane-stakeholders .page-title');
+    const paneStakeholdersDesc = document.querySelector('#pane-stakeholders .page-desc');
+    const statusFilterWrapper = document.getElementById('stakeholder-status-filter');
+
+    if (role === 'STAKEHOLDER') {
+        if (navStakeholdersSpan) navStakeholdersSpan.textContent = 'Local Tourism Partner Network';
+        if (paneStakeholdersTitle) paneStakeholdersTitle.textContent = 'Local Tourism Partner Network';
+        if (paneStakeholdersDesc) paneStakeholdersDesc.textContent = 'Connect and coordinate with fellow accredited Biliran tour guides, boat operators, drivers, and local artisans.';
+        if (statusFilterWrapper) {
+            statusFilterWrapper.value = 'VERIFIED';
+            statusFilterWrapper.style.display = 'none';
+        }
+    } else {
+        if (navStakeholdersSpan) navStakeholdersSpan.textContent = 'Community Worker Directory';
+        if (paneStakeholdersTitle) paneStakeholdersTitle.textContent = 'Community Worker Directory';
+        if (paneStakeholdersDesc) paneStakeholdersDesc.textContent = 'Tour guides, drivers, boat operators, local cooks, and artisans empowering community livelihood.';
+        if (statusFilterWrapper) {
+            statusFilterWrapper.style.display = '';
+        }
+    }
+
+    // Action button permissions strictly mapped (Admin has no routine operational buttons)
     const btnAddDest = document.getElementById('btn-add-destination');
     const btnAddPkg = document.getElementById('btn-add-package');
     const btnAddSvc = document.getElementById('btn-add-service');
+    const btnAddStakeholderSvc = document.getElementById('btn-add-stakeholder');
+    const btnMyStakeholderProfile = document.getElementById('btn-my-stakeholder-profile');
+    const btnRegisterStakeholder = document.getElementById('btn-register-stakeholder');
     const btnAddAnnounce = document.getElementById('btn-add-announcement');
 
-    if (btnAddDest) btnAddDest.style.display = (isTourism || isAdmin) ? 'inline-flex' : 'none';
-    if (btnAddPkg) btnAddPkg.style.display = (isTourism || isAdmin) ? 'inline-flex' : 'none';
+    if (btnAddDest) btnAddDest.style.display = (isTourism || isBrgy) ? 'inline-flex' : 'none';
+    if (btnAddPkg) btnAddPkg.style.display = (isTourism) ? 'inline-flex' : 'none';
     if (btnAddSvc) btnAddSvc.style.display = (isStakeholder) ? 'inline-flex' : 'none';
-    if (btnAddAnnounce) btnAddAnnounce.style.display = (isTourism || isAdmin) ? 'inline-flex' : 'none';
+    if (btnAddStakeholderSvc) btnAddStakeholderSvc.style.display = (isStakeholder) ? 'inline-flex' : 'none';
+    if (btnMyStakeholderProfile) btnMyStakeholderProfile.style.display = (isStakeholder) ? 'inline-flex' : 'none';
+    if (btnRegisterStakeholder) btnRegisterStakeholder.style.display = (isBrgy || isTourism) ? 'inline-flex' : 'none';
+    if (btnAddAnnounce) btnAddAnnounce.style.display = (isTourism || isLGU) ? 'inline-flex' : 'none';
+
+    // Featured destination hero showcase: strictly shown at the header of destinations for TOURIST
+    const heroCard = document.getElementById('featured-destination-hero');
+    if (heroCard) {
+        heroCard.style.display = (role === 'TOURIST' || !role) ? 'flex' : 'none';
+    }
 }
 
 // ------------------------------------------------------------------------------
 // TAB SWITCHING & ROUTING (16 MODULES)
 // ------------------------------------------------------------------------------
+/**
+ * Controls the visibility of the large green dashboard welcome/role banner.
+ * Requirements:
+ * - Keep visible ONLY on:
+ *   1. Overview Dashboard (tabId === 'overview') for ALL user roles:
+ *      (Tourist, Stakeholder, Barangay Official, LGU Officer, Tourism Office, System Admin)
+ *   2. Tourist Dashboard - Destinations (tabId === 'destinations' && state.activeRole === 'TOURIST')
+ * - Remove (display: none) from ALL other feature pages without leaving empty space behind:
+ *   (Bookings, Packages, Services, Schedules, Reviews, Stakeholders, Destination Management for non-tourists,
+ *    Reports, Announcements, Verifications, User Management, Settings, etc.)
+ */
+function updateWorkspaceBannerVisibility(tabId) {
+    const banner = document.getElementById('role-workspace-banner');
+    const noticeBar = document.getElementById('live-notice-bar');
+
+    const currentRole = state.activeRole || (state.currentUser ? state.currentUser.role : null);
+    const targetTab = tabId || state.activeTab || 'overview';
+
+    const isOverview = (targetTab === 'overview');
+    const isTouristDestinations = (targetTab === 'destinations' && currentRole === 'TOURIST');
+    const shouldShow = isOverview || isTouristDestinations;
+
+    if (banner) {
+        if (shouldShow) {
+            banner.style.display = 'flex';
+            banner.classList.remove('banner-hidden');
+        } else {
+            banner.style.display = 'none';
+            banner.classList.add('banner-hidden');
+        }
+    }
+
+    if (noticeBar) {
+        if (shouldShow) {
+            noticeBar.style.display = 'flex';
+            noticeBar.classList.remove('banner-hidden');
+        } else {
+            noticeBar.style.display = 'none';
+            noticeBar.classList.add('banner-hidden');
+        }
+    }
+}
+
 function switchTab(tabId) {
+    if (!state.currentUser) {
+        showLoginView();
+        return;
+    }
+
+    if (!canRoleAccessTab(state.activeRole, tabId)) {
+        showToast(`Access Denied: Your assigned role '${state.activeRole}' is not authorized to view the requested module.`, 'error');
+        // Ensure the unauthorized pane is immediately deactivated and hidden
+        const unauthorizedPane = document.getElementById(`pane-${tabId}`);
+        if (unauthorizedPane) {
+            unauthorizedPane.classList.remove('active');
+            unauthorizedPane.style.display = 'none';
+        }
+        if (window.location.hash === `#${tabId}`) {
+            window.location.hash = '';
+        }
+        return;
+    }
+
     state.activeTab = tabId;
 
     // Update Sidebar Active Class
@@ -402,23 +1668,90 @@ function switchTab(tabId) {
 
     // Update Panes
     const panes = document.querySelectorAll('.tab-pane');
-    panes.forEach(p => p.classList.remove('active'));
+    panes.forEach(p => {
+        p.classList.remove('active');
+        if (p.id === 'pane-earnings' && state.activeRole !== 'STAKEHOLDER') p.style.display = 'none';
+        if (p.id === 'pane-schedule' && state.activeRole !== 'STAKEHOLDER') p.style.display = 'none';
+    });
     const targetPane = document.getElementById(`pane-${tabId}`);
-    if (targetPane) targetPane.classList.add('active');
+    if (targetPane) {
+        targetPane.classList.add('active');
+        targetPane.style.display = '';
+    }
+
+    // Dynamic Workspace Banner Visibility Control (Only Overview and Tourist Destinations)
+    updateWorkspaceBannerVisibility(tabId);
 
     // Trigger module-specific data refresh
-    if (tabId === 'destinations') filterDestinations();
+    if (tabId === 'destinations') {
+        filterDestinations();
+        if (state.activeRole === 'TOURIST' || !state.activeRole) {
+            initHeroCarousel();
+        }
+    }
     else if (tabId === 'packages') renderPackagesGrid();
     else if (tabId === 'stakeholders') loadStakeholdersList();
     else if (tabId === 'services') loadServicesTable();
     else if (tabId === 'bookings') loadBookingsList();
+    else if (tabId === 'schedule') loadStakeholderSchedule();
+    else if (tabId === 'earnings') loadStakeholderEarnings();
     else if (tabId === 'verifications') loadVerificationsList();
     else if (tabId === 'barangay-records') loadBarangayRecordsTable();
+    else if (tabId === 'lgu-monitoring') loadLguMonitoringData();
     else if (tabId === 'announcements') loadAnnouncementsList();
+    else if (tabId === 'reviews') loadReviewsList();
     else if (tabId === 'reports') loadReportsData();
     else if (tabId === 'admin') loadAdminData();
+    else if (tabId === 'settings') loadSystemSettings();
     else if (tabId === 'audit-logs') loadAuditLogs();
     else if (tabId === 'overview') refreshDashboardData();
+}
+
+window.addEventListener('hashchange', () => {
+    const rawHash = window.location.hash ? window.location.hash.substring(1) : '';
+    if (!rawHash) return;
+    if (!state.currentUser) {
+        showLoginView();
+        return;
+    }
+    if (canRoleAccessTab(state.activeRole, rawHash)) {
+        switchTab(rawHash);
+    } else {
+        showToast(`Access Denied: Your assigned role '${state.activeRole}' is not authorized to access #${rawHash}.`, 'error');
+        window.location.hash = `#${state.activeTab || 'overview'}`;
+    }
+});
+
+async function loadSystemMonitoringData() {
+    try {
+        const res = await fetch(`${API_BASE}/admin/system/health`, {
+            headers: { 'X-Auth-Token': state.authToken }
+        });
+        if (res.ok) {
+            const h = await res.json();
+            const bStatus = document.getElementById('mon-backend-status');
+            const bSub = document.getElementById('mon-backend-sub');
+            const dStatus = document.getElementById('mon-db-status');
+            const dSub = document.getElementById('mon-db-sub');
+            const jMem = document.getElementById('mon-jvm-mem');
+            const jSub = document.getElementById('mon-jvm-sub');
+            const aSess = document.getElementById('mon-active-sessions');
+            const jVer = document.getElementById('mon-java-ver');
+            const oVer = document.getElementById('mon-os-ver');
+
+            if (bStatus) bStatus.textContent = h.status || 'ONLINE';
+            if (bSub) bSub.textContent = `Port ${h.port || 8080} Active`;
+            if (dStatus) dStatus.textContent = h.databaseConnected ? 'CONNECTED' : 'DISCONNECTED';
+            if (dSub) dSub.textContent = `${h.databaseName} on ${h.databaseHost}`;
+            if (jMem) jMem.textContent = `${h.jvmUsedMemoryMb || 0} MB`;
+            if (jSub) jSub.textContent = `${h.memoryUsagePercent || 0}% of ${h.jvmTotalMemoryMb || 0} MB Allocated`;
+            if (aSess) aSess.textContent = h.activeSessions || 1;
+            if (jVer) jVer.textContent = h.backend || 'Java Runtime';
+            if (oVer) oVer.textContent = h.os || 'Windows';
+        }
+    } catch (e) {
+        console.warn('Failed loading system monitoring data:', e);
+    }
 }
 
 // ------------------------------------------------------------------------------
@@ -450,16 +1783,62 @@ async function loadBarangays() {
     }
 }
 
+async function loadMunicipalities() {
+    try {
+        const res = await fetch(`${API_BASE}/municipalities`);
+        if (res.ok) {
+            state.municipalities = await res.json();
+            populateMunicipalityDropdowns();
+        }
+    } catch (e) {
+        console.warn('Failed loading municipalities:', e);
+    }
+}
+
+function populateMunicipalityDropdowns() {
+    const el = document.getElementById('dest-municipality-filter');
+    if (!el) return;
+    const currentVal = el.value || 'ALL';
+    el.innerHTML = '<option value="ALL">All Municipalities</option>';
+
+    const list = (state.municipalities || []).slice().sort((a, b) => a.name.localeCompare(b.name));
+    list.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.name;
+        opt.textContent = m.name;
+        el.appendChild(opt);
+    });
+
+    if (currentVal !== 'ALL' && list.some(m => m.name === currentVal)) {
+        el.value = currentVal;
+    }
+}
+
 function populateBarangayDropdowns() {
-    const filters = ['dest-barangay-filter', 'dest-form-barangay'];
+    const filters = ['dest-barangay-filter', 'dest-form-barangay', 'user-form-barangay', 'stk-form-barangay', 'edit-user-barangay'];
+    const selectedMuni = document.getElementById('dest-municipality-filter')?.value || 'ALL';
+
     filters.forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
-        el.innerHTML = id.includes('filter') ? '<option value="ALL">All Barangays</option>' : '';
-        state.barangays.forEach(b => {
+        if (id.includes('filter')) {
+            el.innerHTML = selectedMuni === 'ALL' ? '<option value="ALL">All Barangays</option>' : `<option value="ALL">All Barangays in ${selectedMuni}</option>`;
+        } else if (id === 'user-form-barangay' || id === 'edit-user-barangay') {
+            el.innerHTML = '<option value="">None (Province-wide)</option>';
+        } else {
+            el.innerHTML = '';
+        }
+
+        const sourceList = (id === 'dest-barangay-filter' && selectedMuni !== 'ALL')
+            ? (state.barangays || []).filter(b => String(b.municipalityName).toLowerCase() === selectedMuni.toLowerCase())
+            : (state.barangays || []);
+
+        sourceList.forEach(b => {
             const opt = document.createElement('option');
             opt.value = b.barangayId;
-            opt.textContent = `${b.name} (${b.municipalityName})`;
+            opt.textContent = (id === 'dest-barangay-filter' && selectedMuni !== 'ALL')
+                ? b.name
+                : `${b.name} (${b.municipalityName})`;
             el.appendChild(opt);
         });
     });
@@ -467,13 +1846,15 @@ function populateBarangayDropdowns() {
 
 async function loadKPIs() {
     try {
-        const res = await fetch(`${API_BASE}/reports/kpis`);
+        const res = await fetch(`${API_BASE}/reports/kpis`, {
+            headers: state.authToken ? { 'X-Auth-Token': state.authToken } : {}
+        });
         if (res.ok) {
             const k = await res.json();
-            if (document.getElementById('kpi-destinations')) document.getElementById('kpi-destinations').textContent = k.totalDestinations || 8;
-            if (document.getElementById('kpi-stakeholders')) document.getElementById('kpi-stakeholders').textContent = k.verifiedStakeholders || 5;
-            if (document.getElementById('kpi-bookings')) document.getElementById('kpi-bookings').textContent = k.activeBookings || 3;
-            if (document.getElementById('kpi-visitors')) document.getElementById('kpi-visitors').textContent = k.totalVisitorFootfall || 480;
+            if (document.getElementById('kpi-destinations')) document.getElementById('kpi-destinations').textContent = k.totalDestinations ?? 0;
+            if (document.getElementById('kpi-stakeholders')) document.getElementById('kpi-stakeholders').textContent = k.verifiedStakeholders ?? 0;
+            if (document.getElementById('kpi-bookings')) document.getElementById('kpi-bookings').textContent = k.activeBookings ?? 0;
+            if (document.getElementById('kpi-visitors')) document.getElementById('kpi-visitors').textContent = k.totalVisitorFootfall ?? 0;
         }
     } catch (e) {
         console.warn('Failed to load KPIs:', e);
@@ -482,10 +1863,17 @@ async function loadKPIs() {
 
 async function loadDestinations() {
     try {
-        const res = await fetch(`${API_BASE}/destinations`);
+        const headers = state.authToken ? { 'X-Auth-Token': state.authToken } : {};
+        if (!state.municipalities || state.municipalities.length === 0) {
+            await loadMunicipalities();
+        } else {
+            populateMunicipalityDropdowns();
+        }
+        const res = await fetch(`${API_BASE}/destinations`, { headers });
         if (res.ok) {
             state.destinations = await res.json();
             filterDestinations();
+            updateHeroRecommender(state.destinations);
             populateArrivalDestinationDropdown();
         }
     } catch (e) {
@@ -497,10 +1885,26 @@ function populateArrivalDestinationDropdown() {
     const el = document.getElementById('arr-destination-id');
     if (!el) return;
     el.innerHTML = '';
-    state.destinations.forEach(d => {
+
+    let dests = state.destinations || [];
+    if (state.activeRole === 'BARANGAY_OFFICIAL' && state.currentUser?.barangayId) {
+        dests = dests.filter(d => Number(d.barangayId) === Number(state.currentUser.barangayId));
+    }
+
+    if (dests.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'No registered destinations in your barangay';
+        opt.disabled = true;
+        opt.selected = true;
+        el.appendChild(opt);
+        return;
+    }
+
+    dests.forEach(d => {
         const opt = document.createElement('option');
         opt.value = d.destinationId;
-        opt.textContent = `${d.name} (${d.barangayName})`;
+        opt.textContent = `${d.name} (${d.barangayName || 'Local'})`;
         el.appendChild(opt);
     });
 }
@@ -508,16 +1912,49 @@ function populateArrivalDestinationDropdown() {
 // ------------------------------------------------------------------------------
 // DESTINATIONS MODULE
 // ------------------------------------------------------------------------------
+function onDestinationMunicipalityChange() {
+    const selectedMuni = document.getElementById('dest-municipality-filter')?.value || 'ALL';
+    const brgySelect = document.getElementById('dest-barangay-filter');
+
+    if (brgySelect) {
+        brgySelect.innerHTML = '';
+        const allOpt = document.createElement('option');
+        allOpt.value = 'ALL';
+        allOpt.textContent = selectedMuni === 'ALL' ? 'All Barangays' : `All Barangays in ${selectedMuni}`;
+        brgySelect.appendChild(allOpt);
+
+        const availableBarangays = (state.barangays || []).filter(b => {
+            if (selectedMuni === 'ALL') return true;
+            return String(b.municipalityName).toLowerCase() === selectedMuni.toLowerCase();
+        });
+
+        availableBarangays.forEach(b => {
+            const opt = document.createElement('option');
+            opt.value = b.barangayId;
+            opt.textContent = selectedMuni === 'ALL' ? `${b.name} (${b.municipalityName})` : b.name;
+            brgySelect.appendChild(opt);
+        });
+        brgySelect.value = 'ALL';
+    }
+
+    filterDestinations();
+}
+
 function filterDestinations() {
     const search = (document.getElementById('dest-search-input')?.value || '').toLowerCase();
+    const muni = document.getElementById('dest-municipality-filter')?.value || 'ALL';
     const cat = document.getElementById('dest-category-filter')?.value || 'ALL';
     const brgy = document.getElementById('dest-barangay-filter')?.value || 'ALL';
 
-    const filtered = state.destinations.filter(d => {
-        const matchSearch = d.name.toLowerCase().includes(search) || d.description.toLowerCase().includes(search);
+    const filtered = (state.destinations || []).filter(d => {
+        const matchSearch = !search || d.name.toLowerCase().includes(search) || d.description.toLowerCase().includes(search);
         const matchCat = cat === 'ALL' || d.category === cat;
+
+        const destMuni = d.municipalityName || state.barangays?.find(b => Number(b.barangayId) === Number(d.barangayId))?.municipalityName || '';
+        const matchMuni = muni === 'ALL' || destMuni.toLowerCase() === muni.toLowerCase();
+
         const matchBrgy = brgy === 'ALL' || String(d.barangayId) === String(brgy);
-        return matchSearch && matchCat && matchBrgy;
+        return matchSearch && matchCat && matchMuni && matchBrgy;
     });
 
     renderDestinationsGrid(filtered);
@@ -533,22 +1970,80 @@ function renderDestinationsGrid(destList) {
         return;
     }
 
+    const role = state.activeRole;
+    const isTourist = role === 'TOURIST';
+    const isAdminOrTourism = role === 'SYSTEM_ADMIN' || role === 'TOURISM_OFFICE';
+
     destList.forEach(d => {
         const card = document.createElement('div');
         card.className = 'item-card';
 
-        // Select suitable photo
-        let photo = 'assets/sambawan_island_hero_1791699785896.jpg';
-        if (d.category === 'WATERFALL') photo = 'assets/tinago_falls_hero_1791699805710.jpg';
+        const photo = getDestinationImage(d);
+        const safeName = (d.name || '').replace(/'/g, "\\'");
+        const isBrgyMatch = role === 'BARANGAY_OFFICIAL' && state.currentUser && String(state.currentUser.barangayId) === String(d.barangayId);
+        const canManage = isAdminOrTourism || isBrgyMatch;
+        const isValidated = d.validatedBy && Number(d.validatedBy) > 0;
 
-        card.innerHTML = `
+        let adminControls = '';
+        if (canManage) {
+            adminControls = `<div class="card-mgmt-actions">`;
+            if (!isValidated) {
+                adminControls += `<button class="btn btn-sm btn-success" onclick="validateDestination(${d.destinationId})"><i class="fa-solid fa-check"></i> Validate</button>`;
+            }
+            adminControls += `<button class="btn btn-sm btn-outline" onclick="openEditDestinationModal(${d.destinationId})"><i class="fa-solid fa-pen"></i> Edit</button>`;
+            if (isAdminOrTourism) {
+                adminControls += `<button class="btn btn-sm btn-danger" onclick="deleteDestination(${d.destinationId})"><i class="fa-solid fa-trash"></i> Delete</button>`;
+            }
+            adminControls += `</div>`;
+        }
+
+        let touristActionHtml = '';
+        if (isTourist) {
+            touristActionHtml = `
+                <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
+                    <button class="btn btn-outline btn-sm" onclick="openViewDestinationModal(${d.destinationId})">
+                        <i class="fa-solid fa-eye"></i> Details
+                    </button>
+                    <button class="btn btn-primary btn-sm" onclick="promptInquireOrBook('${safeName}', ${d.destinationId})">
+                        <i class="fa-solid fa-calendar-plus"></i> Book
+                    </button>
+                </div>
+            `;
+        } else {
+            // Non-tourist: show a View Details button too
+            touristActionHtml = `
+                <div style="display: flex; gap: 0.35rem;">
+                    <button class="btn btn-outline btn-sm" onclick="openViewDestinationModal(${d.destinationId})">
+                        <i class="fa-solid fa-eye"></i> View Details
+                    </button>
+                </div>
+            `;
+        }
+
+        const catIcon = getCategoryIconClass(d.category);
+        const imageHtml = photo ? `
             <div class="item-card-image">
-                <img src="${photo}" alt="${d.name}" loading="lazy" onerror="this.src='assets/sambawan_island_hero_1791699785896.jpg'">
+                <img src="${photo}" alt="${safeName}" onerror="this.onerror=null; this.parentElement.className='item-card-image no-photo'; this.parentElement.innerHTML='<i class=\\'${catIcon} dest-icon\\'></i><span class=\\'item-card-badge\\'>${formatCategory(d.category)}</span><span class=\\'item-card-rating\\'><i class=\\'fa-solid fa-star\\'></i> ${d.averageRating || '5.0'}</span>';">
                 <span class="item-card-badge">${formatCategory(d.category)}</span>
                 <span class="item-card-rating"><i class="fa-solid fa-star"></i> ${d.averageRating || '5.0'}</span>
             </div>
+        ` : `
+            <div class="item-card-image no-photo">
+                <i class="${catIcon} dest-icon"></i>
+                <span class="item-card-badge">${formatCategory(d.category)}</span>
+                <span class="item-card-rating"><i class="fa-solid fa-star"></i> ${d.averageRating || '5.0'}</span>
+            </div>
+        `;
+
+        card.innerHTML = `
+            ${imageHtml}
             <div class="item-card-content">
-                <h3 class="item-card-title">${d.name}</h3>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.25rem;">
+                    <h3 class="item-card-title" style="margin-bottom: 0;">${d.name}</h3>
+                    <span class="badge ${isValidated ? 'badge-success' : 'badge-warning'}" style="font-size: 0.68rem; white-space: nowrap; flex-shrink: 0;">
+                        ${isValidated ? 'Validated' : 'Pending'}
+                    </span>
+                </div>
                 <span class="item-card-location"><i class="fa-solid fa-location-dot"></i> Brgy. ${d.barangayName}, ${d.municipalityName}</span>
                 <p class="item-card-desc">${d.description}</p>
                 <div class="item-card-footer">
@@ -556,17 +2051,28 @@ function renderDestinationsGrid(destList) {
                         <span class="item-price-label">Entrance Fee</span>
                         <span class="item-price-val">₱${Number(d.entranceFee).toFixed(2)}</span>
                     </div>
-                    <button class="btn btn-primary btn-sm" onclick="promptInquireOrBook('${d.name}', ${d.destinationId})">
-                        <i class="fa-solid fa-compass"></i> Inquire / Book
-                    </button>
+                    ${touristActionHtml}
                 </div>
+                ${adminControls}
             </div>
         `;
         grid.appendChild(card);
     });
 }
 
+function promptInquire(name, id) {
+    if (state.activeRole !== 'TOURIST') {
+        showToast('Access restricted: Only registered tourists can submit inquiries.', 'error');
+        return;
+    }
+    showToast(`Inquiry initiated for ${name}! Our accredited local guides and tourism staff will assist you.`, 'info');
+}
+
 function promptInquireOrBook(name, id) {
+    if (state.activeRole !== 'TOURIST') {
+        showToast('Access restricted: Only registered tourists can create bookings.', 'error');
+        return;
+    }
     switchTab('packages');
     togglePackageSubTab('custom');
     showToast(`Planning your trip to ${name}! Choose your services below.`, 'info');
@@ -607,24 +2113,64 @@ function togglePackageSubTab(mode) {
     }
 }
 
+function getPackageImage(pkg) {
+    if (!pkg || !pkg.imageUrl) return '';
+    const img = pkg.imageUrl.trim();
+    if (!img) return '';
+    if (img.startsWith('http://') || img.startsWith('https://')) return img;
+    if (img.startsWith('assets/')) return img;
+    return 'assets/' + img;
+}
+
 function renderPackagesGrid() {
     const grid = document.getElementById('packages-grid');
     if (!grid) return;
     grid.innerHTML = '';
 
+    const canManage = state.activeRole === 'TOURISM_OFFICE' || state.activeRole === 'SYSTEM_ADMIN';
+
     state.packages.forEach(pkg => {
         const card = document.createElement('div');
         card.className = 'item-card';
 
-        let photo = 'assets/sambawan_island_hero_1791699785896.jpg';
-        if (pkg.name.toLowerCase().includes('waterfall')) photo = 'assets/tinago_falls_hero_1791699805710.jpg';
+        const safeName = (pkg.name || '').replace(/'/g, "\\'");
+        const pkgIcon = pkg.name.toLowerCase().includes('waterfall')
+            ? 'fa-solid fa-water'
+            : (pkg.name.toLowerCase().includes('sandbar') || pkg.name.toLowerCase().includes('island'))
+                ? 'fa-solid fa-umbrella-beach'
+                : 'fa-solid fa-map-location-dot';
 
-        card.innerHTML = `
+        let mgmtBtns = '';
+        if (canManage) {
+            mgmtBtns = `
+                <div class="card-mgmt-actions">
+                    <button class="btn btn-sm btn-outline" onclick="openEditPackageModal(${pkg.packageId})">
+                        <i class="fa-solid fa-pen"></i> Edit Package
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deletePackage(${pkg.packageId})">
+                        <i class="fa-solid fa-trash"></i> Delete
+                    </button>
+                </div>
+            `;
+        }
+
+        const pkgImg = getPackageImage(pkg);
+        const imageHtml = pkgImg ? `
             <div class="item-card-image">
-                <img src="${photo}" alt="${pkg.name}" loading="lazy">
+                <img src="${pkgImg}" alt="${safeName}" onerror="this.onerror=null; this.parentElement.className='item-card-image no-photo'; this.parentElement.style.background='linear-gradient(135deg, #065f46 0%, #064e3b 60%, #0d9488 100%)'; this.parentElement.innerHTML='<i class=\\'${pkgIcon} dest-icon\\'></i><span class=\\'item-card-badge\\'>${pkg.durationDays} Day Circuit</span><span class=\\'item-card-rating\\'><i class=\\'fa-solid fa-star\\'></i> ${pkg.averageRating || '5.0'}</span>';">
                 <span class="item-card-badge">${pkg.durationDays} Day Circuit</span>
                 <span class="item-card-rating"><i class="fa-solid fa-star"></i> ${pkg.averageRating || '5.0'}</span>
             </div>
+        ` : `
+            <div class="item-card-image no-photo" style="background: linear-gradient(135deg, #065f46 0%, #064e3b 60%, #0d9488 100%);">
+                <i class="${pkgIcon} dest-icon"></i>
+                <span class="item-card-badge">${pkg.durationDays} Day Circuit</span>
+                <span class="item-card-rating"><i class="fa-solid fa-star"></i> ${pkg.averageRating || '5.0'}</span>
+            </div>
+        `;
+
+        card.innerHTML = `
+            ${imageHtml}
             <div class="item-card-content">
                 <h3 class="item-card-title">${pkg.name}</h3>
                 <span class="item-card-location"><i class="fa-solid fa-users"></i> Min ${pkg.minPax} to Max ${pkg.maxPax} Travelers</span>
@@ -637,10 +2183,12 @@ function renderPackagesGrid() {
                         <span class="item-price-label">Price per person</span>
                         <span class="item-price-val">₱${Number(pkg.pricePerPax).toFixed(2)}</span>
                     </div>
-                    <button class="btn btn-primary btn-sm" onclick="openPackageBookingModal(${pkg.packageId}, '${pkg.name}', ${pkg.pricePerPax})">
+                    ${state.activeRole === 'TOURIST' ? `
+                    <button class="btn btn-primary btn-sm" onclick="openPackageBookingModal(${pkg.packageId}, '${safeName}', ${pkg.pricePerPax})">
                         <i class="fa-solid fa-calendar-check"></i> Book Package
-                    </button>
+                    </button>` : ''}
                 </div>
+                ${mgmtBtns}
             </div>
         `;
         grid.appendChild(card);
@@ -751,6 +2299,10 @@ function updateCustomCalculation() {
 }
 
 async function submitCustomBooking() {
+    if (state.activeRole !== 'TOURIST') {
+        showToast('Access restricted: Only registered tourists can create bookings.', 'error');
+        return;
+    }
     if (state.customBuilder.selectedServices.size === 0) {
         showToast('Please select at least one community service for your custom trip.', 'warning');
         return;
@@ -815,8 +2367,54 @@ async function submitCustomBooking() {
 }
 
 // ------------------------------------------------------------------------------
-// BOOKINGS LEDGER MODULE
+// BOOKINGS LEDGER MODULE & FORMATTING HELPERS
 // ------------------------------------------------------------------------------
+/**
+ * Shortens booking reference code for clean UI display while preserving unique identity.
+ * Examples: 'LL-2026-7020' -> 'LL-7020', 'LL-2024-001' -> 'LL-001', 'LL-7020' -> 'LL-7020'
+ */
+function formatShortBookingReference(ref, fallbackId) {
+    if (!ref) {
+        return fallbackId ? `LL-${fallbackId}` : 'LL-0000';
+    }
+    const s = String(ref).trim();
+    const matchFull = s.match(/^LL-\d{4}-(.+)$/i);
+    if (matchFull) {
+        return `LL-${matchFull[1]}`;
+    }
+    const matchPrefix = s.match(/^[A-Za-z]+-\d{4}-(.+)$/);
+    if (matchPrefix) {
+        return `LL-${matchPrefix[1]}`;
+    }
+    return s;
+}
+
+/**
+ * Formats date string into readable format such as 'Nov 24, 2026', stripping timestamps.
+ */
+function formatBookingDate(dateStr) {
+    if (!dateStr) return '—';
+    const s = String(dateStr).trim();
+    if (/^[A-Za-z]{3}\s+\d{1,2},\s+\d{4}$/.test(s)) return s;
+
+    const match = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (match) {
+        const year = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10) - 1;
+        const day = parseInt(match[3], 10);
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        if (month >= 0 && month < 12) {
+            return `${months[month]} ${day}, ${year}`;
+        }
+    }
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+    }
+    return s.replace(/\s+00:00:00.*$/, '').replace(/T00:00:00.*$/, '');
+}
+
 async function loadBookingsList() {
     try {
         const statusFilter = document.getElementById('bookings-status-filter')?.value || 'ALL';
@@ -826,11 +2424,32 @@ async function loadBookingsList() {
         if (res.ok) {
             state.bookings = await res.json();
             renderBookingsTable();
-            const counter = document.getElementById('bookings-counter');
-            if (counter) counter.textContent = state.bookings.length;
+            updateBookingsNavBadge();
         }
     } catch (e) {
         console.warn('Failed to load bookings:', e);
+    }
+}
+
+function updateBookingsNavBadge() {
+    const counter = document.getElementById('bookings-counter');
+    if (!counter) return;
+
+    if (state.activeRole === 'STAKEHOLDER') {
+        // For Stakeholder: show pending action count if available, or active bookings count
+        if (cachedStakeholderData && cachedStakeholderData.metrics) {
+            const count = cachedStakeholderData.metrics.pendingRequestsCount !== undefined
+                ? cachedStakeholderData.metrics.pendingRequestsCount
+                : cachedStakeholderData.metrics.totalAssignedBookings || 0;
+            counter.textContent = count;
+            return;
+        }
+    }
+
+    if (Array.isArray(state.bookings)) {
+        // Filter out cancelled or rejected bookings for active counter
+        const activeCount = state.bookings.filter(b => b.status === 'PENDING' || b.status === 'ACCEPTED' || b.status === 'CONFIRMED').length;
+        counter.textContent = activeCount;
     }
 }
 
@@ -839,56 +2458,71 @@ function renderBookingsTable() {
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    if (state.bookings.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4">No booking records found.</td></tr>`;
+    if (!Array.isArray(state.bookings) || state.bookings.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4">No booking records found.</td></tr>`;
         return;
     }
 
+    const currentRole = state.activeRole || (state.currentUser ? state.currentUser.role : null);
+
     state.bookings.forEach(b => {
         const tr = document.createElement('tr');
+        tr.className = 'clickable-booking-row';
+        tr.setAttribute('onclick', `openViewBookingModal(${b.bookingId})`);
+        tr.setAttribute('title', `Click to view full booking details for ${formatShortBookingReference(b.bookingReference, b.bookingId)}`);
+        tr.setAttribute('tabindex', '0');
+        tr.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openViewBookingModal(b.bookingId);
+            }
+        });
+
         const badgeClass = getStatusBadgeClass(b.status);
+        const shortRef = formatShortBookingReference(b.bookingReference, b.bookingId);
+        const startDateFormatted = formatBookingDate(b.travelDateStart);
+        const endDateFormatted = formatBookingDate(b.travelDateEnd || b.travelDateStart);
 
-        let actionButtons = '';
-        const role = state.activeRole;
+        let actionsHtml = `<div class="booking-actions-cell">
+            <button class="btn btn-view-details" title="View full booking/record details" onclick="event.stopPropagation(); openViewBookingModal(${b.bookingId});">
+                <i class="fa-solid fa-eye"></i> View Details
+            </button>`;
 
-        // Action options per role
-        if (role === 'STAKEHOLDER') {
-            if (b.status === 'PENDING') {
-                actionButtons = `
-                    <button class="btn btn-sm btn-success" onclick="updateBookingStatus(${b.bookingId}, 'ACCEPTED')">Accept</button>
-                    <button class="btn btn-sm btn-danger" onclick="updateBookingStatus(${b.bookingId}, 'REJECTED')">Decline</button>
-                `;
-            } else if (b.status === 'ACCEPTED' || b.status === 'CONFIRMED') {
-                actionButtons = `<button class="btn btn-sm btn-outline" onclick="updateBookingStatus(${b.bookingId}, 'COMPLETED')">Mark Done</button>`;
-            }
-        } else if (role === 'TOURIST') {
-            if (b.status === 'COMPLETED') {
-                actionButtons = `<button class="btn btn-sm btn-primary" onclick="openReviewModal(${b.bookingId}, ${b.packageId || 1})"><i class="fa-solid fa-star"></i> Leave Review</button>`;
-            } else if (b.status === 'PENDING') {
-                actionButtons = `<button class="btn btn-sm btn-danger" onclick="updateBookingStatus(${b.bookingId}, 'CANCELLED')">Cancel</button>`;
-            }
-        } else {
-            // Admin, Tourism Office, LGU, Barangay
-            actionButtons = `
-                <select class="form-select" style="padding: 0.2rem 0.4rem; font-size: 0.75rem; width: auto;" onchange="updateBookingStatus(${b.bookingId}, this.value)">
-                    <option value="" disabled selected>Change Status</option>
-                    <option value="ACCEPTED">Accept</option>
-                    <option value="CONFIRMED">Confirm</option>
-                    <option value="COMPLETED">Complete</option>
-                    <option value="CANCELLED">Cancel</option>
-                </select>
-            `;
+        // Red Cancel button: active for Tourism Stakeholder (and Tourist traveler if applicable), but STRICTLY HIDDEN for Tourism Office
+        if (b.status === 'PENDING' && (currentRole === 'STAKEHOLDER' || currentRole === 'TOURIST')) {
+            actionsHtml += `
+            <button class="btn btn-cancel-booking" title="Cancel this booking" onclick="event.stopPropagation(); updateBookingStatus(${b.bookingId}, 'CANCELLED');">
+                <i class="fa-solid fa-ban"></i> Cancel
+            </button>`;
         }
+        actionsHtml += `</div>`;
 
         tr.innerHTML = `
-            <td><strong>${b.bookingReference}</strong></td>
-            <td>${b.touristName || 'Tourist Traveler'}</td>
-            <td>${b.packageName || 'Custom Experience Circuit'}</td>
-            <td>${b.travelDateStart} to ${b.travelDateEnd}</td>
-            <td>${b.numberOfPax}</td>
-            <td class="font-bold">₱${Number(b.totalAmount).toFixed(2)}</td>
-            <td><span class="badge ${badgeClass}">${b.status}</span></td>
-            <td>${actionButtons || '<span class="text-muted">—</span>'}</td>
+            <td>
+                <span class="booking-ref-badge" title="Original ID: #${b.bookingId} (${b.bookingReference})">
+                    <i class="fa-solid fa-receipt" style="margin-right: 4px; opacity: 0.7;"></i>${shortRef}
+                </span>
+            </td>
+            <td>
+                <div class="booking-tourist-cell">
+                    <span class="booking-tourist-name">${escapeHtml(b.touristName || 'Tourist Traveler')}</span>
+                </div>
+            </td>
+            <td>
+                <div class="booking-package-cell">
+                    <span class="booking-package-name">${escapeHtml(b.packageName || 'Custom Experience Circuit')}</span>
+                </div>
+            </td>
+            <td class="booking-date-cell"><i class="fa-regular fa-calendar-days text-muted" style="margin-right: 5px;"></i>${startDateFormatted}</td>
+            <td class="booking-date-cell"><i class="fa-regular fa-calendar-check text-muted" style="margin-right: 5px;"></i>${endDateFormatted}</td>
+            <td class="text-center"><span class="booking-pax-pill"><i class="fa-solid fa-user-group" style="font-size: 0.7rem; margin-right: 3px;"></i>${b.numberOfPax || 1}</span></td>
+            <td class="font-bold text-success" style="white-space: nowrap;">₱${Number(b.totalAmount || 0).toFixed(2)}</td>
+            <td>
+                <span class="badge ${badgeClass}">${b.status}</span>
+            </td>
+            <td>
+                ${actionsHtml}
+            </td>
         `;
         tbody.appendChild(tr);
     });
@@ -896,6 +2530,7 @@ function renderBookingsTable() {
 
 async function updateBookingStatus(bookingId, newStatus) {
     if (!newStatus) return;
+    if (newStatus === 'CANCELLED' && !confirm('Are you sure you want to cancel this booking?')) return;
     try {
         const res = await fetch(`${API_BASE}/bookings/status`, {
             method: 'POST',
@@ -909,11 +2544,44 @@ async function updateBookingStatus(bookingId, newStatus) {
         if (data.success) {
             showToast(data.message, 'success');
             loadBookingsList();
+            if (state.activeRole === 'STAKEHOLDER') {
+                if (typeof loadStakeholderSchedule === 'function') loadStakeholderSchedule();
+                if (typeof loadStakeholderEarnings === 'function') loadStakeholderEarnings();
+                if (typeof loadStakeholderDashboardOverview === 'function') loadStakeholderDashboardOverview();
+            }
         } else {
             showToast(data.message || 'Status update failed.', 'error');
         }
     } catch (e) {
         showToast('Error updating booking: ' + e.message, 'error');
+    }
+}
+
+async function updateBookingItemStatus(itemId, newStatus) {
+    if (!itemId || !newStatus) return;
+    try {
+        const res = await fetch(`${API_BASE}/bookings/item-status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': state.authToken
+            },
+            body: JSON.stringify({ itemId: Number(itemId), status: newStatus })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message, 'success');
+            loadBookingsList();
+            if (state.activeRole === 'STAKEHOLDER') {
+                if (typeof loadStakeholderSchedule === 'function') loadStakeholderSchedule();
+                if (typeof loadStakeholderEarnings === 'function') loadStakeholderEarnings();
+                if (typeof loadStakeholderDashboardOverview === 'function') loadStakeholderDashboardOverview();
+            }
+        } else {
+            showToast(data.message || 'Service item update failed.', 'error');
+        }
+    } catch (e) {
+        showToast('Error updating service item: ' + e.message, 'error');
     }
 }
 
@@ -923,14 +2591,58 @@ async function updateBookingStatus(bookingId, newStatus) {
 async function loadStakeholdersList() {
     try {
         const cat = document.getElementById('stakeholder-category-filter')?.value || 'ALL';
-        const st = document.getElementById('stakeholder-status-filter')?.value || 'ALL';
-        const res = await fetch(`${API_BASE}/stakeholders?category=${cat}&verificationStatus=${st}`);
+        let st = document.getElementById('stakeholder-status-filter')?.value || 'ALL';
+        // Community Worker role only discovers verified partners
+        if (state.activeRole === 'STAKEHOLDER') {
+            st = 'VERIFIED';
+        }
+        const jur = state.activeRole === 'BARANGAY_OFFICIAL' ? '&jurisdictionOnly=true' : '';
+        const res = await fetch(`${API_BASE}/stakeholders?category=${cat}&verificationStatus=${st}${jur}`, {
+            headers: state.authToken ? { 'X-Auth-Token': state.authToken } : {}
+        });
         if (res.ok) {
-            state.stakeholders = await res.json();
-            renderStakeholdersGrid();
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                state.stakeholders = data;
+                renderStakeholdersGrid();
+            }
         }
     } catch (e) {
         console.warn('Failed loading stakeholders:', e);
+    }
+}
+
+function getVerificationBadgeHtml(status) {
+    switch (status) {
+        case 'VERIFIED':
+        case 'APPROVED':
+            return '<span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> VERIFIED</span>';
+        case 'UNDER_REVIEW':
+            return '<span class="badge badge-info"><i class="fa-solid fa-magnifying-glass"></i> UNDER REVIEW</span>';
+        case 'NEEDS_CORRECTION':
+        case 'REQUEST_CORRECTION':
+            return '<span class="badge" style="background:rgba(234,179,8,0.15);color:#854d0e;border:1px solid #ca8a04;"><i class="fa-solid fa-triangle-exclamation"></i> CORRECTION REQUIRED</span>';
+        case 'REJECTED':
+            return '<span class="badge badge-danger"><i class="fa-solid fa-circle-xmark"></i> REJECTED</span>';
+        case 'PENDING':
+        default:
+            return '<span class="badge badge-warning"><i class="fa-solid fa-clock"></i> PENDING VERIFICATION</span>';
+    }
+}
+
+function getAccreditationDisplayText(stk) {
+    const hasAcc = stk.accreditationNo && stk.accreditationNo.trim().length > 0;
+    const status = stk.verificationStatus || 'PENDING';
+    if (status === 'VERIFIED' || status === 'APPROVED') {
+        return hasAcc ? `Verified, with accreditation number (${escapeHtml(stk.accreditationNo.trim())})` : 'Barangay Verified, accreditation information unavailable';
+    } else if (status === 'NEEDS_CORRECTION' || status === 'REQUEST_CORRECTION') {
+        return 'Correction Required';
+    } else if (status === 'REJECTED') {
+        return 'Rejected';
+    } else if (status === 'UNDER_REVIEW') {
+        return hasAcc ? `Under Review (Accreditation: ${escapeHtml(stk.accreditationNo.trim())})` : 'Under Review, document inspection scheduled';
+    } else { // PENDING
+        return hasAcc ? `Pending Verification (Accreditation: ${escapeHtml(stk.accreditationNo.trim())})` : 'Pending Verification, document not submitted';
     }
 }
 
@@ -939,32 +2651,56 @@ function renderStakeholdersGrid() {
     if (!grid) return;
     grid.innerHTML = '';
 
+    const role = state.activeRole;
+
     state.stakeholders.forEach(stk => {
         const card = document.createElement('div');
         card.className = 'item-card';
+
+        const safeName = (stk.businessName || '').replace(/'/g, "\\'");
+        const isOwner = state.currentUser && Number(state.currentUser.stakeholderProfileId) === Number(stk.profileId);
+        const isBrgyMatch = role === 'BARANGAY_OFFICIAL' && state.currentUser && Number(state.currentUser.barangayId) === Number(stk.barangayId);
+        const canEdit = isOwner || isBrgyMatch || role === 'TOURISM_OFFICE' || role === 'SYSTEM_ADMIN';
+
+        let partnerBadgeHtml = '';
+        if (role === 'STAKEHOLDER') {
+            if (isOwner) {
+                partnerBadgeHtml = '<span class="badge badge-success" style="font-size: 0.72rem; margin-right: 0.35rem;"><i class="fa-solid fa-user-check"></i> My Active Profile</span>';
+            } else {
+                partnerBadgeHtml = '<span class="badge badge-info" style="font-size: 0.72rem; margin-right: 0.35rem;"><i class="fa-solid fa-handshake"></i> Cooperative Partner</span>';
+            }
+        }
+
+        const accreditationDisplay = getAccreditationDisplayText(stk);
+        const statusBadge = getVerificationBadgeHtml(stk.verificationStatus);
 
         card.innerHTML = `
             <div class="card-body">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
                     <div>
-                        <h3 class="item-card-title">${stk.businessName}</h3>
-                        <span class="text-muted" style="font-size: 0.8rem;"><i class="fa-solid fa-user"></i> ${stk.ownerName}</span>
+                        <h3 class="item-card-title">${escapeHtml(stk.businessName)}</h3>
+                        <span class="text-muted" style="font-size: 0.8rem;"><i class="fa-solid fa-user"></i> ${escapeHtml(stk.ownerName || 'Owner')}</span>
                     </div>
-                    <span class="badge ${stk.verificationStatus === 'VERIFIED' ? 'badge-success' : 'badge-warning'}">
-                        ${stk.verificationStatus}
-                    </span>
+                    <div style="display: flex; align-items: center; gap: 0.3rem;">
+                        ${partnerBadgeHtml}
+                        ${statusBadge}
+                    </div>
                 </div>
                 <p class="text-muted" style="font-size: 0.82rem; margin-bottom: 0.75rem;">
                     <i class="fa-solid fa-tag"></i> <strong>Category:</strong> ${formatCategory(stk.category)}<br>
-                    <i class="fa-solid fa-location-dot"></i> <strong>Barangay:</strong> ${stk.barangayName}, ${stk.municipalityName}<br>
-                    <i class="fa-solid fa-id-card"></i> <strong>Accreditation:</strong> ${stk.accreditationNo || 'Pending Submission'}<br>
-                    <i class="fa-solid fa-phone"></i> <strong>Contact:</strong> ${stk.contactNumber || 'N/A'}
+                    <i class="fa-solid fa-location-dot"></i> <strong>Barangay:</strong> ${escapeHtml(stk.barangayName || '-')}, ${escapeHtml(stk.municipalityName || '-')}<br>
+                    <i class="fa-solid fa-id-card"></i> <strong>Accreditation / Document:</strong> ${accreditationDisplay}<br>
+                    <i class="fa-solid fa-phone"></i> <strong>Contact:</strong> ${escapeHtml(stk.contactNumber || 'N/A')}
                 </p>
-                <div class="item-card-footer">
-                    <span class="text-muted" style="font-size: 0.78rem;">Experience: ${stk.yearsExperience} Years</span>
-                    <button class="btn btn-outline btn-sm" onclick="promptInquireOrBook('${stk.businessName}', ${stk.profileId})">
-                        <i class="fa-solid fa-envelope"></i> Reserve Service
-                    </button>
+                <div class="item-card-footer" style="gap: 0.4rem; flex-wrap: wrap;">
+                    <span class="text-muted" style="font-size: 0.78rem;">Experience: ${stk.yearsExperience || 0} Years</span>
+                    <div style="display: flex; gap: 0.35rem;">
+                        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="openEditStakeholderModal(${stk.profileId})"><i class="fa-solid fa-pen"></i> Edit</button>` : ''}
+                        ${role === 'TOURIST' ? `
+                        <button class="btn btn-outline btn-sm" onclick="promptInquireOrBook('${safeName}', ${stk.profileId})">
+                            <i class="fa-solid fa-envelope"></i> Reserve Service
+                        </button>` : ''}
+                    </div>
                 </div>
             </div>
         `;
@@ -977,10 +2713,22 @@ function renderStakeholdersGrid() {
 // ------------------------------------------------------------------------------
 async function loadVerificationsList() {
     try {
-        const res = await fetch(`${API_BASE}/stakeholders?verificationStatus=PENDING`);
+        const res = await fetch(`${API_BASE}/stakeholders?jurisdictionOnly=true`, {
+            headers: state.authToken ? { 'X-Auth-Token': state.authToken } : {}
+        });
         if (res.ok) {
-            const list = await res.json();
-            renderVerificationsTable(list);
+            let list = await res.json();
+            if (Array.isArray(list)) {
+                state.jurisdictionStakeholders = list;
+                const statusFilter = document.getElementById('verif-status-filter')?.value || 'ACTIVE';
+                const ACTIVE = ['PENDING', 'UNDER_REVIEW', 'NEEDS_CORRECTION'];
+                if (statusFilter === 'ACTIVE') {
+                    list = list.filter(s => ACTIVE.includes(s.verificationStatus));
+                } else if (statusFilter !== 'ALL') {
+                    list = list.filter(s => s.verificationStatus === statusFilter);
+                }
+                renderVerificationsTable(list);
+            }
         }
     } catch (e) {
         console.warn('Failed loading verifications:', e);
@@ -993,44 +2741,158 @@ function renderVerificationsTable(list) {
     tbody.innerHTML = '';
 
     if (list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">All local stakeholders in this barangay are verified. No pending reviews.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4"><i class="fa-solid fa-inbox"></i> No stakeholder verification requests found for the selected filter.</td></tr>`;
         return;
     }
 
+    const isBrgyOfficial = state.activeRole === 'BARANGAY_OFFICIAL';
+    const ACTIVE_STATUSES = ['PENDING', 'UNDER_REVIEW', 'NEEDS_CORRECTION'];
+
     list.forEach(stk => {
         const tr = document.createElement('tr');
+        const safeName = (stk.businessName || '').replace(/'/g, "\\'");
+        const canEvaluate = isBrgyOfficial && ACTIVE_STATUSES.includes(stk.verificationStatus);
+        const actionHtml = canEvaluate
+            ? `<button class="btn btn-sm btn-primary" onclick="openVerificationModal(${stk.profileId}, '${safeName}', ${stk.barangayId})">
+                 <i class="fa-solid fa-stamp"></i> Evaluate
+               </button>`
+            : `<button class="btn btn-sm btn-outline text-muted" onclick="openVerificationModal(${stk.profileId}, '${safeName}', ${stk.barangayId}, true)" title="View Applicant and Evaluation History">
+                 <i class="fa-solid fa-eye"></i> View History
+               </button>`;
+        const statusBadge = getVerificationBadgeHtml(stk.verificationStatus);
+        const accreditationDisplay = getAccreditationDisplayText(stk);
+
         tr.innerHTML = `
-            <td><strong>${stk.businessName}</strong><br><small class="text-muted">${stk.ownerName}</small></td>
+            <td><strong>${escapeHtml(stk.businessName)}</strong><br><small class="text-muted">${escapeHtml(stk.ownerName || 'Owner')}</small></td>
             <td>${formatCategory(stk.category)}</td>
-            <td>Brgy. ${stk.barangayName}</td>
-            <td>${stk.accreditationNo || 'LGU Documents Attached'}</td>
-            <td><span class="badge badge-warning">PENDING</span></td>
-            <td>
-                <button class="btn btn-sm btn-primary" onclick="openVerificationModal(${stk.profileId}, '${stk.businessName}', ${stk.barangayId})">
-                    <i class="fa-solid fa-stamp"></i> Evaluate
-                </button>
-            </td>
+            <td>Brgy. ${escapeHtml(stk.barangayName || 'Local')}</td>
+            <td><small>${accreditationDisplay}</small></td>
+            <td>${statusBadge}</td>
+            <td>${actionHtml}</td>
         `;
         tbody.appendChild(tr);
     });
 }
 
-function openVerificationModal(stkId, name, brgyId) {
+function onVerifyDecisionChange() {
+    const decision = document.getElementById('verify-decision')?.value;
+    const reqStar = document.getElementById('verify-remarks-required');
+    if (reqStar) {
+        reqStar.style.display = (decision === 'NEEDS_CORRECTION' || decision === 'REJECTED') ? 'inline' : 'none';
+    }
+}
+
+async function openVerificationModal(stkId, name, brgyId, isReadOnly = false) {
+    const pool = state.jurisdictionStakeholders || state.stakeholders || [];
+    const stk = pool.find(s => Number(s.profileId) === Number(stkId)) || { profileId: stkId, businessName: name, barangayId: brgyId };
+
     document.getElementById('verify-stakeholder-id').value = stkId;
     document.getElementById('verify-barangay-id').value = brgyId;
     document.getElementById('verify-stakeholder-name').value = name;
+
+    const bEl = document.getElementById('verify-info-business');
+    if (bEl) bEl.innerText = stk.businessName || name;
+    const oEl = document.getElementById('verify-info-owner');
+    if (oEl) oEl.innerText = stk.ownerName || '-';
+    const cEl = document.getElementById('verify-info-category');
+    if (cEl) cEl.innerText = formatCategory(stk.category);
+    const brgyEl = document.getElementById('verify-info-barangay');
+    if (brgyEl) brgyEl.innerText = `Brgy. ${stk.barangayName || '-'}, ${stk.municipalityName || '-'}`;
+    const cntEl = document.getElementById('verify-info-contact');
+    if (cntEl) cntEl.innerText = stk.contactNumber || 'N/A';
+    const expEl = document.getElementById('verify-info-experience');
+    if (expEl) expEl.innerText = `${stk.yearsExperience != null ? stk.yearsExperience : 0} Years`;
+    const accEl = document.getElementById('verify-info-accreditation');
+    if (accEl) accEl.innerText = stk.accreditationNo || 'No DOT accreditation number submitted';
+    const badgeEl = document.getElementById('verify-modal-status-badge');
+    if (badgeEl) badgeEl.innerHTML = getVerificationBadgeHtml(stk.verificationStatus || 'PENDING');
+
     document.getElementById('verify-requirements').value = 'Barangay clearance, valid government ID, training credentials submitted.';
+    document.getElementById('verify-remarks').value = '';
+    onVerifyDecisionChange();
+
+    // Toggle read-only if viewing history or not authorized official
+    const formEl = document.getElementById('form-verify-stakeholder');
+    const submitBtn = document.getElementById('btn-verify-submit');
+    const isBrgyOfficial = state.activeRole === 'BARANGAY_OFFICIAL';
+    if (isReadOnly || !isBrgyOfficial) {
+        if (submitBtn) submitBtn.style.display = 'none';
+    } else {
+        if (submitBtn) submitBtn.style.display = 'block';
+    }
+
+    // Load prior evaluation history for this stakeholder
+    const historyContainer = document.getElementById('verify-history-container');
+    if (historyContainer) {
+        historyContainer.innerHTML = '<p class="text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Loading prior evaluations...</p>';
+    }
+
     openModal('modal-verification-action');
+
+    try {
+        const res = await fetch(`${API_BASE}/verifications?stakeholderId=${stkId}`, {
+            headers: { 'X-Auth-Token': state.authToken }
+        });
+        if (res.ok) {
+            const history = await res.json();
+            if (historyContainer) {
+                if (Array.isArray(history) && history.length > 0) {
+                    let hHtml = '<div style="display:flex;flex-direction:column;gap:0.45rem;">';
+                    history.forEach(h => {
+                        const dateStr = h.decisionDate ? h.decisionDate.split('.')[0] : '-';
+                        const reqStr = h.requirementsSubmitted ? `<br><small class="text-muted"><strong>Requirements:</strong> ${escapeHtml(h.requirementsSubmitted)}</small>` : '';
+                        hHtml += `
+                            <div style="background:#f8fafc;border-left:3px solid #6366f1;padding:0.4rem 0.6rem;border-radius:4px;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;">
+                                    <strong>Decision: ${escapeHtml(h.status)}</strong>
+                                    <small class="text-muted">${escapeHtml(dateStr)}</small>
+                                </div>
+                                <div style="margin-top:0.2rem;">Official: <strong>${escapeHtml(h.reviewerName || 'Barangay Official')}</strong></div>
+                                <div style="margin-top:0.2rem;font-style:italic;">"${escapeHtml(h.remarks || 'No remarks')}"</div>
+                                ${reqStr}
+                            </div>`;
+                    });
+                    hHtml += '</div>';
+                    historyContainer.innerHTML = hHtml;
+                } else {
+                    historyContainer.innerHTML = '<p class="text-muted" style="margin:0;"><i class="fa-solid fa-circle-info"></i> No prior evaluations on record. This is an initial registration evaluation.</p>';
+                }
+            }
+        }
+    } catch (err) {
+        if (historyContainer) historyContainer.innerHTML = `<p class="text-danger">Failed to load history: ${escapeHtml(err.message)}</p>`;
+    }
 }
 
 async function handleVerificationSubmit(e) {
     e.preventDefault();
+    const decision = document.getElementById('verify-decision')?.value;
+    const remarks = document.getElementById('verify-remarks')?.value?.trim();
+    const stkName = document.getElementById('verify-stakeholder-name')?.value || 'this stakeholder';
+
+    if ((decision === 'NEEDS_CORRECTION' || decision === 'REJECTED') && !remarks) {
+        showToast('Please provide remarks/explanation when requesting corrections or rejecting an application.', 'warning');
+        document.getElementById('verify-remarks')?.focus();
+        return;
+    }
+
+    if (!confirm(`Are you sure you want to record the evaluation decision "${decision}" for ${stkName}?`)) {
+        return;
+    }
+
+    const btn = document.getElementById('btn-verify-submit');
+    const originalText = btn ? btn.innerHTML : 'Confirm Evaluation';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Recording Evaluation...';
+    }
+
     const payload = {
         stakeholderId: parseInt(document.getElementById('verify-stakeholder-id').value),
         barangayId: parseInt(document.getElementById('verify-barangay-id').value),
-        status: document.getElementById('verify-decision').value,
+        status: decision,
         requirementsSubmitted: document.getElementById('verify-requirements').value,
-        remarks: document.getElementById('verify-remarks').value
+        remarks: remarks
     };
 
     try {
@@ -1045,7 +2907,7 @@ async function handleVerificationSubmit(e) {
         const data = await res.json();
         if (data.success) {
             closeModal('modal-verification-action');
-            showToast('Stakeholder evaluation recorded!', 'success');
+            showToast('Stakeholder evaluation recorded successfully!', 'success');
             loadVerificationsList();
             loadStakeholdersList();
         } else {
@@ -1053,6 +2915,11 @@ async function handleVerificationSubmit(e) {
         }
     } catch (err) {
         showToast('Error recording verification: ' + err.message, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
     }
 }
 
@@ -1061,10 +2928,15 @@ async function handleVerificationSubmit(e) {
 // ------------------------------------------------------------------------------
 async function loadReviewsList() {
     try {
-        const res = await fetch(`${API_BASE}/reviews`);
+        const res = await fetch(`${API_BASE}/reviews`, {
+            headers: state.authToken ? { 'X-Auth-Token': state.authToken } : {}
+        });
         if (res.ok) {
-            state.reviews = await res.json();
-            renderReviewsList();
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                state.reviews = data;
+                renderReviewsList();
+            }
         }
     } catch (e) {
         console.warn('Failed loading reviews:', e);
@@ -1103,12 +2975,41 @@ function renderReviewsList() {
     });
 }
 
-function openReviewModal(bookingId, targetId) {
+function openReviewModalForBooking(bookingId) {
+    const b = (state.bookings || []).find(x => Number(x.bookingId) === Number(bookingId));
+    if (!b) return;
+
     document.getElementById('review-booking-id').value = bookingId;
-    document.getElementById('review-target-type').value = 'PACKAGE';
-    document.getElementById('review-target-id').value = targetId;
+
+    const targetTypeInput = document.getElementById('review-target-type');
+    const targetIdInput = document.getElementById('review-target-id');
+    const targetInfoEl = document.getElementById('review-target-info');
+
+    if (b.packageId && Number(b.packageId) > 0) {
+        targetTypeInput.value = 'PACKAGE';
+        targetIdInput.value = b.packageId;
+        if (targetInfoEl) {
+            targetInfoEl.innerHTML = `<i class="fa-solid fa-cube"></i> Reviewing Tour Package: <strong>${escapeHtml(b.packageName || 'Package #' + b.packageId)}</strong>`;
+        }
+    } else {
+        // Custom itinerary booking: attribute to community stakeholder
+        targetTypeInput.value = 'STAKEHOLDER';
+        const items = b.items || [];
+        const primaryItem = items.length > 0 ? items[0] : null;
+        const stakeholderId = primaryItem ? primaryItem.stakeholderId : 1;
+        targetIdInput.value = stakeholderId;
+        const label = primaryItem ? (primaryItem.businessName || primaryItem.stakeholderName || primaryItem.serviceName) : 'Community Stakeholder';
+        if (targetInfoEl) {
+            targetInfoEl.innerHTML = `<i class="fa-solid fa-handshake-angle"></i> Reviewing Community Host: <strong>${escapeHtml(label)}</strong>`;
+        }
+    }
+
     setRatingVal(5);
     openModal('modal-review');
+}
+
+function openReviewModal(bookingId, targetId) {
+    openReviewModalForBooking(bookingId);
 }
 
 function setRatingVal(val) {
@@ -1144,6 +3045,7 @@ async function handleReviewSubmit(e) {
             closeModal('modal-review');
             showToast('Review submitted! Thank you for supporting Biliran tourism.', 'success');
             loadReviewsList();
+            loadDestinations();
         } else {
             showToast(data.message || 'Failed to submit review.', 'error');
         }
@@ -1172,24 +3074,155 @@ function renderAnnouncementsList() {
     if (!grid) return;
     grid.innerHTML = '';
 
-    state.announcements.forEach(a => {
+    const canManage = state.activeRole === 'TOURISM_OFFICE' || state.activeRole === 'LGU_OFFICER' || state.activeRole === 'SYSTEM_ADMIN';
+
+    if (!state.announcements || state.announcements.length === 0) {
+        grid.innerHTML = '<div class="card p-4 text-center text-muted"><i class="fa-solid fa-bullhorn"></i> No announcements published yet.</div>';
+        return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Split by category into two sections
+    const advisories = state.announcements.filter(a => a.category === 'ANNOUNCEMENT' || a.category === 'TRAVEL_GUIDELINE');
+    const events     = state.announcements.filter(a => a.category === 'FESTIVAL' || a.category === 'EVENT');
+
+    function isCritical(a) {
+        const t = ((a.title || '') + ' ' + (a.content || '')).toLowerCase();
+        return /coast guard|gale|warning|suspended|emergency|critical/.test(t);
+    }
+
+    function isExpiredAnnouncement(a) {
+        if (!a.expiryDate) return false;
+        const exp = new Date(a.expiryDate);
+        exp.setHours(0, 0, 0, 0);
+        return exp < today;
+    }
+
+    function getSeverityBadge(a) {
+        if (isCritical(a)) {
+            return `<span class="badge badge-danger" style="font-size:0.75rem;"><i class="fa-solid fa-triangle-exclamation"></i> CRITICAL</span>`;
+        }
+        if (a.category === 'TRAVEL_GUIDELINE') {
+            return `<span class="badge badge-info" style="font-size:0.75rem;"><i class="fa-solid fa-circle-info"></i> Guideline</span>`;
+        }
+        if (a.category === 'FESTIVAL' || a.category === 'EVENT') {
+            return `<span class="badge" style="background:rgba(124,58,237,0.12);color:#7c3aed;border:1px solid #7c3aed;font-size:0.75rem;"><i class="fa-solid fa-star"></i> Festival / Event</span>`;
+        }
+        return `<span class="badge badge-neutral" style="font-size:0.75rem;"><i class="fa-solid fa-bullhorn"></i> Advisory</span>`;
+    }
+
+    function getExpiryHtml(a) {
+        if (!a.expiryDate) return '';
+        const expired = isExpiredAnnouncement(a);
+        return expired
+            ? `<span class="badge badge-danger" style="font-size:0.72rem;"><i class="fa-solid fa-calendar-xmark"></i> Expired</span>`
+            : `<span class="badge badge-neutral" style="font-size:0.72rem;"><i class="fa-solid fa-calendar-check"></i> Valid until: ${a.expiryDate}</span>`;
+    }
+
+    function buildAnnouncementCard(a) {
         const card = document.createElement('div');
         card.className = 'card mb-3';
+        const expired  = isExpiredAnnouncement(a);
+        const critical = isCritical(a);
+        if (expired) {
+            card.style.opacity = '0.52';
+            card.style.filter  = 'grayscale(0.25)';
+        } else if (critical) {
+            card.style.borderLeft = '4px solid #ef4444';
+        }
+
+        const actionsHtml = canManage ? `
+            <div style="display:flex;gap:0.4rem;">
+                <button class="btn btn-sm btn-outline" onclick="openEditAnnouncementModal(${a.announcementId})"><i class="fa-solid fa-pen"></i> Edit</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteAnnouncement(${a.announcementId})"><i class="fa-solid fa-trash"></i> Delete</button>
+            </div>` : '';
+
         card.innerHTML = `
             <div class="card-header">
-                <h3 class="card-title"><i class="fa-solid fa-bullhorn" style="color: var(--accent-600);"></i> ${a.title}</h3>
-                <span class="badge badge-info">${formatCategory(a.category)}</span>
+                <h3 class="card-title"><i class="fa-solid fa-bullhorn" style="color:var(--accent-600);"></i> ${a.title}</h3>
+                <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                    ${getSeverityBadge(a)}
+                    ${getExpiryHtml(a)}
+                    ${actionsHtml}
+                </div>
             </div>
             <div class="card-body">
-                <p style="font-size: 0.88rem; line-height: 1.5; color: var(--slate-700); margin-bottom: 0.75rem;">${a.content}</p>
-                <div style="font-size: 0.78rem; color: var(--slate-500); display: flex; justify-content: space-between;">
+                <p style="font-size:0.88rem;line-height:1.5;color:var(--slate-700);margin-bottom:0.75rem;">${a.content}</p>
+                <div style="font-size:0.78rem;color:var(--slate-500);display:flex;justify-content:space-between;flex-wrap:wrap;gap:0.25rem;">
                     <span><i class="fa-solid fa-user-tie"></i> Published by: ${a.publisherName || 'Tourism Office'}</span>
                     <span><i class="fa-solid fa-calendar"></i> Date: ${a.publishDate}</span>
                 </div>
-            </div>
-        `;
-        grid.appendChild(card);
-    });
+            </div>`;
+        return card;
+    }
+
+    function renderSection(title, icon, iconColor, borderColor, items) {
+        if (items.length === 0) return;
+        const hdr = document.createElement('div');
+        hdr.style.cssText = `display:flex;align-items:center;gap:0.6rem;margin:${grid.children.length > 0 ? '1.75rem' : '0'} 0 1rem 0;padding-bottom:0.5rem;border-bottom:2px solid ${borderColor};`;
+        hdr.innerHTML = `<i class="${icon}" style="color:${iconColor};font-size:1.1rem;"></i><h3 style="margin:0;font-size:1rem;font-weight:700;color:${iconColor};">${title}</h3><span class="badge badge-neutral" style="font-size:0.72rem;">${items.length}</span>`;
+        grid.appendChild(hdr);
+        items.forEach(a => grid.appendChild(buildAnnouncementCard(a)));
+    }
+
+    renderSection('Official Advisories',  'fa-solid fa-shield-halved', 'var(--primary-700,#1d4ed8)', 'var(--primary-200,#bfdbfe)', advisories);
+    renderSection('Festivals &amp; Events', 'fa-solid fa-star',          '#7c3aed',                    'rgba(124,58,237,0.3)',       events);
+}
+
+async function loadLguMonitoringData() {
+    const grid = document.getElementById('carrying-capacity-grid');
+    if (!grid) return;
+    try {
+        const headers = state.authToken ? { 'X-Auth-Token': state.authToken } : {};
+        const [resFootfall, resSettings] = await Promise.all([
+            fetch(`${API_BASE}/reports/footfall`, { headers }),
+            fetch(`${API_BASE}/settings`, { headers })
+        ]);
+        const footfall = resFootfall.ok ? await resFootfall.json() : [];
+        const settings = resSettings.ok ? await resSettings.json() : {};
+        const alertThreshold = parseInt(settings.capacityThreshold) || 85;
+
+        if (!Array.isArray(footfall) || footfall.length === 0) return;
+
+        // Eco-carrying daily/monthly reference capacities derived by destination category
+        const getCapacity = (row) => {
+            const name = (row.destination_name || '').toLowerCase();
+            if (name.includes('sambawan')) return 250;
+            if (name.includes('tinago')) return 400;
+            if (name.includes('higatangan')) return 180;
+            if (row.category === 'WATERFALL') return 300;
+            if (row.category === 'ISLAND_BEACH') return 250;
+            return 200;
+        };
+
+        grid.innerHTML = '';
+        footfall.slice(0, 6).forEach(row => {
+            const cap = getCapacity(row);
+            const visitors = Number(row.grand_total_visitors) || 0;
+            const pct = Math.min(100, Math.round((visitors / cap) * 100));
+            let bg = '#f0fdf4', border = '#bbf7d0', color = '#166534', icon = 'fa-circle-check', label = 'Safe';
+            if (pct >= alertThreshold) {
+                bg = '#fef2f2'; border = '#fecaca'; color = '#991b1b'; icon = 'fa-circle-exclamation'; label = 'Critical';
+            } else if (pct >= 65) {
+                bg = '#fffbeb'; border = '#fde68a'; color = '#92400e'; icon = 'fa-triangle-exclamation'; label = 'Moderate';
+            }
+            const card = document.createElement('div');
+            card.className = 'card p-3';
+            card.style.background = bg;
+            card.style.borderColor = border;
+            card.innerHTML = `
+                <h4 style="color: ${color};"><i class="fa-solid ${icon}"></i> ${row.destination_name}</h4>
+                <p style="font-size: 0.85rem; margin-top: 0.25rem;">
+                    Recorded Footfall: <strong>${visitors}</strong> / ${cap} pax | Utilization: <strong>${pct}%</strong> (${label})
+                </p>
+            `;
+            grid.appendChild(card);
+        });
+    } catch (e) {
+        console.warn('Failed loading LGU monitoring data:', e);
+    }
 }
 
 // ------------------------------------------------------------------------------
@@ -1197,18 +3230,19 @@ function renderAnnouncementsList() {
 // ------------------------------------------------------------------------------
 async function loadReportsData() {
     try {
+        const headers = state.authToken ? { 'X-Auth-Token': state.authToken } : {};
         const [resFootfall, resBrgy] = await Promise.all([
-            fetch(`${API_BASE}/reports/footfall`),
-            fetch(`${API_BASE}/reports/barangays`)
+            fetch(`${API_BASE}/reports/footfall`, { headers }),
+            fetch(`${API_BASE}/reports/barangays`, { headers })
         ]);
 
         if (resFootfall.ok) {
             const footfall = await resFootfall.json();
-            renderFootfallTable(footfall);
+            if (Array.isArray(footfall)) renderFootfallTable(footfall);
         }
         if (resBrgy.ok) {
             const brgyData = await resBrgy.json();
-            renderBarangayReportsTable(brgyData);
+            if (Array.isArray(brgyData)) renderBarangayReportsTable(brgyData);
         }
     } catch (e) {
         console.warn('Failed loading reports:', e);
@@ -1258,20 +3292,11 @@ function renderBarangayReportsTable(data) {
 }
 
 function exportReportCSV() {
-    let csv = "Destination,Category,Municipality,Barangay,Local,Domestic,Foreign,Total Footfall,Revenue PHP\n";
-    const rows = document.querySelectorAll('#footfall-report-body tr');
-    rows.forEach(tr => {
-        const cols = Array.from(tr.querySelectorAll('td')).map(td => `"${td.textContent.trim()}"`);
-        csv += cols.join(",") + "\n";
-    });
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Lakbay_Lokal_Tourism_Report_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    showToast('Report CSV exported successfully!', 'success');
+    if (typeof exportReportPDF === 'function') {
+        exportReportPDF();
+    } else {
+        showToast('PDF Export initializing...', 'info');
+    }
 }
 
 function printReport() {
@@ -1279,6 +3304,7 @@ function printReport() {
 }
 
 function openArrivalEntryModal() {
+    populateArrivalDestinationDropdown();
     openModal('modal-arrival-entry');
 }
 
@@ -1321,14 +3347,19 @@ async function handleArrivalSubmit(e) {
 // ------------------------------------------------------------------------------
 async function loadAdminData() {
     try {
+        const fetchLogs = (state.activeRole === 'SYSTEM_ADMIN');
         const [resUsers, resLogs] = await Promise.all([
             fetch(`${API_BASE}/admin/users`, { headers: { 'X-Auth-Token': state.authToken } }),
-            fetch(`${API_BASE}/admin/logs?limit=40`, { headers: { 'X-Auth-Token': state.authToken } })
+            fetchLogs
+                ? fetch(`${API_BASE}/admin/logs?limit=40`, { headers: { 'X-Auth-Token': state.authToken } })
+                : Promise.resolve({ ok: false })
         ]);
 
         if (resUsers.ok) {
             const users = await resUsers.json();
             renderUsersTable(users);
+        } else {
+            console.warn('Failed loading user directory:', resUsers.status);
         }
         if (resLogs.ok) {
             const logs = await resLogs.json();
@@ -1340,24 +3371,84 @@ async function loadAdminData() {
 }
 
 function renderUsersTable(users) {
+    state.users = users || [];
     const tbody = document.getElementById('users-table-body');
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    users.forEach(u => {
+    const isAdmin = state.activeRole === 'SYSTEM_ADMIN';
+    const isTourism = state.activeRole === 'TOURISM_OFFICE';
+    const isLgu = state.activeRole === 'LGU_OFFICER';
+
+    // Tailor section titles and descriptions to the active role
+    const titleEl = document.querySelector('#pane-admin .page-title');
+    const descEl = document.querySelector('#pane-admin .page-desc');
+    const cardTitleEl = document.querySelector('#pane-admin .card-title');
+    const addBtn = document.querySelector('#pane-admin .header-actions button');
+
+    if (isTourism) {
+        if (titleEl) titleEl.innerText = 'Municipal LGU Officers Directory';
+        if (descEl) descEl.innerText = 'View and register Municipal Tourism Officers across Biliran province.';
+        if (cardTitleEl) cardTitleEl.innerHTML = '<i class="fa-solid fa-users-gear"></i> Municipal LGU Officers';
+        if (addBtn) addBtn.innerHTML = '<i class="fa-solid fa-user-plus"></i> New LGU Officer';
+    } else if (isLgu) {
+        const muniName = state.currentUser?.municipalityName || 'Assigned Municipality';
+        if (titleEl) titleEl.innerText = `Barangay Officials Directory — ${muniName}`;
+        if (descEl) descEl.innerText = `View and register Barangay Officials in ${muniName}.`;
+        if (cardTitleEl) cardTitleEl.innerHTML = `<i class="fa-solid fa-users-gear"></i> Barangay Officials (${muniName})`;
+        if (addBtn) addBtn.innerHTML = '<i class="fa-solid fa-user-plus"></i> New Barangay Official';
+    } else {
+        if (titleEl) titleEl.innerText = 'User Accounts & Role Permissions';
+        if (descEl) descEl.innerText = 'Manage account access, assign roles, toggle account statuses, and reset passwords.';
+        if (cardTitleEl) cardTitleEl.innerHTML = '<i class="fa-solid fa-users-gear"></i> System User Registry';
+        if (addBtn) addBtn.innerHTML = '<i class="fa-solid fa-user-plus"></i> New User Account';
+    }
+
+    if (state.users.length === 0) {
         const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="7" class="text-center text-muted py-4"><i class="fa-solid fa-folder-open"></i> No accounts found in this directory.</td>';
+        tbody.appendChild(tr);
+        return;
+    }
+
+    state.users.forEach(u => {
+        const tr = document.createElement('tr');
+        const safeUser = (u.username || '').replace(/'/g, "\\'");
+        const jurisdiction = u.barangayName
+            ? `Brgy. ${u.barangayName}${u.municipalityName ? `, ${u.municipalityName}` : ''}`
+            : (u.municipalityName ? u.municipalityName : 'Province-wide');
+
+        let actionsHtml = '';
+        if (isAdmin) {
+            actionsHtml = `
+                <div class="table-actions">
+                    <button class="btn btn-sm btn-outline" onclick="openEditUserModal(${u.userId})">
+                        <i class="fa-solid fa-pen"></i> Edit
+                    </button>
+                    <button class="btn btn-sm btn-outline" onclick="openAdminResetPasswordModal(${u.userId}, '${safeUser}')">
+                        <i class="fa-solid fa-key"></i> Reset Password
+                    </button>
+                    <button class="btn btn-sm ${u.status === 'ACTIVE' ? 'btn-danger' : 'btn-success'}" onclick="toggleUserStatus(${u.userId}, '${u.status}')">
+                        ${u.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                    </button>
+                </div>
+            `;
+        } else {
+            actionsHtml = `
+                <span class="badge ${u.status === 'ACTIVE' ? 'badge-success' : 'badge-danger'}">
+                    <i class="fa-solid ${u.status === 'ACTIVE' ? 'fa-check-circle' : 'fa-ban'}"></i> ${u.status}
+                </span>
+            `;
+        }
+
         tr.innerHTML = `
             <td><strong>${u.username}</strong></td>
             <td>${u.fullName}</td>
             <td>${u.email}</td>
             <td><span class="user-role-badge">${u.roleCode}</span></td>
-            <td>${u.barangayName ? `Brgy. ${u.barangayName}` : 'Province-wide'}</td>
+            <td>${jurisdiction}</td>
             <td><span class="badge ${u.status === 'ACTIVE' ? 'badge-success' : 'badge-danger'}">${u.status}</span></td>
-            <td>
-                <button class="btn btn-sm btn-outline" onclick="toggleUserStatus(${u.userId}, '${u.status}')">
-                    ${u.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
-                </button>
-            </td>
+            <td>${actionsHtml}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -1429,6 +3520,9 @@ function refreshDashboardData() {
     loadKPIs();
     renderOverviewTopDestinations();
     renderOverviewRecentActivity();
+    if (state.activeRole === 'STAKEHOLDER') {
+        loadStakeholderDashboardOverview();
+    }
     showToast('Dashboard data refreshed.', 'info');
 }
 
@@ -1489,11 +3583,42 @@ async function renderOverviewRecentActivity() {
 }
 
 // ------------------------------------------------------------------------------
-// PACKAGE BOOKING MODAL HELPER
+// PACKAGE & SERVICE BOOKING MODAL HELPER
 // ------------------------------------------------------------------------------
 function openPackageBookingModal(packageId, name, price) {
-    document.getElementById('book-package-id').value = packageId;
+    if (state.activeRole !== 'TOURIST') {
+        showToast('Access restricted: Only registered tourists can book packages.', 'error');
+        return;
+    }
+    document.getElementById('book-package-id').value = packageId || '';
+    document.getElementById('book-service-id').value = '';
+    document.getElementById('book-stakeholder-id').value = '';
+    document.getElementById('book-pricing-unit').value = 'PER_PERSON';
+    document.getElementById('book-unit-price').value = price || 0;
     document.getElementById('book-package-name').value = name;
+    document.getElementById('book-pax').value = 2;
+
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('book-date-start').value = today;
+    document.getElementById('book-date-end').value = today;
+
+    calculatePackageBookingTotal();
+    openModal('modal-booking');
+}
+
+function openServiceBookingModal(serviceId) {
+    if (state.activeRole !== 'TOURIST') {
+        showToast('Access restricted: Only registered tourists can book services.', 'error');
+        return;
+    }
+    const svc = state.services.find(s => Number(s.serviceId) === Number(serviceId));
+    if (!svc) return;
+    document.getElementById('book-package-id').value = '';
+    document.getElementById('book-service-id').value = svc.serviceId;
+    document.getElementById('book-stakeholder-id').value = svc.stakeholderId;
+    document.getElementById('book-pricing-unit').value = svc.pricingUnit || 'PER_PERSON';
+    document.getElementById('book-unit-price').value = svc.basePrice || 0;
+    document.getElementById('book-package-name').value = `${svc.serviceName} (${svc.businessName || svc.stakeholderName || 'Local Provider'})`;
     document.getElementById('book-pax').value = 2;
 
     const today = new Date().toISOString().split('T')[0];
@@ -1507,9 +3632,21 @@ function openPackageBookingModal(packageId, name, price) {
 function calculatePackageBookingTotal() {
     const pax = parseInt(document.getElementById('book-pax')?.value) || 1;
     const pkgId = parseInt(document.getElementById('book-package-id')?.value);
-    const pkg = state.packages.find(p => p.packageId === pkgId);
-    const rate = pkg ? Number(pkg.pricePerPax) : 1000;
-    const total = rate * pax;
+    const svcId = parseInt(document.getElementById('book-service-id')?.value);
+    let total = 0;
+
+    if (pkgId > 0) {
+        const pkg = state.packages.find(p => p.packageId === pkgId);
+        const rate = pkg ? Number(pkg.pricePerPax) : (parseFloat(document.getElementById('book-unit-price')?.value) || 1000);
+        total = rate * pax;
+    } else if (svcId > 0) {
+        const rate = parseFloat(document.getElementById('book-unit-price')?.value) || 500;
+        const unit = document.getElementById('book-pricing-unit')?.value || 'PER_PERSON';
+        total = unit === 'PER_PERSON' ? rate * pax : rate;
+    } else {
+        const rate = parseFloat(document.getElementById('book-unit-price')?.value) || 1000;
+        total = rate * pax;
+    }
 
     const el = document.getElementById('book-total-amount');
     if (el) el.textContent = `₱${total.toFixed(2)}`;
@@ -1517,18 +3654,42 @@ function calculatePackageBookingTotal() {
 
 async function handlePackageBookingSubmit(e) {
     e.preventDefault();
-    const pkgId = parseInt(document.getElementById('book-package-id').value);
-    const pax = parseInt(document.getElementById('book-pax').value);
-    const pkg = state.packages.find(p => p.packageId === pkgId);
-    const rate = pkg ? Number(pkg.pricePerPax) : 1000;
+    const pkgId = parseInt(document.getElementById('book-package-id').value) || 0;
+    const svcId = parseInt(document.getElementById('book-service-id').value) || 0;
+    const stkId = parseInt(document.getElementById('book-stakeholder-id').value) || 0;
+    const pax = parseInt(document.getElementById('book-pax').value) || 1;
+    const unitPrice = parseFloat(document.getElementById('book-unit-price').value) || 0;
+    const pricingUnit = document.getElementById('book-pricing-unit').value || 'PER_PERSON';
+
+    let totalAmount = 0;
+    let items = [];
+
+    if (pkgId > 0) {
+        const pkg = state.packages.find(p => p.packageId === pkgId);
+        const rate = pkg ? Number(pkg.pricePerPax) : unitPrice;
+        totalAmount = rate * pax;
+    } else if (svcId > 0) {
+        const qty = pricingUnit === 'PER_PERSON' ? pax : 1;
+        totalAmount = unitPrice * qty;
+        items.push({
+            serviceId: svcId,
+            stakeholderId: stkId,
+            unitPrice: unitPrice,
+            quantity: qty,
+            subtotal: totalAmount
+        });
+    } else {
+        totalAmount = unitPrice * pax;
+    }
 
     const payload = {
         packageId: pkgId,
         travelDateStart: document.getElementById('book-date-start').value,
         travelDateEnd: document.getElementById('book-date-end').value,
         numberOfPax: pax,
-        totalAmount: rate * pax,
-        customNotes: document.getElementById('book-notes').value
+        totalAmount: totalAmount,
+        customNotes: document.getElementById('book-notes').value,
+        items: items
     };
 
     try {
@@ -1559,20 +3720,998 @@ async function handlePackageBookingSubmit(e) {
 // ------------------------------------------------------------------------------
 function openModal(modalId) {
     const m = document.getElementById(modalId);
-    if (m) m.classList.add('open');
+    if (m) {
+        m.style.display = 'flex';
+        m.classList.add('open');
+    }
 }
 
 function closeModal(modalId) {
     const m = document.getElementById(modalId);
-    if (m) m.classList.remove('open');
+    if (m) {
+        m.classList.remove('open');
+        m.style.display = 'none';
+    }
 }
 
-function openLoginModal() { openModal('modal-login'); }
-function openRegisterModal() { openModal('modal-register'); }
-function openAddDestinationModal() { openModal('modal-add-destination'); }
+function closeAllModals() {
+    document.querySelectorAll('.modal-backdrop').forEach(m => {
+        m.classList.remove('open');
+        m.style.display = 'none';
+    });
+}
+
+function openLoginModal() { showLoginView(); }
+
+// ------------------------------------------------------------------------------
+// VIEW DESTINATION DETAILS MODAL
+// ------------------------------------------------------------------------------
+async function openViewDestinationModal(destinationId) {
+    const modalEl = document.getElementById('modal-view-destination');
+    if (!modalEl) return;
+
+    // Try local state first, then fetch from backend
+    let d = (state.destinations || []).find(x => Number(x.destinationId) === Number(destinationId));
+    if (!d) {
+        try {
+            const res = await fetch(`${API_BASE}/destinations/${destinationId}`);
+            if (res.ok) d = await res.json();
+        } catch (e) { console.warn('Could not load destination details:', e); }
+    }
+    if (!d) { showToast('Destination details not found.', 'error'); return; }
+
+    const photo = getDestinationImage(d);
+    const catIcon = getCategoryIconClass(d.category);
+    const isValidated = d.validatedBy && Number(d.validatedBy) > 0;
+
+    const imgHtml = photo
+        ? `<img src="${photo}" alt="${d.name}" style="width:100%;height:220px;object-fit:cover;border-radius:12px;margin-bottom:1rem;" onerror="this.style.display='none'">`
+        : `<div style="width:100%;height:120px;display:flex;align-items:center;justify-content:center;background:var(--primary-100);border-radius:12px;margin-bottom:1rem;"><i class="${catIcon}" style="font-size:3rem;color:var(--primary-500);"></i></div>`;
+
+    document.getElementById('view-dest-content').innerHTML = `
+        ${imgHtml}
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem;">
+            <h2 style="font-size:1.4rem;font-weight:800;color:var(--primary-900);margin:0;">${d.name}</h2>
+            <span class="badge ${isValidated ? 'badge-success' : 'badge-warning'}">${isValidated ? 'Validated' : 'Pending Validation'}</span>
+        </div>
+        <p style="color:var(--slate-600);margin:0.25rem 0 0.75rem;font-size:0.88rem;"><i class="fa-solid fa-location-dot" style="color:var(--primary-500);"></i> Brgy. ${d.barangayName || '—'}, ${d.municipalityName || '—'}</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;">
+            <div style="background:var(--primary-50);border-radius:10px;padding:0.75rem;">
+                <div style="font-size:0.72rem;color:var(--primary-600);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Entrance Fee</div>
+                <div style="font-size:1.3rem;font-weight:800;color:var(--primary-800);">₱${Number(d.entranceFee || 0).toFixed(2)}</div>
+            </div>
+            <div style="background:var(--emerald-50);border-radius:10px;padding:0.75rem;">
+                <div style="font-size:0.72rem;color:var(--emerald-700);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Category</div>
+                <div style="font-size:1rem;font-weight:700;color:var(--emerald-800);">${formatCategory(d.category)}</div>
+            </div>
+        </div>
+        <div style="margin-bottom:0.75rem;">
+            <div style="font-size:0.76rem;font-weight:700;color:var(--slate-500);text-transform:uppercase;margin-bottom:0.3rem;">Description</div>
+            <p style="color:var(--slate-700);line-height:1.6;margin:0;">${d.description || 'No description available.'}</p>
+        </div>
+        ${d.operatingHours ? `<div style="margin-bottom:0.5rem;"><i class="fa-solid fa-clock" style="color:var(--primary-500);"></i> <strong>Operating Hours:</strong> ${d.operatingHours}</div>` : ''}
+        ${d.contactInfo ? `<div style="margin-bottom:0.5rem;"><i class="fa-solid fa-phone" style="color:var(--primary-500);"></i> <strong>Contact:</strong> ${d.contactInfo}</div>` : ''}
+        ${d.averageRating ? `<div style="margin-bottom:0.5rem;"><i class="fa-solid fa-star" style="color:#f59e0b;"></i> <strong>Rating:</strong> ${d.averageRating}/5.0 (${d.reviewCount || 0} reviews)</div>` : ''}
+        ${d.locationCoordinates ? `<div style="font-size:0.8rem;color:var(--slate-500);"><i class="fa-solid fa-map-pin"></i> ${d.locationCoordinates}</div>` : ''}
+        ${state.activeRole === 'TOURIST' ? `
+        <div style="margin-top:1.25rem;display:flex;gap:0.5rem;">
+            <button class="btn btn-primary" style="flex:1;" onclick="closeModal('modal-view-destination');switchTab('packages');togglePackageSubTab('custom');">
+                <i class="fa-solid fa-calendar-plus"></i> Book This Destination
+            </button>
+        </div>` : ''}
+    `;
+    openModal('modal-view-destination');
+}
+
+// ------------------------------------------------------------------------------
+// VIEW BOOKING DETAILS MODAL
+// ------------------------------------------------------------------------------
+async function openViewBookingModal(bookingId) {
+    const modalEl = document.getElementById('modal-view-booking');
+    if (!modalEl) return;
+
+    const b = (state.bookings || []).find(x => Number(x.bookingId) === Number(bookingId));
+    if (!b) { showToast('Booking not found.', 'error'); return; }
+
+    const badgeClass = getStatusBadgeClass(b.status);
+    const shortRef = formatShortBookingReference(b.bookingReference, b.bookingId);
+    const items = b.items || [];
+    const role = state.activeRole;
+    const myStakeholderId = state.currentUser?.stakeholderProfileId;
+
+    const itemsHtml = items.length > 0
+        ? items.map(it => {
+            const itStatus = (it.status || 'PENDING').toUpperCase();
+            const itBadgeClass = getStatusBadgeClass(itStatus);
+            const isMyItem = (role === 'STAKEHOLDER' && myStakeholderId && Number(it.stakeholderId) === Number(myStakeholderId));
+
+            let itemActionBtns = '';
+            if (isMyItem) {
+                if (itStatus === 'PENDING') {
+                    itemActionBtns = `
+                        <div style="margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap;">
+                            <button class="btn btn-sm btn-success" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;" onclick="updateBookingItemStatus(${it.itemId}, 'ACCEPTED'); closeModal('modal-view-booking');" title="Accept service">
+                                <i class="fa-solid fa-check"></i> Accept
+                            </button>
+                            <button class="btn btn-sm btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;" onclick="updateBookingItemStatus(${it.itemId}, 'REJECTED'); closeModal('modal-view-booking');" title="Decline service">
+                                <i class="fa-solid fa-xmark"></i> Decline
+                            </button>
+                        </div>`;
+                } else if (itStatus === 'ACCEPTED') {
+                    itemActionBtns = `
+                        <div style="margin-top: 4px;">
+                            <button class="btn btn-sm btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;" onclick="updateBookingItemStatus(${it.itemId}, 'COMPLETED'); closeModal('modal-view-booking');" title="Mark service delivered">
+                                <i class="fa-solid fa-check-double"></i> Mark Done
+                            </button>
+                        </div>`;
+                }
+            }
+
+            return `
+                <tr>
+                    <td><strong>${escapeHtml(it.serviceName || 'Service')}</strong></td>
+                    <td>${escapeHtml(it.stakeholderName || it.businessName || '—')}</td>
+                    <td>${it.quantity || 1}</td>
+                    <td>₱${Number(it.unitPrice || 0).toFixed(2)}</td>
+                    <td class="font-bold">₱${Number(it.subtotal || 0).toFixed(2)}</td>
+                    <td>
+                        <span class="badge ${itBadgeClass}">${itStatus}</span>
+                        ${itemActionBtns}
+                    </td>
+                </tr>`;
+        }).join('')
+        : `<tr><td colspan="6" class="text-center text-muted">No itemized services found.</td></tr>`;
+
+    // Role-specific action buttons for the modal footer
+    let roleFooterActions = '';
+    if (role === 'TOURIST') {
+        if (b.status === 'PENDING') {
+            roleFooterActions += `
+                <button class="btn btn-danger btn-sm" onclick="closeModal('modal-view-booking'); updateBookingStatus(${b.bookingId}, 'CANCELLED');">
+                    <i class="fa-solid fa-ban"></i> Cancel Booking
+                </button>`;
+        } else if (b.status === 'COMPLETED') {
+            roleFooterActions += `
+                <button class="btn btn-primary btn-sm" onclick="closeModal('modal-view-booking'); openReviewModalForBooking(${b.bookingId});">
+                    <i class="fa-solid fa-star"></i> Leave Review
+                </button>`;
+        }
+    } else if (role === 'STAKEHOLDER') {
+        if (b.status === 'PENDING') {
+            roleFooterActions += `
+                <button class="btn btn-success btn-sm" onclick="closeModal('modal-view-booking'); updateBookingStatus(${b.bookingId}, 'CONFIRMED');">
+                    <i class="fa-solid fa-check"></i> Confirm Booking
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="closeModal('modal-view-booking'); updateBookingStatus(${b.bookingId}, 'CANCELLED');">
+                    <i class="fa-solid fa-xmark"></i> Cancel Booking
+                </button>`;
+        } else if (b.status === 'CONFIRMED') {
+            roleFooterActions += `
+                <button class="btn btn-primary btn-sm" onclick="closeModal('modal-view-booking'); updateBookingStatus(${b.bookingId}, 'COMPLETED');">
+                    <i class="fa-solid fa-check-double"></i> Mark Completed
+                </button>`;
+        }
+    } else if (role === 'SYSTEM_ADMIN') {
+        if (b.status === 'PENDING') {
+            roleFooterActions += `
+                <button class="btn btn-success btn-sm" onclick="closeModal('modal-view-booking'); updateBookingStatus(${b.bookingId}, 'CONFIRMED');">
+                    <i class="fa-solid fa-check"></i> Confirm Booking
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="closeModal('modal-view-booking'); updateBookingStatus(${b.bookingId}, 'CANCELLED');">
+                    <i class="fa-solid fa-xmark"></i> Cancel Booking
+                </button>`;
+        } else if (b.status === 'CONFIRMED') {
+            roleFooterActions += `
+                <button class="btn btn-primary btn-sm" onclick="closeModal('modal-view-booking'); updateBookingStatus(${b.bookingId}, 'COMPLETED');">
+                    <i class="fa-solid fa-check-double"></i> Mark Completed
+                </button>`;
+        }
+    }
+    // Note: TOURISM_OFFICE has strictly read-only monitoring access (roleFooterActions remains empty)
+
+    const startDateFormatted = formatBookingDate(b.travelDateStart);
+    const endDateFormatted = formatBookingDate(b.travelDateEnd || b.travelDateStart);
+
+    document.getElementById('view-booking-content').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;">
+            <div style="background:var(--primary-50);border-radius:10px;padding:0.85rem;border:1px solid rgba(39, 134, 83, 0.15);">
+                <div style="font-size:0.7rem;font-weight:700;color:var(--primary-700);text-transform:uppercase;">Booking Reference</div>
+                <div style="font-size:1.15rem;font-weight:800;color:var(--primary-900);font-family:monospace;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                    <span>${shortRef}</span>
+                    <span style="font-size:0.75rem;font-weight:600;color:var(--slate-500);font-family:sans-serif;">(${b.bookingReference})</span>
+                </div>
+            </div>
+            <div style="background:var(--slate-50);border-radius:10px;padding:0.85rem;border:1px solid var(--slate-200);">
+                <div style="font-size:0.7rem;font-weight:700;color:var(--slate-500);text-transform:uppercase;">Current Status</div>
+                <div style="margin-top:0.25rem;"><span class="badge ${badgeClass}" style="font-size:0.85rem;">${b.status}</span></div>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;">
+            <div>
+                <div style="font-size:0.76rem;font-weight:700;color:var(--slate-500);text-transform:uppercase;margin-bottom:0.2rem;">Tourist Traveler</div>
+                <div style="font-weight:700;color:var(--slate-900);">${escapeHtml(b.touristName || 'Tourist')}</div>
+            </div>
+            <div>
+                <div style="font-size:0.76rem;font-weight:700;color:var(--slate-500);text-transform:uppercase;margin-bottom:0.2rem;">Package / Details</div>
+                <div style="font-weight:600;color:var(--slate-800);">${escapeHtml(b.packageName || 'Custom Experience Circuit')}</div>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0.75rem;margin-bottom:1rem;background:var(--white-natural);padding:0.75rem;border-radius:8px;border:1px solid var(--slate-200);">
+            <div>
+                <div style="font-size:0.72rem;font-weight:700;color:var(--slate-500);text-transform:uppercase;margin-bottom:0.2rem;">Start Date</div>
+                <div style="font-weight:600;font-size:0.88rem;">${startDateFormatted}</div>
+            </div>
+            <div>
+                <div style="font-size:0.72rem;font-weight:700;color:var(--slate-500);text-transform:uppercase;margin-bottom:0.2rem;">End Date</div>
+                <div style="font-weight:600;font-size:0.88rem;">${endDateFormatted}</div>
+            </div>
+            <div>
+                <div style="font-size:0.72rem;font-weight:700;color:var(--slate-500);text-transform:uppercase;margin-bottom:0.2rem;">Pax</div>
+                <div style="font-weight:700;font-size:0.88rem;">${b.numberOfPax || 1} travelers</div>
+            </div>
+            <div>
+                <div style="font-size:0.72rem;font-weight:700;color:var(--primary-700);text-transform:uppercase;margin-bottom:0.2rem;">Total Amount</div>
+                <div style="font-weight:800;font-size:1.05rem;color:var(--primary-700);">₱${Number(b.totalAmount || 0).toFixed(2)}</div>
+            </div>
+        </div>
+        ${b.customNotes ? `<div style="margin-bottom:1rem;padding:0.75rem;background:var(--amber-50);border-radius:8px;border-left:3px solid var(--amber-400);font-size:0.85rem;"><strong>Notes:</strong> ${escapeHtml(b.customNotes)}</div>` : ''}
+        <div style="margin-top:0.5rem;">
+            <div style="font-size:0.8rem;font-weight:700;color:var(--slate-600);text-transform:uppercase;margin-bottom:0.5rem;"><i class="fa-solid fa-list-check" style="margin-right:4px;"></i> Itemized Services</div>
+            <div style="overflow-x:auto;">
+                <table class="data-table" style="width:100%;">
+                    <thead><tr><th>Service</th><th>Provider</th><th>Qty</th><th>Rate</th><th>Subtotal</th><th>Status</th></tr></thead>
+                    <tbody>${itemsHtml}</tbody>
+                </table>
+            </div>
+        </div>
+        <div id="view-booking-footer-actions" style="margin-top:1.25rem;display:flex;justify-content:flex-end;gap:0.5rem;flex-wrap:wrap;border-top:1px solid var(--slate-200);padding-top:1rem;">
+            <button class="btn btn-secondary btn-sm" onclick="exportBookingVoucherPDF(${b.bookingId})">
+                <i class="fa-solid fa-file-pdf"></i> Download Official PDF Voucher
+            </button>
+            ${roleFooterActions}
+            <button class="btn btn-outline btn-sm" onclick="closeModal('modal-view-booking')">Close</button>
+        </div>
+    `;
+    openModal('modal-view-booking');
+}
+
+// ------------------------------------------------------------------------------
+// USER SELF-SERVICE PROFILE MODAL
+// ------------------------------------------------------------------------------
+async function openUserProfileModal() {
+    const modalEl = document.getElementById('modal-user-profile');
+    if (!modalEl) return;
+
+    // Load fresh user data
+    try {
+        const res = await fetch(`${API_BASE}/auth/me`, {
+            headers: { 'X-Auth-Token': state.authToken }
+        });
+        if (res.ok) {
+            const u = await res.json();
+            state.currentUser = { ...state.currentUser, ...u };
+        }
+    } catch (e) { console.warn('Could not refresh user data:', e); }
+
+    const u = state.currentUser || {};
+    const profileEl = document.getElementById('profile-fullname');
+    const emailEl = document.getElementById('profile-email');
+    const phoneEl = document.getElementById('profile-phone');
+    const usernameEl = document.getElementById('profile-username-display');
+    const roleEl = document.getElementById('profile-role-display');
+
+    if (profileEl) profileEl.value = u.fullName || '';
+    if (emailEl) emailEl.value = u.email || '';
+    if (phoneEl) phoneEl.value = u.phone || '';
+    if (usernameEl) usernameEl.value = u.username || '';
+    if (roleEl) roleEl.value = u.roleName || u.roleCode || '';
+
+    // Clear password fields
+    const pwdCurrent = document.getElementById('profile-current-password');
+    const pwdNew = document.getElementById('profile-new-password');
+    if (pwdCurrent) pwdCurrent.value = '';
+    if (pwdNew) pwdNew.value = '';
+
+    openModal('modal-user-profile');
+}
+
+async function handleUserProfileSubmit(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('[type="submit"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+    const payload = {
+        fullName: document.getElementById('profile-fullname')?.value?.trim() || '',
+        email: document.getElementById('profile-email')?.value?.trim() || '',
+        phone: document.getElementById('profile-phone')?.value?.trim() || '',
+    };
+
+    const currentPwd = document.getElementById('profile-current-password')?.value?.trim();
+    const newPwd = document.getElementById('profile-new-password')?.value?.trim();
+    if (newPwd && newPwd.length >= 6) {
+        if (!currentPwd) {
+            showToast('Please enter your current password to change it.', 'warning');
+            if (btn) { btn.disabled = false; btn.textContent = 'Save Profile'; }
+            return;
+        }
+        payload.currentPassword = currentPwd;
+        payload.newPassword = newPwd;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/auth/me`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': state.authToken
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            closeModal('modal-user-profile');
+            showToast('Profile updated successfully!', 'success');
+            // Update local state
+            if (state.currentUser) {
+                state.currentUser.fullName = payload.fullName;
+                state.currentUser.email = payload.email;
+                state.currentUser.phone = payload.phone;
+            }
+            // Update header display
+            const nameEl = document.getElementById('header-user-name');
+            if (nameEl) nameEl.textContent = payload.fullName || state.currentUser?.username;
+        } else {
+            showToast(data.message || 'Profile update failed.', 'error');
+        }
+    } catch (err) {
+        showToast('Error updating profile: ' + err.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Save Profile'; }
+    }
+}
+
+function openRegisterModal(type) {
+    // Determine which tab to show (default to tourist)
+    const tab = type === 'stakeholder' ? 'stakeholder' : 'tourist';
+    openModal('modal-register');
+    switchRegisterTab(tab);
+
+    // If stakeholder tab, load location data
+    if (tab === 'stakeholder') {
+        loadRegisterLocationData();
+    }
+}
+
+function switchRegisterTab(tab) {
+    const touristBtn = document.getElementById('tab-btn-tourist');
+    const stakeholderBtn = document.getElementById('tab-btn-stakeholder');
+    const touristForm = document.getElementById('form-register');
+    const stakeholderForm = document.getElementById('form-stakeholder-register');
+
+    if (tab === 'stakeholder') {
+        if (touristBtn) touristBtn.classList.remove('active');
+        if (stakeholderBtn) stakeholderBtn.classList.add('active');
+        if (touristForm) touristForm.style.display = 'none';
+        if (stakeholderForm) stakeholderForm.style.display = '';
+        loadRegisterLocationData();
+    } else {
+        if (touristBtn) touristBtn.classList.add('active');
+        if (stakeholderBtn) stakeholderBtn.classList.remove('active');
+        if (touristForm) touristForm.style.display = '';
+        if (stakeholderForm) stakeholderForm.style.display = 'none';
+    }
+}
+
+// Load municipalities into the stakeholder registration dropdown
+let _regAllBarangays = [];
+async function loadRegisterLocationData() {
+    try {
+        const muniSel = document.getElementById('stkreg-municipality');
+        if (!muniSel || muniSel.options.length > 1) return; // already loaded
+        const [muniRes, brgyRes] = await Promise.all([
+            fetch(`${API_BASE}/municipalities`),
+            fetch(`${API_BASE}/barangays`)
+        ]);
+        if (muniRes.ok) {
+            const munis = await muniRes.json();
+            muniSel.innerHTML = '<option value="">-- Select Municipality --</option>';
+            munis.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.municipalityId;
+                opt.textContent = m.name;
+                muniSel.appendChild(opt);
+            });
+        }
+        if (brgyRes.ok) {
+            _regAllBarangays = await brgyRes.json();
+        }
+    } catch (e) {
+        console.warn('Failed to load registration location data:', e);
+    }
+}
+
+function onStakeholderMuniChange() {
+    const muniSel = document.getElementById('stkreg-municipality');
+    const brgySelect = document.getElementById('stkreg-barangay');
+    if (!muniSel || !brgySelect) return;
+    const selectedMuniId = parseInt(muniSel.value);
+    brgySelect.innerHTML = '<option value="">-- Select Barangay --</option>';
+    if (!selectedMuniId || isNaN(selectedMuniId)) return;
+    const filtered = _regAllBarangays.filter(b => Number(b.municipalityId) === selectedMuniId);
+    filtered.forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b.barangayId;
+        opt.textContent = b.name;
+        brgySelect.appendChild(opt);
+    });
+}
+
+// ------------------------------------------------------------------------------
+// DESTINATION PHOTO UPLOAD & PREVIEW MANAGEMENT
+// ------------------------------------------------------------------------------
+let destinationPhotos = [];
+
+function initDestinationDropzone() {
+    const dropzone = document.getElementById('dest-upload-dropzone');
+    if (!dropzone || dropzone._hasDropzoneInit) return;
+    dropzone._hasDropzoneInit = true;
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.add('dragover');
+        });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('dragover');
+        });
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt ? dt.files : null;
+        if (files && files.length > 0) {
+            processDestinationPhotoFiles(files);
+        }
+    });
+}
+
+function handleDestinationPhotoSelect(event) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    processDestinationPhotoFiles(files);
+    event.target.value = '';
+}
+
+function processDestinationPhotoFiles(files) {
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const maxSizeBytes = 5 * 1024 * 1024; // 5MB
+
+    Array.from(files).forEach(file => {
+        if (!validTypes.includes(file.type)) {
+            showToast(`Unsupported format: ${file.name}. Only JPG, PNG, and WEBP are allowed.`, 'error');
+            return;
+        }
+        if (file.size > maxSizeBytes) {
+            showToast(`File too large: ${file.name}. Maximum allowed size is 5MB.`, 'error');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            destinationPhotos.push({
+                file: file,
+                dataUrl: e.target.result,
+                name: file.name,
+                isExisting: false
+            });
+            renderDestinationPhotoPreviews();
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function renderDestinationPhotoPreviews() {
+    const grid = document.getElementById('dest-photo-previews-grid');
+    if (!grid) return;
+
+    grid.innerHTML = '';
+    if (destinationPhotos.length === 0) {
+        grid.style.display = 'none';
+        return;
+    }
+
+    grid.style.display = 'grid';
+    destinationPhotos.forEach((photo, idx) => {
+        const card = document.createElement('div');
+        card.className = 'dest-preview-card';
+        const imgSrc = photo.dataUrl || (photo.url ? (photo.url.startsWith('http') || photo.url.startsWith('assets/') || photo.url.startsWith('uploads/') ? photo.url : 'assets/' + photo.url) : '');
+        const isCover = (idx === 0);
+
+        card.innerHTML = `
+            <img src="${imgSrc}" alt="${escapeHtml(photo.name || 'Destination Photo')}">
+            <span class="dest-preview-badge">${isCover ? 'Cover Photo' : 'Gallery'}</span>
+            <button type="button" class="btn-remove-photo" title="Remove this photo" onclick="removeDestinationPhoto(${idx})">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function removeDestinationPhoto(idx) {
+    if (idx >= 0 && idx < destinationPhotos.length) {
+        destinationPhotos.splice(idx, 1);
+        renderDestinationPhotoPreviews();
+        const hiddenImgUrl = document.getElementById('dest-form-image-url');
+        if (destinationPhotos.length === 0 && hiddenImgUrl) {
+            hiddenImgUrl.value = '';
+        }
+    }
+}
+
+function openAddDestinationModal() {
+    document.getElementById('dest-form-id').value = '';
+    document.getElementById('dest-form-name').value = '';
+    document.getElementById('dest-form-desc').value = '';
+    document.getElementById('dest-form-fee').value = '50.00';
+    document.getElementById('dest-form-hours').value = '6:00 AM - 5:00 PM';
+    document.getElementById('dest-form-coords').value = '';
+    document.getElementById('dest-form-contact').value = '';
+    const st = document.getElementById('dest-form-status');
+    if (st) st.value = 'ACTIVE';
+    const brgySelect = document.getElementById('dest-form-barangay');
+    if (brgySelect && state.activeRole === 'BARANGAY_OFFICIAL' && state.currentUser?.barangayId) {
+        brgySelect.value = state.currentUser.barangayId;
+    }
+    const titleEl = document.getElementById('modal-add-destination-title');
+    if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-map-location-dot"></i> Add New Destination';
+
+    // Reset photo upload UI & previews
+    destinationPhotos = [];
+    renderDestinationPhotoPreviews();
+    const hiddenImgUrl = document.getElementById('dest-form-image-url');
+    if (hiddenImgUrl) hiddenImgUrl.value = '';
+    const fileInput = document.getElementById('dest-photo-file-input');
+    if (fileInput) fileInput.value = '';
+    initDestinationDropzone();
+
+    openModal('modal-add-destination');
+}
+
+function openEditDestinationModal(destinationId) {
+    const d = state.destinations.find(x => Number(x.destinationId) === Number(destinationId));
+    if (!d) return;
+    document.getElementById('dest-form-id').value = d.destinationId;
+    document.getElementById('dest-form-name').value = d.name || '';
+    document.getElementById('dest-form-category').value = d.category || 'WATERFALL';
+    document.getElementById('dest-form-barangay').value = d.barangayId || '';
+    document.getElementById('dest-form-desc').value = d.description || '';
+    document.getElementById('dest-form-fee').value = Number(d.entranceFee || 0).toFixed(2);
+    document.getElementById('dest-form-hours').value = d.operatingHours || '6:00 AM - 5:00 PM';
+    document.getElementById('dest-form-coords').value = d.locationCoordinates || '';
+    document.getElementById('dest-form-contact').value = d.contactInfo || '';
+    const st = document.getElementById('dest-form-status');
+    if (st) st.value = d.status || 'ACTIVE';
+    const titleEl = document.getElementById('modal-add-destination-title');
+    if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Edit Destination';
+
+    // Populate existing photo(s) in preview grid with remove/replace capability
+    destinationPhotos = [];
+    if (d.imageUrl && d.imageUrl.trim()) {
+        destinationPhotos.push({
+            url: d.imageUrl.trim(),
+            name: d.name || 'Cover Photo',
+            isExisting: true
+        });
+    }
+    renderDestinationPhotoPreviews();
+    const hiddenImgUrl = document.getElementById('dest-form-image-url');
+    if (hiddenImgUrl) hiddenImgUrl.value = d.imageUrl || '';
+    const fileInput = document.getElementById('dest-photo-file-input');
+    if (fileInput) fileInput.value = '';
+    initDestinationDropzone();
+
+    openModal('modal-add-destination');
+}
+
+async function validateDestination(destinationId) {
+    try {
+        const res = await fetch(`${API_BASE}/destinations/validate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': state.authToken
+            },
+            body: JSON.stringify({ destinationId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message || 'Destination validated!', 'success');
+            loadDestinations();
+        } else {
+            showToast(data.message || 'Validation failed.', 'error');
+        }
+    } catch (e) {
+        showToast('Error validating destination: ' + e.message, 'error');
+    }
+}
+
+async function deleteDestination(destinationId) {
+    if (!confirm('Are you sure you want to delete this destination? This action cannot be undone.')) return;
+    try {
+        const res = await fetch(`${API_BASE}/destinations/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': state.authToken
+            },
+            body: JSON.stringify({ destinationId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message || 'Destination deleted.', 'success');
+            loadDestinations();
+        } else {
+            showToast(data.message || 'Failed to delete destination.', 'error');
+        }
+    } catch (e) {
+        showToast('Error deleting destination: ' + e.message, 'error');
+    }
+}
+
+function openAddServiceModal() {
+    document.getElementById('svc-form-id').value = '';
+    document.getElementById('svc-form-name').value = '';
+    document.getElementById('svc-form-category').value = 'GUIDING';
+    document.getElementById('svc-form-unit').value = 'PER_PERSON';
+    document.getElementById('svc-form-price').value = '500.00';
+    document.getElementById('svc-form-capacity').value = '6';
+    document.getElementById('svc-form-desc').value = '';
+    const availEl = document.getElementById('svc-form-available');
+    if (availEl) availEl.checked = true;
+    const titleEl = document.getElementById('modal-add-service-title');
+    if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-handshake-angle"></i> Register Service Offering';
+    openModal('modal-add-service');
+}
+
+function openEditServiceModal(serviceId) {
+    const s = state.services.find(x => Number(x.serviceId) === Number(serviceId));
+    if (!s) return;
+    document.getElementById('svc-form-id').value = s.serviceId;
+    document.getElementById('svc-form-name').value = s.serviceName || '';
+    document.getElementById('svc-form-category').value = s.serviceCategory || 'GUIDING';
+    document.getElementById('svc-form-unit').value = s.pricingUnit || 'PER_PERSON';
+    document.getElementById('svc-form-price').value = Number(s.basePrice || 0).toFixed(2);
+    document.getElementById('svc-form-capacity').value = s.maxCapacity || 6;
+    document.getElementById('svc-form-desc').value = s.description || '';
+    const isAvail = s.available !== undefined ? s.available : Boolean(s.isAvailable);
+    const availEl = document.getElementById('svc-form-available');
+    if (availEl) availEl.checked = isAvail;
+    const titleEl = document.getElementById('modal-add-service-title');
+    if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Edit Service Offering';
+    openModal('modal-add-service');
+}
+
+function openAddAnnouncementModal() {
+    document.getElementById('anno-form-id').value = '';
+    document.getElementById('anno-form-title').value = '';
+    document.getElementById('anno-form-type').value = 'ANNOUNCEMENT';
+    document.getElementById('anno-form-content').value = '';
+    const titleEl = document.getElementById('modal-add-announcement-title');
+    if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-bullhorn"></i> Post Tourism Information &amp; Advisory';
+    openModal('modal-add-announcement');
+}
+
+function openEditAnnouncementModal(announcementId) {
+    const a = state.announcements.find(x => Number(x.announcementId) === Number(announcementId));
+    if (!a) return;
+    document.getElementById('anno-form-id').value = a.announcementId;
+    document.getElementById('anno-form-title').value = a.title || '';
+    document.getElementById('anno-form-type').value = a.category || 'ANNOUNCEMENT';
+    document.getElementById('anno-form-content').value = a.content || '';
+    const titleEl = document.getElementById('modal-add-announcement-title');
+    if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Edit Tourism Advisory';
+    openModal('modal-add-announcement');
+}
+
+async function deleteAnnouncement(announcementId) {
+    if (!confirm('Are you sure you want to delete this announcement?')) return;
+    try {
+        const res = await fetch(`${API_BASE}/announcements/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': state.authToken
+            },
+            body: JSON.stringify({ announcementId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message || 'Announcement deleted.', 'success');
+            loadAnnouncementsList();
+        } else {
+            showToast(data.message || 'Failed deleting announcement.', 'error');
+        }
+    } catch (e) {
+        showToast('Error deleting announcement: ' + e.message, 'error');
+    }
+}
+
+function openCreateUserModal() {
+    const errorBanner = document.getElementById('user-create-error-banner');
+    const errorText = document.getElementById('user-create-error-text');
+    if (errorBanner) errorBanner.style.display = 'none';
+    if (errorText) errorText.innerText = '';
+
+    document.getElementById('user-form-fullname').value = '';
+    document.getElementById('user-form-username').value = '';
+    document.getElementById('user-form-password').value = '';
+    document.getElementById('user-form-email').value = '';
+
+    const btnSubmit = document.getElementById('btn-create-user-submit');
+    if (btnSubmit) {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = '<i class="fa-solid fa-user-plus"></i> Create User Account';
+    }
+
+    const titleEl = document.getElementById('modal-create-user-title');
+    const roleSelect = document.getElementById('user-form-role');
+    const muniSelect = document.getElementById('user-form-municipality');
+    const brgySelect = document.getElementById('user-form-barangay');
+    const muniGroup = document.getElementById('user-form-muni-group');
+    const brgyGroup = document.getElementById('user-form-brgy-group');
+
+    // Populate municipalities dropdown
+    if (muniSelect) {
+        muniSelect.innerHTML = '<option value="">Select Municipality</option>';
+        (state.municipalities || []).forEach(m => {
+            const mId = m.municipality_id || m.municipalityId || m.id;
+            const opt = document.createElement('option');
+            opt.value = mId;
+            opt.textContent = m.name;
+            muniSelect.appendChild(opt);
+        });
+    }
+
+    if (state.activeRole === 'TOURISM_OFFICE') {
+        if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-user-plus"></i> Create Municipal LGU Officer Account';
+        if (roleSelect) {
+            roleSelect.innerHTML = '<option value="3" selected>Municipal Tourism Officer (LGU)</option>';
+            roleSelect.disabled = true;
+        }
+        if (muniGroup) muniGroup.style.display = 'block';
+        if (brgyGroup) brgyGroup.style.display = 'none';
+        if (muniSelect) {
+            muniSelect.disabled = false;
+            muniSelect.value = '';
+        }
+    } else if (state.activeRole === 'LGU_OFFICER') {
+        if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-user-plus"></i> Create Barangay Official Account';
+        if (roleSelect) {
+            roleSelect.innerHTML = '<option value="4" selected>Barangay Official</option>';
+            roleSelect.disabled = true;
+        }
+        if (muniGroup) muniGroup.style.display = 'block';
+        if (brgyGroup) brgyGroup.style.display = 'block';
+        const userMuniId = state.currentUser?.municipalityId;
+        if (muniSelect && userMuniId) {
+            muniSelect.value = userMuniId;
+            muniSelect.disabled = true;
+        }
+        populateUserFormBarangays(userMuniId);
+    } else {
+        if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-user-plus"></i> Create System User Account';
+        if (roleSelect) {
+            roleSelect.disabled = false;
+            roleSelect.innerHTML = `
+                <option value="6">Tourist</option>
+                <option value="5">Local Stakeholder</option>
+                <option value="4">Barangay Official</option>
+                <option value="3">Municipal Tourism Officer (LGU)</option>
+                <option value="2">Tourism Office Officer</option>
+                <option value="1">System Administrator</option>
+            `;
+            roleSelect.value = '3';
+        }
+        handleUserFormRoleChange();
+    }
+
+    openModal('modal-create-user');
+}
+
+function handleUserFormRoleChange() {
+    const roleId = parseInt(document.getElementById('user-form-role')?.value || '0');
+    const muniGroup = document.getElementById('user-form-muni-group');
+    const brgyGroup = document.getElementById('user-form-brgy-group');
+    const muniSelect = document.getElementById('user-form-municipality');
+
+    if (roleId === 3) { // LGU_OFFICER
+        if (muniGroup) muniGroup.style.display = 'block';
+        if (brgyGroup) brgyGroup.style.display = 'none';
+        if (muniSelect) muniSelect.disabled = false;
+    } else if (roleId === 4) { // BARANGAY_OFFICIAL
+        if (muniGroup) muniGroup.style.display = 'block';
+        if (brgyGroup) brgyGroup.style.display = 'block';
+        if (muniSelect) {
+            muniSelect.disabled = false;
+            handleUserFormMuniChange();
+        }
+    } else {
+        if (muniGroup) muniGroup.style.display = 'none';
+        if (brgyGroup) brgyGroup.style.display = 'none';
+    }
+}
+
+function handleUserFormMuniChange() {
+    const muniVal = document.getElementById('user-form-municipality')?.value;
+    const muniId = muniVal ? parseInt(muniVal) : null;
+    populateUserFormBarangays(muniId);
+}
+
+function populateUserFormBarangays(muniId) {
+    const brgySelect = document.getElementById('user-form-barangay');
+    if (!brgySelect) return;
+    brgySelect.innerHTML = '<option value="">Select Barangay</option>';
+    let list = state.barangays || [];
+    if (muniId) {
+        list = list.filter(b => Number(b.municipalityId) === Number(muniId));
+    }
+    list.forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b.barangayId;
+        opt.textContent = `Brgy. ${b.name}`;
+        brgySelect.appendChild(opt);
+    });
+}
+
+function populatePackageModalCheckboxes(selectedDestIds = [], selectedSvcIds = []) {
+    const destBox = document.getElementById('pkg-form-destinations-list');
+    const svcBox = document.getElementById('pkg-form-services-list');
+    if (destBox) {
+        destBox.innerHTML = '';
+        state.destinations.forEach(d => {
+            const checked = selectedDestIds.includes(Number(d.destinationId)) ? 'checked' : '';
+            const lbl = document.createElement('label');
+            lbl.style.display = 'flex';
+            lbl.style.alignItems = 'center';
+            lbl.style.gap = '0.5rem';
+            lbl.style.fontSize = '0.84rem';
+            lbl.style.padding = '0.2rem 0';
+            lbl.innerHTML = `<input type="checkbox" class="pkg-dest-chk" value="${d.destinationId}" ${checked}> <span>${d.name} <small class="text-muted">(Brgy. ${d.barangayName})</small></span>`;
+            destBox.appendChild(lbl);
+        });
+    }
+    if (svcBox) {
+        svcBox.innerHTML = '';
+        state.services.forEach(s => {
+            const checked = selectedSvcIds.includes(Number(s.serviceId)) ? 'checked' : '';
+            const lbl = document.createElement('label');
+            lbl.style.display = 'flex';
+            lbl.style.alignItems = 'center';
+            lbl.style.gap = '0.5rem';
+            lbl.style.fontSize = '0.84rem';
+            lbl.style.padding = '0.2rem 0';
+            lbl.innerHTML = `<input type="checkbox" class="pkg-svc-chk" value="${s.serviceId}" ${checked}> <span>${s.serviceName} <small class="text-muted">(${s.businessName || s.stakeholderName || 'Provider'} - ₱${Number(s.basePrice).toFixed(2)})</small></span>`;
+            svcBox.appendChild(lbl);
+        });
+    }
+}
+
+function openAddPackageModal() {
+    document.getElementById('pkg-form-id').value = '';
+    document.getElementById('pkg-form-name').value = '';
+    document.getElementById('pkg-form-desc').value = '';
+    document.getElementById('pkg-form-price').value = '1200.00';
+    document.getElementById('pkg-form-duration').value = '1';
+    document.getElementById('pkg-form-minpax').value = '2';
+    document.getElementById('pkg-form-maxpax').value = '10';
+    document.getElementById('pkg-form-inclusions').value = 'Accredited local guide, transport, entrance fees';
+    document.getElementById('pkg-form-exclusions').value = 'Personal expenses, optional tipping';
+    populatePackageModalCheckboxes([], []);
+    const titleEl = document.getElementById('modal-add-package-title');
+    if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-suitcase-rolling"></i> Create Curated Tourism Package';
+    openModal('modal-add-package');
+}
+
+function openEditPackageModal(packageId) {
+    const pkg = state.packages.find(p => Number(p.packageId) === Number(packageId));
+    if (!pkg) return;
+    document.getElementById('pkg-form-id').value = pkg.packageId;
+    document.getElementById('pkg-form-name').value = pkg.name || '';
+    document.getElementById('pkg-form-desc').value = pkg.description || '';
+    document.getElementById('pkg-form-price').value = Number(pkg.pricePerPax || 0).toFixed(2);
+    document.getElementById('pkg-form-duration').value = pkg.durationDays || 1;
+    document.getElementById('pkg-form-minpax').value = pkg.minPax || 2;
+    document.getElementById('pkg-form-maxpax').value = pkg.maxPax || 10;
+    document.getElementById('pkg-form-inclusions').value = pkg.inclusions || '';
+    document.getElementById('pkg-form-exclusions').value = pkg.exclusions || '';
+
+    const destIds = Array.isArray(pkg.destinations) ? pkg.destinations.map(d => Number(d.destinationId)) : [];
+    const svcIds = Array.isArray(pkg.services) ? pkg.services.map(s => Number(s.serviceId)) : [];
+    populatePackageModalCheckboxes(destIds, svcIds);
+
+    const titleEl = document.getElementById('modal-add-package-title');
+    if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Edit Curated Tourism Package';
+    openModal('modal-add-package');
+}
+
+async function handleSavePackageSubmit(e) {
+    e.preventDefault();
+    const pkgId = parseInt(document.getElementById('pkg-form-id').value) || 0;
+    const destIds = Array.from(document.querySelectorAll('.pkg-dest-chk:checked')).map(cb => parseInt(cb.value));
+    const svcIds = Array.from(document.querySelectorAll('.pkg-svc-chk:checked')).map(cb => parseInt(cb.value));
+
+    const payload = {
+        name: document.getElementById('pkg-form-name').value,
+        description: document.getElementById('pkg-form-desc').value,
+        pricePerPax: parseFloat(document.getElementById('pkg-form-price').value),
+        durationDays: parseInt(document.getElementById('pkg-form-duration').value) || 1,
+        minPax: parseInt(document.getElementById('pkg-form-minpax').value) || 1,
+        maxPax: parseInt(document.getElementById('pkg-form-maxpax').value) || 10,
+        inclusions: document.getElementById('pkg-form-inclusions').value,
+        exclusions: document.getElementById('pkg-form-exclusions').value,
+        status: 'ACTIVE',
+        destinationIds: destIds,
+        serviceIds: svcIds
+    };
+    if (pkgId > 0) payload.packageId = pkgId;
+
+    try {
+        const res = await fetch(`${API_BASE}/packages`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': state.authToken
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            closeModal('modal-add-package');
+            showToast(data.message || 'Curated package saved!', 'success');
+            await loadPackages();
+            renderPublicPackages(state.packages);
+        } else {
+            showToast(data.message || 'Failed saving package.', 'error');
+        }
+    } catch (err) {
+        showToast('Error saving package: ' + err.message, 'error');
+    }
+}
+
+async function deletePackage(packageId) {
+    if (!confirm('Are you sure you want to delete this package? This action cannot be undone.')) return;
+    try {
+        const res = await fetch(`${API_BASE}/packages/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': state.authToken
+            },
+            body: JSON.stringify({ packageId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message || 'Package deleted.', 'success');
+            await loadPackages();
+            renderPublicPackages(state.packages);
+        } else {
+            showToast(data.message || 'Failed deleting package.', 'error');
+        }
+    } catch (err) {
+        showToast('Error deleting package: ' + err.message, 'error');
+    }
+}
 
 async function handleAddDestinationSubmit(e) {
     e.preventDefault();
+    const destId = parseInt(document.getElementById('dest-form-id').value) || 0;
     const payload = {
         name: document.getElementById('dest-form-name').value,
         category: document.getElementById('dest-form-category').value,
@@ -1582,8 +4721,42 @@ async function handleAddDestinationSubmit(e) {
         operatingHours: document.getElementById('dest-form-hours').value,
         locationCoordinates: document.getElementById('dest-form-coords').value,
         contactInfo: document.getElementById('dest-form-contact').value,
-        status: 'ACTIVE'
+        status: document.getElementById('dest-form-status')?.value || 'ACTIVE'
     };
+    if (destId > 0) payload.destinationId = destId;
+
+    // Handle photo attachment / upload
+    let finalImageUrl = document.getElementById('dest-form-image-url')?.value || '';
+    if (destinationPhotos.length > 0) {
+        const primaryPhoto = destinationPhotos[0];
+        if (primaryPhoto.dataUrl) {
+            // New photo upload via base64
+            try {
+                const uploadRes = await fetch(`${API_BASE}/destinations/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Auth-Token': state.authToken
+                    },
+                    body: JSON.stringify({
+                        fileName: primaryPhoto.name || 'destination.jpg',
+                        data: primaryPhoto.dataUrl
+                    })
+                });
+                const uploadData = await uploadRes.json();
+                if (uploadData.success && uploadData.url) {
+                    finalImageUrl = uploadData.url;
+                }
+            } catch (upErr) {
+                console.warn('Failed uploading photo:', upErr);
+            }
+        } else if (primaryPhoto.isExisting && primaryPhoto.url) {
+            finalImageUrl = primaryPhoto.url;
+        }
+    } else {
+        finalImageUrl = '';
+    }
+    payload.imageUrl = finalImageUrl;
 
     try {
         const res = await fetch(`${API_BASE}/destinations`, {
@@ -1597,8 +4770,9 @@ async function handleAddDestinationSubmit(e) {
         const data = await res.json();
         if (data.success) {
             closeModal('modal-add-destination');
-            showToast('Destination saved successfully!', 'success');
-            loadDestinations();
+            showToast(data.message || 'Destination saved successfully!', 'success');
+            await loadDestinations();
+            renderPublicDestinations(state.destinations);
         } else {
             showToast(data.message || 'Failed saving destination.', 'error');
         }
@@ -1635,6 +4809,15 @@ function formatCategory(cat) {
     return cat.replace(/_/g, ' ').replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
 }
 
+function getCategoryIconClass(cat) {
+    const c = (cat || '').toUpperCase();
+    if (c.includes('WATERFALL')) return 'fa-solid fa-water';
+    if (c.includes('ISLAND') || c.includes('BEACH')) return 'fa-solid fa-umbrella-beach';
+    if (c.includes('SPRING') || c.includes('HOT')) return 'fa-solid fa-hot-tub-person';
+    if (c.includes('CULTURAL') || c.includes('HERITAGE') || c.includes('POTTERY')) return 'fa-solid fa-landmark-dome';
+    return 'fa-solid fa-mountain-sun';
+}
+
 function formatPricingUnit(unit) {
     if (!unit) return '';
     if (unit === 'PER_PERSON') return '/ person';
@@ -1645,9 +4828,11 @@ function formatPricingUnit(unit) {
 }
 
 function getStatusBadgeClass(status) {
-    if (status === 'CONFIRMED' || status === 'COMPLETED' || status === 'VERIFIED') return 'badge-success';
-    if (status === 'PENDING') return 'badge-warning';
-    if (status === 'CANCELLED' || status === 'REJECTED') return 'badge-danger';
+    const s = String(status || '').toUpperCase();
+    if (s === 'CONFIRMED' || s === 'VERIFIED' || s === 'ACCEPTED') return 'badge-success';
+    if (s === 'COMPLETED') return 'badge-info';
+    if (s === 'PENDING') return 'badge-warning';
+    if (s === 'CANCELLED' || s === 'REJECTED') return 'badge-danger';
     return 'badge-info';
 }
 
@@ -1655,18 +4840,15 @@ function getStatusBadgeClass(status) {
 // PUBLIC HOMEPAGE RENDERING & INTERACTIVE SEARCH
 // ------------------------------------------------------------------------------
 function getDestinationImage(dest) {
-    if (!dest) return 'assets/sambawan_island_hero_1791699785896.jpg';
-    const name = (dest.name || '').toLowerCase();
-    if (name.includes('sambawan')) return 'assets/sambawan_island_hero_1791699785896.jpg';
-    if (name.includes('tinago')) return 'assets/tinago_falls_hero_1791699805710.jpg';
-    if (name.includes('ulan')) return 'assets/ulan_ulan_falls_hero.jpg';
-    if (name.includes('higatangan')) return 'assets/higatangan_sandbar_hero.jpg';
-    if (name.includes('reco')) return 'assets/ulan_ulan_falls_hero.jpg';
-    if (name.includes('mainit')) return 'assets/tinago_falls_hero_1791699805710.jpg';
-    if (name.includes('pottery') || name.includes('maripipi')) return 'assets/sambawan_island_hero_1791699785896.jpg';
-    if (name.includes('iyusan')) return 'assets/ulan_ulan_falls_hero.jpg';
-    if (dest.imageUrl && (dest.imageUrl.startsWith('assets/') || dest.imageUrl.startsWith('http'))) return dest.imageUrl;
-    return 'assets/sambawan_island_hero_1791699785896.jpg';
+    if (!dest || !dest.imageUrl) return '';
+    const img = dest.imageUrl.trim();
+    if (!img) return '';
+    if (img.startsWith('http://') || img.startsWith('https://')) return img;
+    if (img.startsWith('assets/')) return img;
+    if (img.startsWith('uploads/')) return img;
+    if (img.startsWith('/uploads/')) return img.substring(1);
+    if (img.startsWith('data:image/')) return img;
+    return 'assets/' + img;
 }
 
 function updateHeroCounters() {
@@ -1695,12 +4877,24 @@ function renderPublicDestinations(list) {
         const rating = d.averageRating || '5.0';
         const bName = d.barangayName ? `Brgy. ${d.barangayName}` : 'Biliran Province';
 
-        card.innerHTML = `
+        const catIcon = getCategoryIconClass(d.category);
+        const safeName = (d.name || '').replace(/'/g, "\\'");
+        const thumbHtml = img ? `
             <div class="public-dest-thumb">
-                <img src="${img}" alt="${d.name}" onerror="this.src='assets/sambawan_island_hero_1791699785896.jpg'">
+                <img src="${img}" alt="${safeName}" onerror="this.onerror=null; this.parentElement.className='public-dest-thumb no-photo'; this.parentElement.innerHTML='<i class=\\'${catIcon} dest-icon\\'></i><span class=\\'public-dest-cat-badge\\'>${formatCategory(d.category)}</span><span class=\\'public-dest-fee-tag\\'>₱${fee} entrance</span>';">
                 <span class="public-dest-cat-badge">${formatCategory(d.category)}</span>
                 <span class="public-dest-fee-tag">₱${fee} entrance</span>
             </div>
+        ` : `
+            <div class="public-dest-thumb no-photo">
+                <i class="${catIcon} dest-icon"></i>
+                <span class="public-dest-cat-badge">${formatCategory(d.category)}</span>
+                <span class="public-dest-fee-tag">₱${fee} entrance</span>
+            </div>
+        `;
+
+        card.innerHTML = `
+            ${thumbHtml}
             <div class="public-dest-body">
                 <h3 class="public-dest-title">${d.name}</h3>
                 <div class="public-dest-location">
@@ -1729,30 +4923,43 @@ function renderPublicPackages(list) {
     grid.innerHTML = '';
 
     const items = (list && list.length > 0) ? list : state.packages;
-    if (!items || items.length === 0) return;
+    if (!items || !Array.isArray(items) || items.length === 0) return;
 
     items.forEach(p => {
         const card = document.createElement('div');
         card.className = 'public-dest-card';
         const price = Number(p.pricePerPax || 0).toFixed(2);
-        let img = 'assets/sambawan_island_hero_1791699785896.jpg';
-        const title = (p.title || '').toLowerCase();
-        if (title.includes('waterfall') || title.includes('ulan')) img = 'assets/ulan_ulan_falls_hero.jpg';
-        else if (title.includes('sandbar') || title.includes('higatangan')) img = 'assets/higatangan_sandbar_hero.jpg';
-        else if (title.includes('tinago')) img = 'assets/tinago_falls_hero_1791699805710.jpg';
+        const pkgName = p.name || p.title || 'Community Tourism Package';
+        const safePkgName = pkgName.replace(/'/g, "\\'");
+        const pkgIcon = pkgName.toLowerCase().includes('waterfall')
+            ? 'fa-solid fa-water'
+            : (pkgName.toLowerCase().includes('sandbar') || pkgName.toLowerCase().includes('island'))
+                ? 'fa-solid fa-umbrella-beach'
+                : 'fa-solid fa-map-location-dot';
 
-        card.innerHTML = `
+        const pkgImg = getPackageImage(p);
+        const thumbHtml = pkgImg ? `
             <div class="public-dest-thumb">
-                <img src="${img}" alt="${p.title}" onerror="this.src='assets/sambawan_island_hero_1791699785896.jpg'">
+                <img src="${pkgImg}" alt="${safePkgName}" onerror="this.onerror=null; this.parentElement.className='public-dest-thumb no-photo'; this.parentElement.style.background='linear-gradient(135deg, #065f46 0%, #064e3b 60%, #0d9488 100%)'; this.parentElement.innerHTML='<i class=\\'${pkgIcon} dest-icon\\'></i><span class=\\'public-dest-cat-badge\\'><i class=\\'fa-solid fa-clock\\'></i> ${p.durationDays || 1} Day(s)</span><span class=\\'public-dest-fee-tag\\'>₱${price} / pax</span>';">
                 <span class="public-dest-cat-badge"><i class="fa-solid fa-clock"></i> ${p.durationDays || 1} Day(s)</span>
                 <span class="public-dest-fee-tag">₱${price} / pax</span>
             </div>
+        ` : `
+            <div class="public-dest-thumb no-photo" style="background: linear-gradient(135deg, #065f46 0%, #064e3b 60%, #0d9488 100%);">
+                <i class="${pkgIcon} dest-icon"></i>
+                <span class="public-dest-cat-badge"><i class="fa-solid fa-clock"></i> ${p.durationDays || 1} Day(s)</span>
+                <span class="public-dest-fee-tag">₱${price} / pax</span>
+            </div>
+        `;
+
+        card.innerHTML = `
+            ${thumbHtml}
             <div class="public-dest-body">
-                <h3 class="public-dest-title">${p.title}</h3>
+                <h3 class="public-dest-title">${pkgName}</h3>
                 <p class="public-dest-desc">${p.description || 'Curated community tourism circuit with accredited guides.'}</p>
                 <div class="public-dest-footer">
                     <span style="font-size: 0.82rem; font-weight: 600; color: var(--primary-700);"><i class="fa-solid fa-users"></i> Min ${p.minPax || 2} Pax</span>
-                    <button class="btn btn-primary btn-sm" onclick="handlePublicPackageAction(${p.packageId}, '${p.title.replace(/'/g, "\\'")}', ${price})">
+                    <button class="btn btn-primary btn-sm" onclick="handlePublicPackageAction(${p.packageId}, '${safePkgName}', ${price})">
                         <i class="fa-solid fa-receipt"></i> Reserve Now
                     </button>
                 </div>
@@ -1822,7 +5029,7 @@ async function loadServicesTable() {
     const tbody = document.getElementById('services-table-body');
     if (!tbody) return;
     try {
-        const res = await fetch(`${API_BASE}/stakeholders/services`);
+        const res = await fetch(`${API_BASE}/stakeholders/services?all=true`);
         if (res.ok) {
             state.services = await res.json();
             tbody.innerHTML = '';
@@ -1830,18 +5037,45 @@ async function loadServicesTable() {
                 tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No services registered yet.</td></tr>';
                 return;
             }
+            const role = state.activeRole;
+            const myProfileId = state.currentUser ? Number(state.currentUser.stakeholderProfileId) : 0;
+
             state.services.forEach(s => {
                 const tr = document.createElement('tr');
+                const isAvail = s.available !== undefined ? Boolean(s.available) : Boolean(s.isAvailable);
+                const isOwner = role === 'STAKEHOLDER' && myProfileId === Number(s.stakeholderId);
+                const isTourismOversight = role === 'TOURISM_OFFICE';
+                const canManage = isOwner || role === 'SYSTEM_ADMIN';
+
+                let actionsHtml = '';
+                if (isTourismOversight) {
+                    actionsHtml = `<span class="badge badge-info" title="Community-owned offering; monitored for safety and packaging standards"><i class="fa-solid fa-eye"></i> Oversight View Only</span>`;
+                } else if (canManage) {
+                    actionsHtml = `
+                        <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
+                            <button class="btn btn-sm btn-outline" onclick="openEditServiceModal(${s.serviceId})"><i class="fa-solid fa-pen"></i> Edit</button>
+                            <button class="btn btn-sm ${isAvail ? 'btn-outline' : 'btn-success'}" onclick="toggleServiceAvailability(${s.serviceId})">
+                                ${isAvail ? 'Set Unavailable' : 'Set Available'}
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteServiceOffering(${s.serviceId})"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    `;
+                } else if (isAvail) {
+                    actionsHtml = role === 'TOURIST'
+                        ? `<button class="btn btn-sm btn-primary" onclick="openServiceBookingModal(${s.serviceId})"><i class="fa-solid fa-calendar-check"></i> Book</button>`
+                        : `<span class="badge badge-success"><i class="fa-solid fa-check"></i> Available</span>`;
+                } else {
+                    actionsHtml = `<span class="text-muted">Unavailable</span>`;
+                }
+
                 tr.innerHTML = `
                     <td><strong>${s.serviceName}</strong></td>
                     <td>${s.stakeholderName || 'Local Stakeholder'}</td>
                     <td><span class="badge badge-info">${formatCategory(s.serviceCategory)}</span></td>
                     <td><strong style="color: var(--primary-700)">₱${Number(s.basePrice).toFixed(2)}</strong> <small class="text-muted">${formatPricingUnit(s.pricingUnit)}</small></td>
                     <td>${s.maxCapacity || 1} pax</td>
-                    <td><span class="badge ${s.isAvailable ? 'badge-success' : 'badge-danger'}">${s.isAvailable ? 'Available' : 'Unavailable'}</span></td>
-                    <td>
-                        <button class="btn btn-sm btn-outline" onclick="openPackageBookingModal(null, '${s.serviceName.replace(/'/g, "\\'")}', ${s.basePrice})">Book</button>
-                    </td>
+                    <td><span class="badge ${isAvail ? 'badge-success' : 'badge-danger'}">${isAvail ? 'Available' : 'Unavailable'}</span></td>
+                    <td>${actionsHtml}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -1853,6 +5087,8 @@ async function loadServicesTable() {
 
 async function handleAddServiceSubmit(e) {
     e.preventDefault();
+    const svcId = parseInt(document.getElementById('svc-form-id').value) || 0;
+    const isAvail = document.getElementById('svc-form-available') ? document.getElementById('svc-form-available').checked : true;
     const payload = {
         serviceName: document.getElementById('svc-form-name').value,
         serviceCategory: document.getElementById('svc-form-category').value,
@@ -1860,8 +5096,10 @@ async function handleAddServiceSubmit(e) {
         basePrice: parseFloat(document.getElementById('svc-form-price').value),
         maxCapacity: parseInt(document.getElementById('svc-form-capacity').value),
         description: document.getElementById('svc-form-desc').value,
-        isAvailable: true
+        available: isAvail,
+        isAvailable: isAvail
     };
+    if (svcId > 0) payload.serviceId = svcId;
 
     try {
         const res = await fetch(`${API_BASE}/stakeholders/services`, {
@@ -1875,7 +5113,7 @@ async function handleAddServiceSubmit(e) {
         const data = await res.json();
         if (data.success) {
             closeModal('modal-add-service');
-            showToast('Service offering saved successfully!', 'success');
+            showToast(data.message || 'Service offering saved successfully!', 'success');
             loadServicesTable();
             loadStakeholderServices();
         } else {
@@ -1886,24 +5124,212 @@ async function handleAddServiceSubmit(e) {
     }
 }
 
+async function toggleServiceAvailability(serviceId) {
+    const s = state.services.find(x => Number(x.serviceId) === Number(serviceId));
+    if (!s) return;
+    const currentAvail = s.available !== undefined ? Boolean(s.available) : Boolean(s.isAvailable);
+    const nextAvail = !currentAvail;
+    try {
+        const res = await fetch(`${API_BASE}/stakeholders/services`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': state.authToken
+            },
+            body: JSON.stringify({
+                serviceId: s.serviceId,
+                stakeholderId: s.stakeholderId,
+                serviceName: s.serviceName,
+                serviceCategory: s.serviceCategory,
+                pricingUnit: s.pricingUnit,
+                basePrice: s.basePrice,
+                maxCapacity: s.maxCapacity,
+                description: s.description,
+                available: nextAvail,
+                isAvailable: nextAvail
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`Service marked as ${nextAvail ? 'Available' : 'Unavailable'}.`, 'success');
+            loadServicesTable();
+            loadStakeholderServices();
+        } else {
+            showToast(data.message || 'Failed updating availability.', 'error');
+        }
+    } catch (e) {
+        showToast('Error toggling availability: ' + e.message, 'error');
+    }
+}
+
+async function deleteServiceOffering(serviceId) {
+    if (!confirm('Are you sure you want to delete this service offering? This cannot be undone.')) return;
+    try {
+        const res = await fetch(`${API_BASE}/stakeholders/services/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': state.authToken
+            },
+            body: JSON.stringify({ serviceId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message || 'Service offering deleted.', 'success');
+            loadServicesTable();
+            loadStakeholderServices();
+        } else {
+            showToast(data.message || 'Failed deleting service.', 'error');
+        }
+    } catch (e) {
+        showToast('Error deleting service: ' + e.message, 'error');
+    }
+}
+
+async function openMyStakeholderProfileModal() {
+    try {
+        const res = await fetch(`${API_BASE}/stakeholders/me`, {
+            headers: { 'X-Auth-Token': state.authToken }
+        });
+        if (res.ok) {
+            const p = await res.json();
+            document.getElementById('stk-new-account-fields').style.display = 'none';
+            document.getElementById('stk-form-id').value = p.profileId || '';
+            document.getElementById('stk-form-business').value = p.businessName || '';
+            document.getElementById('stk-form-category').value = p.category || 'TOUR_GUIDE';
+            document.getElementById('stk-form-barangay').value = p.barangayId || (state.barangays[0]?.barangayId || 1);
+            document.getElementById('stk-form-accred').value = p.accreditationNo || '';
+            document.getElementById('stk-form-exp').value = p.yearsExperience || 1;
+            document.getElementById('stk-form-phone').value = p.contactNumber || '';
+            document.getElementById('stk-form-bio').value = p.bio || '';
+            const titleEl = document.getElementById('modal-stakeholder-profile-title');
+            if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-id-badge"></i> My Stakeholder Profile';
+            openModal('modal-stakeholder-profile');
+        }
+    } catch (e) {
+        showToast('Error loading stakeholder profile: ' + e.message, 'error');
+    }
+}
+
+function openRegisterStakeholderModal() {
+    document.getElementById('stk-new-account-fields').style.display = 'block';
+    document.getElementById('stk-form-id').value = '';
+    document.getElementById('stk-form-fullname').value = '';
+    document.getElementById('stk-form-username').value = '';
+    document.getElementById('stk-form-password').value = 'password123';
+    document.getElementById('stk-form-email').value = '';
+    document.getElementById('stk-form-business').value = '';
+    document.getElementById('stk-form-category').value = 'TOUR_GUIDE';
+    const brgySelect = document.getElementById('stk-form-barangay');
+    if (brgySelect && state.activeRole === 'BARANGAY_OFFICIAL' && state.currentUser?.barangayId) {
+        brgySelect.value = state.currentUser.barangayId;
+    }
+    document.getElementById('stk-form-accred').value = '';
+    document.getElementById('stk-form-exp').value = '2';
+    document.getElementById('stk-form-phone').value = '';
+    document.getElementById('stk-form-bio').value = '';
+    const titleEl = document.getElementById('modal-stakeholder-profile-title');
+    if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-user-check"></i> Register Local Stakeholder';
+    openModal('modal-stakeholder-profile');
+}
+
+function openEditStakeholderModal(profileId) {
+    const p = state.stakeholders.find(x => Number(x.profileId) === Number(profileId));
+    if (!p) return;
+    document.getElementById('stk-new-account-fields').style.display = 'none';
+    document.getElementById('stk-form-id').value = p.profileId;
+    document.getElementById('stk-form-business').value = p.businessName || '';
+    document.getElementById('stk-form-category').value = p.category || 'TOUR_GUIDE';
+    document.getElementById('stk-form-barangay').value = p.barangayId || 1;
+    document.getElementById('stk-form-accred').value = p.accreditationNo || '';
+    document.getElementById('stk-form-exp').value = p.yearsExperience || 1;
+    document.getElementById('stk-form-phone').value = p.contactNumber || '';
+    document.getElementById('stk-form-bio').value = p.bio || '';
+    const titleEl = document.getElementById('modal-stakeholder-profile-title');
+    if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Edit Stakeholder Profile';
+    openModal('modal-stakeholder-profile');
+}
+
+async function handleSaveStakeholderProfileSubmit(e) {
+    e.preventDefault();
+    const profileId = parseInt(document.getElementById('stk-form-id').value) || 0;
+    const payload = {
+        businessName: document.getElementById('stk-form-business').value,
+        category: document.getElementById('stk-form-category').value,
+        barangayId: parseInt(document.getElementById('stk-form-barangay').value),
+        accreditationNo: document.getElementById('stk-form-accred').value,
+        yearsExperience: parseInt(document.getElementById('stk-form-exp').value) || 1,
+        contactNumber: document.getElementById('stk-form-phone').value,
+        bio: document.getElementById('stk-form-bio').value
+    };
+    if (profileId > 0) {
+        payload.profileId = profileId;
+    } else if (document.getElementById('stk-new-account-fields').style.display !== 'none') {
+        payload.fullName = document.getElementById('stk-form-fullname').value;
+        payload.username = document.getElementById('stk-form-username').value;
+        payload.password = document.getElementById('stk-form-password').value;
+        payload.email = document.getElementById('stk-form-email').value;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/stakeholders`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': state.authToken
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            closeModal('modal-stakeholder-profile');
+            showToast(data.message || 'Stakeholder profile saved!', 'success');
+            loadStakeholdersList();
+            loadVerificationsList();
+        } else {
+            showToast(data.message || 'Failed saving stakeholder profile.', 'error');
+        }
+    } catch (err) {
+        showToast('Error saving stakeholder profile: ' + err.message, 'error');
+    }
+}
+
 async function loadBarangayRecordsTable() {
     const tbody = document.getElementById('barangay-full-body');
     if (!tbody) return;
     try {
-        const res = await fetch(`${API_BASE}/reports/barangays`);
+        const res = await fetch(`${API_BASE}/reports/barangays`, {
+            headers: state.authToken ? { 'X-Auth-Token': state.authToken } : {}
+        });
         if (res.ok) {
             const data = await res.json();
+            if (!Array.isArray(data)) return;
+            state.barangayRecords = data;
             tbody.innerHTML = '';
+            const role = state.activeRole;
             data.forEach(b => {
+                const bId = b.barangay_id || b.barangayId;
+                const bName = b.barangay_name || b.barangayName;
+                const mName = b.municipality_name || b.municipalityName;
+                const cPerson = b.contact_person || b.contactPerson || 'Barangay Captain';
+                const cPhone = b.contact_number || b.contactNumber || 'N/A';
+                const canEdit = role === 'SYSTEM_ADMIN' || role === 'TOURISM_OFFICE' || role === 'LGU_OFFICER'
+                    || (role === 'BARANGAY_OFFICIAL' && state.currentUser && Number(state.currentUser.barangayId) === Number(bId));
+
                 const tr = document.createElement('tr');
+                tr.id = `row-barangay-${bId}`;
+                tr.setAttribute('data-barangay-id', bId);
                 tr.innerHTML = `
-                    <td><strong>${b.barangayName}</strong></td>
-                    <td>${b.municipalityName}</td>
-                    <td>${b.contactPerson || 'Barangay Captain'}</td>
-                    <td>${b.contactNumber || 'N/A'}</td>
-                    <td><span class="badge badge-info">${b.destinationCount || 0}</span></td>
-                    <td><span class="badge badge-info">${b.stakeholderCount || 0}</span></td>
+                    <td><strong>${bName}</strong></td>
+                    <td>${mName}</td>
+                    <td>${cPerson}</td>
+                    <td>${cPhone}</td>
+                    <td><span class="badge badge-info">${b.total_destinations ?? b.destinationCount ?? 0}</span></td>
+                    <td><span class="badge badge-info">${b.total_stakeholders ?? b.stakeholderCount ?? 0}</span></td>
                     <td><span class="badge badge-success">Active Registered</span></td>
+                    <td>
+                        ${canEdit ? `<button class="btn btn-sm btn-outline" onclick="openEditBarangayModal(${bId})"><i class="fa-solid fa-pen"></i> Edit</button>` : '<span class="text-muted">—</span>'}
+                    </td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -1913,14 +5339,259 @@ async function loadBarangayRecordsTable() {
     }
 }
 
-function saveSystemSettings() {
-    const threshold = document.getElementById('setting-capacity-threshold')?.value;
-    const msg = document.getElementById('setting-broadcast-msg')?.value;
-    if (msg) {
-        const notice = document.getElementById('notice-text');
-        if (notice) notice.textContent = msg;
+function openEditBarangayModal(barangayId) {
+    const rec = (state.barangayRecords || []).find(b => Number(b.barangay_id || b.barangayId) === Number(barangayId))
+        || state.barangays.find(b => Number(b.barangayId) === Number(barangayId));
+    if (!rec) return;
+    document.getElementById('brgy-edit-id').value = rec.barangay_id || rec.barangayId;
+    document.getElementById('brgy-edit-name').value = `${rec.barangay_name || rec.name} (${rec.municipality_name || rec.municipalityName})`;
+    document.getElementById('brgy-edit-contact-person').value = rec.contact_person || rec.contactPerson || '';
+    document.getElementById('brgy-edit-contact-number').value = rec.contact_number || rec.contactNumber || '';
+    openModal('modal-edit-barangay');
+}
+
+async function handleUpdateBarangaySubmit(e) {
+    e.preventDefault();
+    const payload = {
+        barangayId: parseInt(document.getElementById('brgy-edit-id').value),
+        contactPerson: document.getElementById('brgy-edit-contact-person').value,
+        contactNumber: document.getElementById('brgy-edit-contact-number').value
+    };
+    try {
+        const res = await fetch(`${API_BASE}/barangays`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': state.authToken
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            closeModal('modal-edit-barangay');
+            showToast(data.message || 'Barangay tourism record updated!', 'success');
+            loadBarangayRecordsTable();
+            loadBarangays();
+            loadReportsData();
+        } else {
+            showToast(data.message || 'Failed updating barangay record.', 'error');
+        }
+    } catch (err) {
+        showToast('Error updating barangay record: ' + err.message, 'error');
     }
-    showToast(`System settings saved! Carrying capacity alert set to ${threshold}%.`, 'success');
+}
+
+let barangayPendingDeleteId = null;
+
+function confirmDeleteBarangay() {
+    const brgyId = document.getElementById('brgy-edit-id').value;
+    const brgyName = document.getElementById('brgy-edit-name').value;
+    if (!brgyId) return;
+    barangayPendingDeleteId = parseInt(brgyId);
+    const nameEl = document.getElementById('confirm-delete-barangay-name');
+    if (nameEl) nameEl.textContent = brgyName || ('Barangay #' + brgyId);
+    openModal('modal-confirm-delete-barangay');
+}
+
+async function executeDeleteBarangay() {
+    const brgyId = barangayPendingDeleteId || parseInt(document.getElementById('brgy-edit-id').value);
+    if (!brgyId) return;
+
+    const btn = document.getElementById('btn-confirm-delete-barangay-btn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deleting...';
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/barangays/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': state.authToken
+            },
+            body: JSON.stringify({ barangayId: brgyId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            closeModal('modal-confirm-delete-barangay');
+            closeModal('modal-edit-barangay');
+            showToast(data.message || 'Barangay record deleted successfully.', 'success');
+
+            // Dynamically remove the row from the Barangay Tourism Records table without requiring a full-page reload
+            const row = document.getElementById(`row-barangay-${brgyId}`) 
+                || document.querySelector(`tr[data-barangay-id="${brgyId}"]`);
+            if (row) {
+                row.remove();
+            }
+
+            // Also update local state
+            if (Array.isArray(state.barangayRecords)) {
+                state.barangayRecords = state.barangayRecords.filter(b => Number(b.barangay_id || b.barangayId) !== Number(brgyId));
+            }
+            if (Array.isArray(state.barangays)) {
+                state.barangays = state.barangays.filter(b => Number(b.barangayId) !== Number(brgyId));
+            }
+        } else {
+            showToast(data.message || 'Failed to delete barangay record.', 'error');
+        }
+    } catch (err) {
+        showToast('Error deleting barangay record: ' + err.message, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Yes, Delete';
+        }
+        barangayPendingDeleteId = null;
+    }
+}
+
+const SETTING_LABELS = {
+    appName: 'Platform Name',
+    province: 'Provincial Jurisdiction',
+    capacityThreshold: 'Carrying Capacity Alert Threshold',
+    currency: 'Default Currency',
+    broadcastMsg: 'Live Broadcast Notice'
+};
+
+function markSettingModified(settingKey) {
+    if (!state.modifiedSettings) state.modifiedSettings = new Set();
+    state.modifiedSettings.add(settingKey);
+    state.lastEditedSetting = settingKey;
+}
+
+function applySystemSettingsToUI(s) {
+    if (!s) return;
+    if (s.appName !== undefined && document.getElementById('setting-app-name')) {
+        document.getElementById('setting-app-name').value = s.appName;
+    }
+    if (s.province !== undefined && document.getElementById('setting-province')) {
+        document.getElementById('setting-province').value = s.province;
+    }
+    if (s.capacityThreshold !== undefined && document.getElementById('setting-capacity-threshold')) {
+        document.getElementById('setting-capacity-threshold').value = s.capacityThreshold;
+    }
+    if (s.currency !== undefined && document.getElementById('setting-currency')) {
+        const currencyEl = document.getElementById('setting-currency');
+        if (currencyEl.tagName === 'SELECT') {
+            const exists = Array.from(currencyEl.options).some(opt => opt.value === s.currency);
+            if (!exists && s.currency) {
+                const opt = document.createElement('option');
+                opt.value = s.currency;
+                opt.textContent = s.currency;
+                currencyEl.appendChild(opt);
+            }
+        }
+        currencyEl.value = s.currency;
+    }
+    if (s.broadcastMsg !== undefined) {
+        if (document.getElementById('setting-broadcast-msg')) {
+            document.getElementById('setting-broadcast-msg').value = s.broadcastMsg;
+        }
+        const notice = document.getElementById('notice-text');
+        if (notice && s.broadcastMsg) notice.textContent = s.broadcastMsg;
+    }
+}
+
+async function loadSystemSettings() {
+    try {
+        const res = await fetch(`${API_BASE}/settings`);
+        if (res.ok) {
+            const s = await res.json();
+            state.systemSettings = {
+                appName: String(s.appName ?? 'Lakbay Lokal - Biliran Tourism Information System'),
+                province: String(s.province ?? 'Biliran Province, Region VIII, Philippines'),
+                capacityThreshold: String(s.capacityThreshold ?? 85),
+                currency: String(s.currency ?? 'PHP (Philippine Peso ₱)'),
+                broadcastMsg: String(s.broadcastMsg ?? '')
+            };
+            state.modifiedSettings = new Set();
+            state.lastEditedSetting = null;
+            applySystemSettingsToUI(state.systemSettings);
+        }
+    } catch (e) {
+        console.warn('Settings load notice:', e);
+    }
+}
+
+async function saveSystemSettings() {
+    const appName = (document.getElementById('setting-app-name')?.value ?? '').trim() || 'Lakbay Lokal - Biliran Tourism Information System';
+    const province = (document.getElementById('setting-province')?.value ?? '').trim() || 'Biliran Province, Region VIII, Philippines';
+    const threshold = String(document.getElementById('setting-capacity-threshold')?.value ?? '85').trim() || '85';
+    const currency = (document.getElementById('setting-currency')?.value ?? 'PHP (Philippine Peso ₱)').trim() || 'PHP (Philippine Peso ₱)';
+    const msg = (document.getElementById('setting-broadcast-msg')?.value ?? '').trim();
+
+    const prev = state.systemSettings || {};
+    const changedKeys = [];
+    if (prev.appName !== undefined && String(prev.appName) !== appName) changedKeys.push('appName');
+    if (prev.province !== undefined && String(prev.province) !== province) changedKeys.push('province');
+    if (prev.capacityThreshold !== undefined && String(prev.capacityThreshold) !== String(threshold)) changedKeys.push('capacityThreshold');
+    if (prev.currency !== undefined && String(prev.currency) !== currency) changedKeys.push('currency');
+    if (prev.broadcastMsg !== undefined && String(prev.broadcastMsg) !== msg) changedKeys.push('broadcastMsg');
+
+    // If the user edited a field (even if set back to the same text) and clicked Save Settings, include that field
+    if (changedKeys.length === 0) {
+        if (state.modifiedSettings && state.modifiedSettings.size > 0) {
+            state.modifiedSettings.forEach(k => changedKeys.push(k));
+        } else if (state.lastEditedSetting) {
+            changedKeys.push(state.lastEditedSetting);
+        }
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/settings`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': state.authToken
+            },
+            body: JSON.stringify({
+                appName,
+                province,
+                capacityThreshold: Number(threshold) || 85,
+                currency,
+                broadcastMsg: msg,
+                updatedFields: changedKeys
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            const saved = data.settings || {
+                appName,
+                province,
+                capacityThreshold: threshold,
+                currency,
+                broadcastMsg: msg
+            };
+            state.systemSettings = {
+                appName: String(saved.appName),
+                province: String(saved.province),
+                capacityThreshold: String(saved.capacityThreshold),
+                currency: String(saved.currency),
+                broadcastMsg: String(saved.broadcastMsg)
+            };
+            state.modifiedSettings = new Set();
+            state.lastEditedSetting = null;
+            applySystemSettingsToUI(state.systemSettings);
+
+            let toastMessage = data.message;
+            if (!toastMessage) {
+                const labels = changedKeys.map(k => SETTING_LABELS[k]).filter(Boolean);
+                if (labels.length === 1) {
+                    toastMessage = `${labels[0]} saved successfully!`;
+                } else if (labels.length > 1) {
+                    toastMessage = `System settings saved: ${labels.join(', ')}.`;
+                } else {
+                    toastMessage = 'System settings saved successfully!';
+                }
+            }
+            showToast(toastMessage, 'success');
+        } else {
+            showToast(data.message || 'Failed saving settings.', 'error');
+        }
+    } catch (e) {
+        showToast('Error saving settings: ' + e.message, 'error');
+    }
 }
 
 async function loadAuditLogs() {
@@ -1932,6 +5603,7 @@ async function loadAuditLogs() {
         });
         if (res.ok) {
             const logs = await res.json();
+            if (!Array.isArray(logs)) return;
             tbody.innerHTML = '';
             logs.forEach(l => {
                 const tr = document.createElement('tr');
@@ -1939,7 +5611,7 @@ async function loadAuditLogs() {
                     <td><small class="text-muted">${l.timestamp}</small></td>
                     <td><strong>${l.username}</strong></td>
                     <td><span class="badge badge-info">${l.action}</span></td>
-                    <td>${l.targetEntity || '-'}</td>
+                    <td>${l.entityName || l.targetEntity || '-'}</td>
                     <td><code>${l.ipAddress || '127.0.0.1'}</code></td>
                     <td>${l.details}</td>
                 `;
@@ -1953,12 +5625,16 @@ async function loadAuditLogs() {
 
 async function handleAddAnnouncementSubmit(e) {
     e.preventDefault();
+    const annoId = parseInt(document.getElementById('anno-form-id').value) || 0;
+    const categoryVal = document.getElementById('anno-form-type').value;
     const payload = {
         title: document.getElementById('anno-form-title').value,
-        type: document.getElementById('anno-form-type').value,
+        category: categoryVal,
+        type: categoryVal,
         content: document.getElementById('anno-form-content').value,
         priority: 'NORMAL'
     };
+    if (annoId > 0) payload.announcementId = annoId;
 
     try {
         const res = await fetch(`${API_BASE}/announcements`, {
@@ -1972,7 +5648,7 @@ async function handleAddAnnouncementSubmit(e) {
         const data = await res.json();
         if (data.success) {
             closeModal('modal-add-announcement');
-            showToast('Announcement posted successfully!', 'success');
+            showToast(data.message || 'Announcement posted successfully!', 'success');
             loadAnnouncementsList();
         } else {
             showToast(data.message || 'Failed posting announcement.', 'error');
@@ -1984,16 +5660,31 @@ async function handleAddAnnouncementSubmit(e) {
 
 async function handleCreateUserSubmit(e) {
     e.preventDefault();
-    const brgyVal = document.getElementById('user-form-barangay').value;
+    const btn = document.getElementById('btn-create-user-submit');
+    const origHtml = btn ? btn.innerHTML : '<i class="fa-solid fa-user-plus"></i> Create User Account';
+    const errBanner = document.getElementById('user-create-error-banner');
+    const errText = document.getElementById('user-create-error-text');
+    if (errBanner) errBanner.style.display = 'none';
+
+    const roleVal = document.getElementById('user-form-role').value;
+    const muniVal = document.getElementById('user-form-municipality')?.value;
+    const brgyVal = document.getElementById('user-form-barangay')?.value;
+
     const payload = {
-        fullName: document.getElementById('user-form-fullname').value,
-        username: document.getElementById('user-form-username').value,
+        fullName: document.getElementById('user-form-fullname').value.trim(),
+        username: document.getElementById('user-form-username').value.trim(),
         password: document.getElementById('user-form-password').value,
-        email: document.getElementById('user-form-email').value,
-        roleId: parseInt(document.getElementById('user-form-role').value),
+        email: document.getElementById('user-form-email').value.trim(),
+        roleId: parseInt(roleVal),
+        municipalityId: muniVal ? parseInt(muniVal) : null,
         barangayId: brgyVal ? parseInt(brgyVal) : null,
         status: 'ACTIVE'
     };
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating Account...';
+    }
 
     try {
         const res = await fetch(`${API_BASE}/admin/users`, {
@@ -2010,9 +5701,428 @@ async function handleCreateUserSubmit(e) {
             showToast('User account created successfully!', 'success');
             loadAdminData();
         } else {
-            showToast(data.message || 'Failed creating user.', 'error');
+            const msg = data.message || 'Failed creating user account.';
+            if (errBanner && errText) {
+                errText.innerText = msg;
+                errBanner.style.display = 'block';
+            }
+            showToast(msg, 'error');
         }
     } catch (err) {
-        showToast('Error: ' + err.message, 'error');
+        const msg = 'Error: ' + err.message;
+        if (errBanner && errText) {
+            errText.innerText = msg;
+            errBanner.style.display = 'block';
+        }
+        showToast(msg, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+    }
+}
+
+function openEditUserModal(userId) {
+    const u = (state.users || []).find(x => Number(x.userId) === Number(userId));
+    if (!u) return;
+    document.getElementById('edit-user-id').value = u.userId;
+    document.getElementById('edit-user-username').value = u.username || '';
+    document.getElementById('edit-user-fullname').value = u.fullName || '';
+    document.getElementById('edit-user-email').value = u.email || '';
+    document.getElementById('edit-user-role').value = u.roleId || 6;
+    document.getElementById('edit-user-barangay').value = u.barangayId || '';
+    openModal('modal-edit-user');
+}
+
+async function handleEditUserSubmit(e) {
+    e.preventDefault();
+    const brgyVal = document.getElementById('edit-user-barangay').value;
+    const payload = {
+        userId: parseInt(document.getElementById('edit-user-id').value),
+        fullName: document.getElementById('edit-user-fullname').value,
+        email: document.getElementById('edit-user-email').value,
+        roleId: parseInt(document.getElementById('edit-user-role').value),
+        barangayId: brgyVal ? parseInt(brgyVal) : null
+    };
+    try {
+        const res = await fetch(`${API_BASE}/admin/users/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': state.authToken
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            closeModal('modal-edit-user');
+            showToast(data.message || 'User account updated!', 'success');
+            loadAdminData();
+        } else {
+            showToast(data.message || 'Failed updating user.', 'error');
+        }
+    } catch (err) {
+        showToast('Error updating user: ' + err.message, 'error');
+    }
+}
+
+function openAdminResetPasswordModal(userId, username) {
+    document.getElementById('reset-pwd-user-id').value = userId;
+    document.getElementById('reset-pwd-username').value = username;
+    document.getElementById('reset-pwd-new').value = '';
+    openModal('modal-reset-password');
+}
+
+async function handleAdminResetPasswordSubmit(e) {
+    e.preventDefault();
+    const payload = {
+        userId: parseInt(document.getElementById('reset-pwd-user-id').value),
+        newPassword: document.getElementById('reset-pwd-new').value
+    };
+    try {
+        const res = await fetch(`${API_BASE}/admin/users/reset-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': state.authToken
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            closeModal('modal-reset-password');
+            showToast(data.message || 'User password reset successfully!', 'success');
+        } else {
+            showToast(data.message || 'Failed resetting password.', 'error');
+        }
+    } catch (err) {
+        showToast('Error resetting password: ' + err.message, 'error');
+    }
+}
+
+
+// ==============================================================================
+// INDIVIDUAL STAKEHOLDER DASHBOARD, SCHEDULE & EARNINGS MODULES
+// ==============================================================================
+let cachedStakeholderData = null;
+
+async function loadStakeholderDashboardData() {
+    if (!state.authToken || state.activeRole !== 'STAKEHOLDER') return null;
+    try {
+        const res = await fetch(`${API_BASE}/stakeholder/dashboard`, {
+            headers: { 'X-Auth-Token': state.authToken }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            cachedStakeholderData = data;
+            updateBookingsNavBadge();
+            return data;
+        }
+    } catch (e) {
+        console.warn('Error fetching stakeholder dashboard:', e);
+    }
+    return null;
+}
+
+async function loadStakeholderDashboardOverview() {
+    const container = document.getElementById('stakeholder-overview-dashboard');
+    if (!container) return;
+    if (state.activeRole !== 'STAKEHOLDER') {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+    container.innerHTML = `<div class="card p-4 text-center text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Loading your business dashboard...</div>`;
+
+    const data = await loadStakeholderDashboardData();
+    if (!data || !data.profile) {
+        container.innerHTML = `<div class="card p-4 text-danger"><i class="fa-solid fa-triangle-exclamation"></i> Unable to load your stakeholder business profile.</div>`;
+        return;
+    }
+
+    const p = data.profile;
+    const m = data.metrics || {};
+    const catLabel = formatCategory(p.category || 'TOUR_GUIDE');
+    const vStatus = p.verificationStatus || 'PENDING';
+    const vBadge = vStatus === 'VERIFIED'
+        ? '<span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Verified Business</span>'
+        : vStatus === 'REJECTED'
+        ? '<span class="badge badge-danger"><i class="fa-solid fa-circle-xmark"></i> Application Rejected</span>'
+        : vStatus === 'NEEDS_CORRECTION'
+        ? '<span class="badge badge-warning"><i class="fa-solid fa-triangle-exclamation"></i> Corrections Required</span>'
+        : vStatus === 'UNDER_REVIEW'
+        ? '<span class="badge badge-info"><i class="fa-solid fa-magnifying-glass"></i> Under Review</span>'
+        : `<span class="badge badge-warning"><i class="fa-solid fa-clock"></i> ${vStatus}</span>`;
+    const canPublish = vStatus === 'VERIFIED';
+
+    container.innerHTML = `
+        <!-- Business Profile Card -->
+        <div class="card mb-4" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(6, 78, 59, 0.04) 100%); border-left: 5px solid var(--emerald-600);">
+            <div class="card-body" style="padding: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+                            <span class="badge badge-primary" style="font-size: 0.82rem;"><i class="fa-solid fa-id-badge"></i> ${catLabel}</span>
+                            ${vBadge}
+                            <span class="badge badge-neutral" style="font-size: 0.8rem;"><i class="fa-solid fa-location-dot"></i> Brgy. ${p.barangayName || 'Biliran'}</span>
+                        </div>
+                        <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--neutral-900); margin: 0 0 0.35rem 0;">${p.businessName || 'My Local Tourism Business'}</h2>
+                        <p style="margin: 0; color: var(--neutral-600); font-size: 0.9rem;">
+                            <strong>Owner / Specialist:</strong> ${p.fullName || (state.currentUser ? state.currentUser.username : '')} | 
+                            <strong>Accreditation:</strong> ${p.accreditationNo || 'LGU-Accredited'} | 
+                            <strong>Experience:</strong> ${p.yearsExperience || 1} year(s) | 
+                            <strong>Contact:</strong> ${p.contactNumber || 'On Record'}
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                        <button class="btn btn-sm btn-primary" onclick="openAddServiceModal()" ${canPublish ? '' : 'disabled title="Service publishing requires Barangay Verification. Your account is ' + vStatus + '."'}><i class="fa-solid fa-${canPublish ? 'plus' : 'lock'}"></i> ${canPublish ? 'Add Service' : 'Verification Required'}</button>
+                        <button class="btn btn-sm btn-outline" onclick="switchTab('schedule')"><i class="fa-solid fa-calendar-day"></i> View Schedule</button>
+                        <button class="btn btn-sm btn-outline" onclick="switchTab('earnings')"><i class="fa-solid fa-coins"></i> View Earnings</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stakeholder Private Key Metrics Grid -->
+        <div class="stats-grid mb-4">
+            <div class="stat-card" style="border-top: 3px solid var(--primary-600);">
+                <div class="stat-icon-wrapper" style="background: rgba(37, 99, 235, 0.12); color: #2563eb;"><i class="fa-solid fa-list-check"></i></div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Assigned Bookings</span>
+                    <h3 class="stat-value">${m.totalAssignedBookings || 0}</h3>
+                    <span class="stat-sub">Across all circuits</span>
+                </div>
+            </div>
+            <div class="stat-card" style="border-top: 3px solid #f59e0b;">
+                <div class="stat-icon-wrapper" style="background: rgba(245, 158, 11, 0.12); color: #d97706;"><i class="fa-solid fa-hourglass-half"></i></div>
+                <div class="stat-info">
+                    <span class="stat-label">Pending Action</span>
+                    <h3 class="stat-value">${m.pendingRequestsCount || 0}</h3>
+                    <span class="stat-sub">Needs Accept / Decline</span>
+                </div>
+            </div>
+            <div class="stat-card" style="border-top: 3px solid var(--emerald-600);">
+                <div class="stat-icon-wrapper" style="background: rgba(16, 185, 129, 0.12); color: var(--emerald-600);"><i class="fa-solid fa-calendar-check"></i></div>
+                <div class="stat-info">
+                    <span class="stat-label">Confirmed Tours</span>
+                    <h3 class="stat-value">${m.acceptedToursCount || 0}</h3>
+                    <span class="stat-sub">Accepted / Scheduled</span>
+                </div>
+            </div>
+            <div class="stat-card" style="border-top: 3px solid #10b981;">
+                <div class="stat-icon-wrapper" style="background: rgba(16, 185, 129, 0.15); color: #059669;"><i class="fa-solid fa-coins"></i></div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Earned</span>
+                    <h3 class="stat-value">₱${Number(m.totalEarnings || 0).toFixed(2)}</h3>
+                    <span class="stat-sub">₱${Number(m.paidEarnings || 0).toFixed(2)} Paid | ₱${Number(m.pendingPayments || 0).toFixed(2)} Pending</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- My Registered Services & Offerings Table -->
+        <div class="card mb-4">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 class="card-title"><i class="fa-solid fa-handshake-angle"></i> My Registered Services &amp; Rates</h3>
+                <span style="font-size: 0.8rem; color: var(--neutral-500);"><i class="fa-solid fa-info-circle"></i> Toggle availability to pause bookings for a specific service</span>
+            </div>
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Service Name</th>
+                            <th>Category</th>
+                            <th>Base Rate</th>
+                            <th>Pricing Unit</th>
+                            <th>Availability</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${(data.services && data.services.length > 0)
+                            ? data.services.map(s => `
+                                <tr>
+                                    <td><strong>${s.serviceName}</strong></td>
+                                    <td><span class="badge badge-neutral">${s.serviceCategory || catLabel}</span></td>
+                                    <td class="font-bold text-success">₱${Number(s.basePrice || 0).toFixed(2)}</td>
+                                    <td>${s.pricingUnit || 'per tour / booking'}</td>
+                                    <td>
+                                        ${s.available
+                                            ? '<span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Available</span>'
+                                            : '<span class="badge badge-neutral"><i class="fa-solid fa-pause"></i> Unavailable</span>'}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm ${s.available ? 'btn-outline' : 'btn-success'}" onclick="toggleServiceAvailability(${s.serviceId}, ${!s.available})">
+                                            ${s.available ? '<i class="fa-solid fa-pause"></i> Mark Unavailable' : '<i class="fa-solid fa-play"></i> Make Available'}
+                                        </button>
+                                    </td>
+                                </tr>
+                            `).join('')
+                            : `<tr><td colspan="6" class="text-center text-muted py-4">No services registered yet. Click "Add Service" to register your tourism offering.</td></tr>`
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
+async function loadStakeholderSchedule() {
+    const tbody = document.getElementById('schedule-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading schedule...</td></tr>`;
+
+    const data = await loadStakeholderDashboardData();
+    if (!data) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger py-4">Unable to load schedule records.</td></tr>`;
+        return;
+    }
+
+    const sch = data.schedule || [];
+    const m = data.metrics || {};
+    const confEl = document.getElementById('sch-confirmed-count');
+    const pendEl = document.getElementById('sch-pending-count');
+    const compEl = document.getElementById('sch-completed-count');
+    if (confEl) confEl.textContent = m.acceptedToursCount || 0;
+    if (pendEl) pendEl.textContent = m.pendingRequestsCount || 0;
+    if (compEl) compEl.textContent = m.completedToursCount || 0;
+
+    renderScheduleTableRows(sch);
+}
+
+function filterScheduleTable() {
+    if (!cachedStakeholderData) return;
+    const filter = document.getElementById('schedule-status-filter')?.value || 'ALL';
+    let sch = cachedStakeholderData.schedule || [];
+    if (filter !== 'ALL') {
+        sch = sch.filter(s => (s.status || 'PENDING').toUpperCase() === filter.toUpperCase());
+    }
+    renderScheduleTableRows(sch);
+}
+
+function renderScheduleTableRows(sch) {
+    const tbody = document.getElementById('schedule-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (sch.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4">No schedule records found matching the filter.</td></tr>`;
+        return;
+    }
+
+    sch.forEach(it => {
+        const tr = document.createElement('tr');
+        const s = (it.status || 'PENDING').toUpperCase();
+        const badge = getStatusBadgeClass(s);
+
+        let actionHtml = '';
+        if (s === 'PENDING') {
+            actionHtml = `
+                <button class="btn btn-sm btn-success" onclick="updateBookingItemStatus(${it.itemId}, 'ACCEPTED')" title="Accept this booking item"><i class="fa-solid fa-check"></i> Accept</button>
+                <button class="btn btn-sm btn-danger" onclick="updateBookingItemStatus(${it.itemId}, 'REJECTED')" title="Decline this booking item"><i class="fa-solid fa-xmark"></i> Decline</button>
+            `;
+        } else if (s === 'ACCEPTED') {
+            actionHtml = `
+                <button class="btn btn-sm btn-outline" onclick="updateBookingItemStatus(${it.itemId}, 'COMPLETED')" title="Mark service delivered"><i class="fa-solid fa-check-double"></i> Mark Done</button>
+            `;
+        } else if (s === 'COMPLETED') {
+            actionHtml = `<span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Fulfilled</span>`;
+        } else {
+            actionHtml = `<span class="badge badge-neutral">—</span>`;
+        }
+
+        const shortBookingRef = formatShortBookingReference(it.bookingReference, it.bookingId);
+        const startDateFormatted = formatBookingDate(it.travelDateStart);
+        const endDateFormatted = formatBookingDate(it.travelDateEnd || it.travelDateStart);
+
+        tr.innerHTML = `
+            <td><strong>${startDateFormatted}</strong> ${it.travelDateEnd && it.travelDateEnd !== it.travelDateStart ? 'to ' + endDateFormatted : ''}</td>
+            <td><code title="Original Reference: ${it.bookingReference}">${shortBookingRef}</code></td>
+            <td>${escapeHtml(it.touristName || 'Registered Tourist')}</td>
+            <td><strong>${escapeHtml(it.serviceName)}</strong></td>
+            <td><i class="fa-solid fa-user-group"></i> ${it.numberOfPax || 1} pax</td>
+            <td class="font-bold text-success">₱${Number(it.subtotal || 0).toFixed(2)}</td>
+            <td><span class="badge ${badge}">${s}</span></td>
+            <td><div style="display: flex; gap: 0.35rem; align-items: center;">${actionHtml}</div></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+async function loadStakeholderEarnings() {
+    const tbody = document.getElementById('transactions-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading earnings &amp; transactions...</td></tr>`;
+
+    const data = await loadStakeholderDashboardData();
+    if (!data) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">Unable to load earnings records.</td></tr>`;
+        return;
+    }
+
+    const m = data.metrics || {};
+    const totalEl = document.getElementById('earn-total-amount');
+    const paidEl = document.getElementById('earn-paid-amount');
+    const pendEl = document.getElementById('earn-pending-amount');
+    const compEl = document.getElementById('earn-completed-jobs');
+
+    if (totalEl) totalEl.textContent = `₱${Number(m.totalEarnings || 0).toFixed(2)}`;
+    if (paidEl) paidEl.textContent = `₱${Number(m.paidEarnings || 0).toFixed(2)}`;
+    if (pendEl) pendEl.textContent = `₱${Number(m.pendingPayments || 0).toFixed(2)}`;
+    if (compEl) compEl.textContent = m.completedToursCount || 0;
+
+    tbody.innerHTML = '';
+    const tx = data.transactions || [];
+    if (tx.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4">No completed service transactions yet. Complete assigned bookings to build your earnings history.</td></tr>`;
+        return;
+    }
+
+    tx.forEach(t => {
+        const tr = document.createElement('tr');
+        const payStatus = (t.paymentStatus || 'PENDING').toUpperCase();
+        const payBadge = payStatus === 'PAID'
+            ? '<span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Paid</span>'
+            : '<span class="badge badge-warning"><i class="fa-solid fa-clock"></i> Pending Disbursement</span>';
+
+        const shortBookingRef = formatShortBookingReference(t.bookingReference, t.bookingId);
+        const startDateFormatted = formatBookingDate(t.travelDateStart);
+
+        tr.innerHTML = `
+            <td>${startDateFormatted}</td>
+            <td><code title="Original Reference: ${t.bookingReference}">${shortBookingRef}</code></td>
+            <td>${escapeHtml(t.touristName || 'Tourist Traveler')}</td>
+            <td><strong>${escapeHtml(t.serviceName)}</strong></td>
+            <td>${t.quantity || 1}</td>
+            <td>₱${Number(t.unitPrice || 0).toFixed(2)}</td>
+            <td class="font-bold text-success">₱${Number(t.subtotal || 0).toFixed(2)}</td>
+            <td><span class="badge badge-success"><i class="fa-solid fa-check"></i> ${t.status}</span></td>
+            <td>${payBadge}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+async function toggleServiceAvailability(serviceId, isAvailable) {
+    if (!serviceId) return;
+    try {
+        const res = await fetch(`${API_BASE}/stakeholder/service-availability`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': state.authToken
+            },
+            body: JSON.stringify({ serviceId: Number(serviceId), isAvailable: Boolean(isAvailable) })
+        });
+        const d = await res.json();
+        if (d.success) {
+            showToast(d.message || 'Service availability updated.', 'success');
+            loadStakeholderDashboardOverview();
+        } else {
+            showToast(d.message || 'Update failed.', 'error');
+        }
+    } catch (e) {
+        showToast('Error updating service: ' + e.message, 'error');
     }
 }

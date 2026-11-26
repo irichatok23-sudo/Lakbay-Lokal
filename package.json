@@ -19,10 +19,12 @@
     "directories": {
       "output": "dist"
     },
+    "asar": false,
     "files": [
       "electron/**/*",
       "src/main/resources/web/**/*",
       "bin/**/*",
+      "lib/**/*",
       "package.json"
     ],
     "win": {
@@ -43,5 +45,9 @@
   "devDependencies": {
     "electron": "^33.4.11",
     "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.9"
   }
 }

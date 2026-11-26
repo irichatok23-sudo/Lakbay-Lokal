@@ -1,0 +1,871 @@
+-- MySQL dump 10.13  Distrib 8.4.7, for Win64 (x86_64)
+--
+-- Host: localhost    Database: lakbay_lokal_db
+-- ------------------------------------------------------
+-- Server version	8.4.7
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!50503 SET NAMES utf8mb4 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+--
+-- Current Database: `lakbay_lokal_db`
+--
+
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `lakbay_lokal_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+
+USE `lakbay_lokal_db`;
+
+--
+-- Table structure for table `announcements`
+--
+
+DROP TABLE IF EXISTS `announcements`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `announcements` (
+  `announcement_id` int NOT NULL AUTO_INCREMENT,
+  `title` varchar(160) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `content` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `category` enum('ANNOUNCEMENT','EVENT','FESTIVAL','TRAVEL_GUIDELINE') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `target_barangay_id` int DEFAULT NULL,
+  `published_by` int NOT NULL,
+  `publish_date` date NOT NULL,
+  `expiry_date` date DEFAULT NULL,
+  `status` enum('PUBLISHED','ARCHIVED') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PUBLISHED',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`announcement_id`),
+  KEY `target_barangay_id` (`target_barangay_id`),
+  KEY `published_by` (`published_by`),
+  CONSTRAINT `announcements_ibfk_1` FOREIGN KEY (`target_barangay_id`) REFERENCES `barangays` (`barangay_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `announcements_ibfk_2` FOREIGN KEY (`published_by`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `announcements`
+--
+
+LOCK TABLES `announcements` WRITE;
+/*!40000 ALTER TABLE `announcements` DISABLE KEYS */;
+INSERT INTO `announcements` VALUES (1,'Biliran Province 34th Foundation Anniversary & Tourism Expo','Join us from May 7 to 11 in Naval for the annual Province-Wide Tourism Expo, featuring local culinary showcases, artisanal handicrafts, and eco-tour discounts.','FESTIVAL',NULL,2,'2026-04-01','2026-05-15','PUBLISHED','2026-11-11 11:43:26'),(2,'Sustainable Eco-Trekking Guidelines for Ulan-Ulan and Tinago Falls','All visitors are reminded to observe Leave No Trace principles: single-use plastics are prohibited within 50 meters of water basins. Certified community guides are mandatory.','TRAVEL_GUIDELINE',6,2,'2026-02-01','2026-12-31','PUBLISHED','2026-11-11 11:43:26'),(3,'Coast Guard Sea Travel Advisory: Calm Seas at Maripipi & Sambawan','Philippine Coast Guard reports favorable sea conditions across the Biliran Strait. Motorized tourist vessels from Kawayan and Naval are cleared for regular island crossings.','ANNOUNCEMENT',1,2,'2026-03-01','2026-04-30','PUBLISHED','2026-11-11 11:43:26'),(9,'Automated E2E Test Bulletin','Temporary verification announcement.','ANNOUNCEMENT',NULL,2,'2026-11-12',NULL,'PUBLISHED','2026-11-11 22:41:12');
+/*!40000 ALTER TABLE `announcements` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `audit_logs`
+--
+
+DROP TABLE IF EXISTS `audit_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `audit_logs` (
+  `log_id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int DEFAULT NULL,
+  `username` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `action` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `entity_name` varchar(60) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `entity_id` int DEFAULT NULL,
+  `ip_address` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT '127.0.0.1',
+  `details` text COLLATE utf8mb4_unicode_ci,
+  `timestamp` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`log_id`),
+  KEY `user_id` (`user_id`),
+  KEY `idx_audit_logs_timestamp` (`timestamp`),
+  CONSTRAINT `audit_logs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=352 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `audit_logs`
+--
+
+LOCK TABLES `audit_logs` WRITE;
+/*!40000 ALTER TABLE `audit_logs` DISABLE KEYS */;
+INSERT INTO `audit_logs` VALUES (1,1,'admin','SYSTEM_INITIALIZATION','DATABASE',1,'127.0.0.1','Lakbay Lokal database initialized with seed data for Biliran Province.','2025-12-31 16:00:00'),(2,4,'brgy_olog','STAKEHOLDER_VERIFIED','STAKEHOLDER_PROFILE',1,'127.0.0.1','Barangay Captain Ramon Corpin verified Sambawan Island Eco-Trek Guides.','2026-01-15 01:30:00'),(3,10,'tourist_ana','CREATE_BOOKING','BOOKINGS',1,'127.0.0.1','Created booking reference LL-2026-0001 for Sambawan Island Paradise Escape.','2026-02-15 02:00:00'),(4,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 11:48:46'),(5,1,'admin','LOGIN_SUCCESS','AUTH',1,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 11:59:10'),(6,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-11 12:29:08'),(7,1,'admin','LOGIN_SUCCESS','AUTH',1,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 12:34:48'),(8,10,'tourist_ana','LOGIN_SUCCESS','AUTH',10,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 12:36:30'),(9,NULL,'lexey','REGISTER_TOURIST','USERS',NULL,'0:0:0:0:0:0:0:1','New tourist registered: Alexa Romania','2026-11-11 12:38:25'),(10,11,'lexey','LOGIN_SUCCESS','AUTH',11,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 12:38:37'),(11,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 12:41:47'),(12,3,'lgu_naval','LOGIN_SUCCESS','AUTH',3,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 12:42:20'),(13,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 12:43:37'),(14,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 12:44:45'),(15,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-11 12:53:17'),(16,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'127.0.0.1','User logged in','2026-11-11 12:53:17'),(17,3,'lgu_naval','LOGIN_SUCCESS','AUTH',3,'127.0.0.1','User logged in','2026-11-11 12:53:17'),(18,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-11 12:53:17'),(19,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'127.0.0.1','User logged in','2026-11-11 12:53:17'),(20,10,'tourist_ana','LOGIN_SUCCESS','AUTH',10,'127.0.0.1','User logged in','2026-11-11 12:53:17'),(22,1,'admin','UPDATE_USER_STATUS','USERS',12,'127.0.0.1','Set status to: DEACTIVATED','2026-11-11 12:53:17'),(23,1,'admin','UPDATE_USER_STATUS','USERS',12,'127.0.0.1','Set status to: ACTIVE','2026-11-11 12:53:18'),(24,1,'admin','RESET_PASSWORD','USERS',12,'127.0.0.1','Password reset by admin','2026-11-11 12:53:18'),(28,4,'brgy_olog','VALIDATE_DESTINATION','DESTINATIONS',9,'127.0.0.1','Validated by Captain Ramon Corpin','2026-11-11 12:53:18'),(29,2,'tourismoffice','DELETE_DESTINATION','DESTINATIONS',9,'127.0.0.1','Deleted destination ID: 9','2026-11-11 12:53:18'),(32,2,'tourismoffice','DELETE_ANNOUNCEMENT','ANNOUNCEMENTS',4,'127.0.0.1','Deleted announcement ID: 4','2026-11-11 12:53:18'),(35,2,'tourismoffice','DELETE_PACKAGE','PACKAGES',5,'127.0.0.1','Deleted package ID: 5','2026-11-11 12:53:18'),(39,5,'guide_pedro','DELETE_SERVICE','SERVICES',10,'127.0.0.1','Deleted service ID: 10','2026-11-11 12:53:19'),(40,10,'tourist_ana','CREATE_BOOKING','BOOKINGS',4,'127.0.0.1','New booking created: LL-2026-8794','2026-11-11 12:53:19'),(41,10,'tourist_ana','CREATE_BOOKING','BOOKINGS',5,'127.0.0.1','New booking created: LL-2026-4312','2026-11-11 12:53:19'),(42,5,'guide_pedro','UPDATE_BOOKING_STATUS','BOOKINGS',5,'127.0.0.1','Booking status set to ACCEPTED','2026-11-11 12:53:19'),(43,5,'guide_pedro','UPDATE_BOOKING_STATUS','BOOKINGS',5,'127.0.0.1','Booking status set to COMPLETED','2026-11-11 12:53:19'),(44,10,'tourist_ana','CREATE_REVIEW','REVIEWS',4,'127.0.0.1','Rating: 5 stars','2026-11-11 12:53:19'),(45,3,'lgu_naval','LOG_ARRIVAL','ARRIVAL_LOGS',6,'127.0.0.1','Visitors recorded for destination ID: 1','2026-11-11 12:53:19'),(46,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-11 13:21:14'),(47,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-11 13:23:44'),(48,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'127.0.0.1','User logged in','2026-11-11 13:23:44'),(49,3,'lgu_naval','LOGIN_SUCCESS','AUTH',3,'127.0.0.1','User logged in','2026-11-11 13:23:44'),(50,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-11 13:23:44'),(51,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'127.0.0.1','User logged in','2026-11-11 13:23:44'),(52,10,'tourist_ana','LOGIN_SUCCESS','AUTH',10,'127.0.0.1','User logged in','2026-11-11 13:23:45'),(55,2,'tourismoffice','DELETE_ANNOUNCEMENT','ANNOUNCEMENTS',5,'127.0.0.1','Deleted announcement ID: 5','2026-11-11 13:23:52'),(58,10,'tourist_ana','CREATE_BOOKING','BOOKINGS',6,'127.0.0.1','New booking created: LL-2026-7730','2026-11-11 13:23:52'),(59,5,'guide_pedro','UPDATE_BOOKING_STATUS','BOOKINGS',6,'127.0.0.1','Booking status set to ACCEPTED','2026-11-11 13:23:52'),(60,5,'guide_pedro','UPDATE_BOOKING_STATUS','BOOKINGS',6,'127.0.0.1','Booking status set to COMPLETED','2026-11-11 13:23:52'),(61,10,'tourist_ana','CREATE_REVIEW','REVIEWS',5,'127.0.0.1','Rating: 5 stars','2026-11-11 13:23:52'),(64,5,'guide_pedro','UPDATE_STAKEHOLDER_PROFILE','STAKEHOLDER_PROFILES',1,'127.0.0.1','Updated profile: Sambawan Island Eco-Trek \\u0026 Marine Guides','2026-11-11 13:23:53'),(65,5,'guide_pedro','UPDATE_STAKEHOLDER_PROFILE','STAKEHOLDER_PROFILES',1,'127.0.0.1','Updated profile: Sambawan Island Eco-Trek \\u0026 Marine Guides','2026-11-11 13:23:53'),(66,5,'guide_pedro','DELETE_SERVICE','SERVICES',11,'127.0.0.1','Deleted service ID: 11','2026-11-11 13:23:53'),(68,4,'brgy_olog','VALIDATE_DESTINATION','DESTINATIONS',10,'127.0.0.1','Validated by Captain Ramon Corpin','2026-11-11 13:23:53'),(70,4,'brgy_olog','VERIFY_STAKEHOLDER','STAKEHOLDER_PROFILES',6,'127.0.0.1','Decision: APPROVED | Approved in test','2026-11-11 13:23:53'),(71,4,'brgy_olog','UPDATE_BARANGAY','BARANGAYS',1,'127.0.0.1','Updated focal contact: Hon. Ramon Corpin','2026-11-11 13:23:53'),(72,2,'tourismoffice','DELETE_DESTINATION','DESTINATIONS',10,'127.0.0.1','Deleted destination ID: 10','2026-11-11 13:23:53'),(75,1,'admin','RESET_PASSWORD','USERS',14,'127.0.0.1','Password reset by admin','2026-11-11 13:23:54'),(76,NULL,'temp_admin_test_user','LOGIN_SUCCESS','AUTH',14,'127.0.0.1','User logged in','2026-11-11 13:23:54'),(77,1,'admin','UPDATE_USER_STATUS','USERS',14,'127.0.0.1','Set status to: DEACTIVATED','2026-11-11 13:23:54'),(78,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-11 13:28:09'),(79,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'127.0.0.1','User logged in','2026-11-11 13:28:09'),(80,3,'lgu_naval','LOGIN_SUCCESS','AUTH',3,'127.0.0.1','User logged in','2026-11-11 13:28:09'),(81,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-11 13:28:09'),(82,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'127.0.0.1','User logged in','2026-11-11 13:28:10'),(83,10,'tourist_ana','LOGIN_SUCCESS','AUTH',10,'127.0.0.1','User logged in','2026-11-11 13:28:10'),(86,2,'tourismoffice','DELETE_ANNOUNCEMENT','ANNOUNCEMENTS',6,'127.0.0.1','Deleted announcement ID: 6','2026-11-11 13:28:17'),(89,10,'tourist_ana','CREATE_BOOKING','BOOKINGS',7,'127.0.0.1','New booking created: LL-2026-4563','2026-11-11 13:28:17'),(90,5,'guide_pedro','UPDATE_BOOKING_STATUS','BOOKINGS',7,'127.0.0.1','Booking status set to ACCEPTED','2026-11-11 13:28:17'),(91,5,'guide_pedro','UPDATE_BOOKING_STATUS','BOOKINGS',7,'127.0.0.1','Booking status set to COMPLETED','2026-11-11 13:28:17'),(92,10,'tourist_ana','CREATE_REVIEW','REVIEWS',6,'127.0.0.1','Rating: 5 stars','2026-11-11 13:28:17'),(95,5,'guide_pedro','UPDATE_STAKEHOLDER_PROFILE','STAKEHOLDER_PROFILES',1,'127.0.0.1','Updated profile: Sambawan Island Eco-Trek \\u0026 Marine Guides','2026-11-11 13:28:17'),(96,5,'guide_pedro','UPDATE_STAKEHOLDER_PROFILE','STAKEHOLDER_PROFILES',1,'127.0.0.1','Updated profile: Sambawan Island Eco-Trek \\u0026 Marine Guides','2026-11-11 13:28:17'),(97,5,'guide_pedro','DELETE_SERVICE','SERVICES',12,'127.0.0.1','Deleted service ID: 12','2026-11-11 13:28:17'),(99,4,'brgy_olog','VALIDATE_DESTINATION','DESTINATIONS',11,'127.0.0.1','Validated by Captain Ramon Corpin','2026-11-11 13:28:18'),(100,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-11 13:29:35'),(101,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'127.0.0.1','User logged in','2026-11-11 13:29:35'),(102,3,'lgu_naval','LOGIN_SUCCESS','AUTH',3,'127.0.0.1','User logged in','2026-11-11 13:29:36'),(103,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-11 13:29:36'),(104,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'127.0.0.1','User logged in','2026-11-11 13:29:36'),(105,10,'tourist_ana','LOGIN_SUCCESS','AUTH',10,'127.0.0.1','User logged in','2026-11-11 13:29:36'),(108,2,'tourismoffice','DELETE_ANNOUNCEMENT','ANNOUNCEMENTS',7,'127.0.0.1','Deleted announcement ID: 7','2026-11-11 13:29:43'),(111,10,'tourist_ana','CREATE_BOOKING','BOOKINGS',8,'127.0.0.1','New booking created: LL-2026-8900','2026-11-11 13:29:43'),(112,5,'guide_pedro','UPDATE_BOOKING_STATUS','BOOKINGS',8,'127.0.0.1','Booking status set to ACCEPTED','2026-11-11 13:29:44'),(113,5,'guide_pedro','UPDATE_BOOKING_STATUS','BOOKINGS',8,'127.0.0.1','Booking status set to COMPLETED','2026-11-11 13:29:44'),(114,10,'tourist_ana','CREATE_REVIEW','REVIEWS',7,'127.0.0.1','Rating: 5 stars','2026-11-11 13:29:44'),(117,5,'guide_pedro','UPDATE_STAKEHOLDER_PROFILE','STAKEHOLDER_PROFILES',1,'127.0.0.1','Updated profile: Sambawan Island Eco-Trek \\u0026 Marine Guides','2026-11-11 13:29:44'),(118,5,'guide_pedro','UPDATE_STAKEHOLDER_PROFILE','STAKEHOLDER_PROFILES',1,'127.0.0.1','Updated profile: Sambawan Island Eco-Trek \\u0026 Marine Guides','2026-11-11 13:29:44'),(119,5,'guide_pedro','DELETE_SERVICE','SERVICES',13,'127.0.0.1','Deleted service ID: 13','2026-11-11 13:29:44'),(121,4,'brgy_olog','VALIDATE_DESTINATION','DESTINATIONS',11,'127.0.0.1','Validated by Captain Ramon Corpin','2026-11-11 13:29:44'),(122,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-11 13:30:31'),(123,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'127.0.0.1','User logged in','2026-11-11 13:30:31'),(124,3,'lgu_naval','LOGIN_SUCCESS','AUTH',3,'127.0.0.1','User logged in','2026-11-11 13:30:31'),(125,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-11 13:30:31'),(126,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'127.0.0.1','User logged in','2026-11-11 13:30:31'),(127,10,'tourist_ana','LOGIN_SUCCESS','AUTH',10,'127.0.0.1','User logged in','2026-11-11 13:30:31'),(130,2,'tourismoffice','DELETE_ANNOUNCEMENT','ANNOUNCEMENTS',8,'127.0.0.1','Deleted announcement ID: 8','2026-11-11 13:30:38'),(133,10,'tourist_ana','CREATE_BOOKING','BOOKINGS',9,'127.0.0.1','New booking created: LL-2026-4072','2026-11-11 13:30:39'),(134,5,'guide_pedro','UPDATE_BOOKING_STATUS','BOOKINGS',9,'127.0.0.1','Booking status set to ACCEPTED','2026-11-11 13:30:39'),(135,5,'guide_pedro','UPDATE_BOOKING_STATUS','BOOKINGS',9,'127.0.0.1','Booking status set to COMPLETED','2026-11-11 13:30:39'),(136,10,'tourist_ana','CREATE_REVIEW','REVIEWS',8,'127.0.0.1','Rating: 5 stars','2026-11-11 13:30:39'),(139,5,'guide_pedro','UPDATE_STAKEHOLDER_PROFILE','STAKEHOLDER_PROFILES',1,'127.0.0.1','Updated profile: Sambawan Island Eco-Trek \\u0026 Marine Guides','2026-11-11 13:30:39'),(140,5,'guide_pedro','UPDATE_STAKEHOLDER_PROFILE','STAKEHOLDER_PROFILES',1,'127.0.0.1','Updated profile: Sambawan Island Eco-Trek \\u0026 Marine Guides','2026-11-11 13:30:39'),(141,5,'guide_pedro','DELETE_SERVICE','SERVICES',14,'127.0.0.1','Deleted service ID: 14','2026-11-11 13:30:39'),(143,4,'brgy_olog','VALIDATE_DESTINATION','DESTINATIONS',13,'127.0.0.1','Validated by Captain Ramon Corpin','2026-11-11 13:30:39'),(145,4,'brgy_olog','VERIFY_STAKEHOLDER','STAKEHOLDER_PROFILES',7,'127.0.0.1','Decision: APPROVED | Approved in test','2026-11-11 13:30:40'),(146,4,'brgy_olog','UPDATE_BARANGAY','BARANGAYS',1,'127.0.0.1','Updated focal contact: Hon. Ramon Corpin','2026-11-11 13:30:40'),(147,2,'tourismoffice','DELETE_DESTINATION','DESTINATIONS',13,'127.0.0.1','Deleted destination ID: 13','2026-11-11 13:30:40'),(150,1,'admin','RESET_PASSWORD','USERS',18,'127.0.0.1','Password reset by admin','2026-11-11 13:30:40'),(151,NULL,'temp_admin_test_user','LOGIN_SUCCESS','AUTH',18,'127.0.0.1','User logged in','2026-11-11 13:30:40'),(152,1,'admin','UPDATE_USER_STATUS','USERS',18,'127.0.0.1','Set status to: DEACTIVATED','2026-11-11 13:30:40'),(153,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'127.0.0.1','Updated system settings (threshold=85%)','2026-11-11 13:30:40'),(154,1,'admin','LOGIN_SUCCESS','AUTH',1,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 13:33:21'),(155,1,'admin','UPDATE_SERVICE','SERVICES',7,'0:0:0:0:0:0:0:1','Updated Biliran Fiesta Seafood & Native Chicken Boodle Fight','2026-11-11 13:35:43'),(156,1,'admin','DELETE_SERVICE','SERVICES',7,'0:0:0:0:0:0:0:1','Deleted service ID: 7','2026-11-11 13:35:43'),(157,10,'tourist_ana','LOGIN_SUCCESS','AUTH',10,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 13:36:03'),(158,10,'tourist_ana','CREATE_BOOKING','BOOKINGS',10,'0:0:0:0:0:0:0:1','New booking created: LL-2026-1531','2026-11-11 13:36:33'),(159,10,'tourist_ana','UPDATE_BOOKING_STATUS','BOOKINGS',10,'0:0:0:0:0:0:0:1','Booking status set to CANCELLED','2026-11-11 13:36:54'),(160,10,'tourist_ana','CREATE_REVIEW','REVIEWS',9,'0:0:0:0:0:0:0:1','Rating: 3 stars','2026-11-11 13:37:11'),(161,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 13:37:34'),(162,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 13:39:01'),(163,1,'admin','LOGIN_SUCCESS','AUTH',1,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 13:42:52'),(164,1,'admin','RESET_PASSWORD','USERS',11,'0:0:0:0:0:0:0:1','Password reset by admin','2026-11-11 13:44:45'),(165,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Updated system settings (threshold=83%)','2026-11-11 13:45:52'),(166,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Updated system settings (threshold=83%)','2026-11-11 13:52:42'),(167,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Updated system settings (threshold=83%)','2026-11-11 13:54:25'),(168,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Updated system settings (threshold=84%)','2026-11-11 13:55:25'),(169,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Updated system settings (threshold=83%)','2026-11-11 13:56:11'),(170,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Updated system settings (threshold=83%)','2026-11-11 13:57:29'),(171,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Updated system settings (threshold=83%)','2026-11-11 13:58:03'),(172,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Updated system settings (threshold=83%)','2026-11-11 13:58:22'),(173,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Updated system settings (threshold=83%)','2026-11-11 13:59:23'),(174,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Updated system settings (threshold=83%)','2026-11-11 14:03:20'),(175,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Updated system settings (threshold=83%)','2026-11-11 14:03:27'),(176,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Updated system settings (threshold=83%)','2026-11-11 14:03:33'),(177,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Updated system settings (threshold=83%)','2026-11-11 14:03:40'),(178,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Updated system settings (threshold=83%)','2026-11-11 14:03:45'),(179,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Updated system settings (threshold=83%)','2026-11-11 14:04:25'),(180,1,'admin','LOGIN_SUCCESS','AUTH',1,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 15:51:57'),(181,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 15:52:41'),(182,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 15:53:37'),(183,1,'admin','LOGIN_SUCCESS','AUTH',1,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 16:33:56'),(184,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 16:36:24'),(185,1,'admin','LOGIN_SUCCESS','AUTH',1,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 16:47:14'),(186,1,'admin','LOGIN_SUCCESS','AUTH',1,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 17:02:19'),(187,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','System settings saved: Platform Name, Default Currency.','2026-11-11 17:02:19'),(188,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Provincial Jurisdiction saved successfully: \"Biliran Island Province, Eastern Visayas (Region VIII)\".','2026-11-11 17:02:19'),(189,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Carrying Capacity Alert Threshold saved (88%).','2026-11-11 17:02:19'),(190,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Default Currency saved: USD (US Dollar $).','2026-11-11 17:02:20'),(191,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Live Broadcast Notice saved successfully.','2026-11-11 17:02:20'),(192,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','System settings saved: Platform Name, Default Currency.','2026-11-11 17:02:20'),(193,1,'admin','LOGIN_SUCCESS','AUTH',1,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 17:02:25'),(194,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','System settings saved: Platform Name, Provincial Jurisdiction, Carrying Capacity Alert Threshold, Default Currency, Live Broadcast Notice.','2026-11-11 17:02:25'),(195,1,'admin','LOGIN_SUCCESS','AUTH',1,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 17:05:21'),(196,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Platform Name saved successfully: \"Lakbay Lokal - Biliran Provincial Portal (Test)\".','2026-11-11 17:05:21'),(197,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Provincial Jurisdiction saved successfully: \"Biliran Island Province, Eastern Visayas (Region VIII)\".','2026-11-11 17:05:21'),(198,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Carrying Capacity Alert Threshold saved (88%).','2026-11-11 17:05:21'),(199,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Default Currency saved: USD (US Dollar $).','2026-11-11 17:05:21'),(200,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Live Broadcast Notice saved successfully.','2026-11-11 17:05:22'),(201,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','System settings saved: Platform Name, Default Currency.','2026-11-11 17:05:22'),(202,1,'admin','LOGIN_SUCCESS','AUTH',1,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 17:05:27'),(203,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','System settings saved: Platform Name, Provincial Jurisdiction, Carrying Capacity Alert Threshold, Default Currency, Live Broadcast Notice.','2026-11-11 17:05:27'),(204,1,'admin','LOGIN_SUCCESS','AUTH',1,'0:0:0:0:0:0:0:1','User logged in','2026-11-11 17:11:06'),(205,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Live Broadcast Notice saved successfully.','2026-11-11 17:11:42'),(206,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Live Broadcast Notice saved successfully.','2026-11-11 17:11:58'),(207,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'0:0:0:0:0:0:0:1','Default Currency saved: USD (US Dollar $).','2026-11-11 17:12:05'),(208,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-11 19:33:06'),(209,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-11 22:41:11'),(210,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'127.0.0.1','User logged in','2026-11-11 22:41:11'),(211,3,'lgu_naval','LOGIN_SUCCESS','AUTH',3,'127.0.0.1','User logged in','2026-11-11 22:41:12'),(212,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-11 22:41:12'),(213,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'127.0.0.1','User logged in','2026-11-11 22:41:12'),(214,10,'tourist_ana','LOGIN_SUCCESS','AUTH',10,'127.0.0.1','User logged in','2026-11-11 22:41:12'),(215,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'127.0.0.1','System settings saved (Platform Name, Provincial Jurisdiction, Carrying Capacity, Default Currency, Live Broadcast Notice).','2026-11-11 22:41:12'),(216,2,'tourismoffice','CREATE_ANNOUNCEMENT','ANNOUNCEMENTS',9,'127.0.0.1','Created: Automated E2E Test Bulletin','2026-11-11 22:41:12'),(217,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-11 22:45:23'),(218,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'127.0.0.1','User logged in','2026-11-11 22:45:23'),(219,3,'lgu_naval','LOGIN_SUCCESS','AUTH',3,'127.0.0.1','User logged in','2026-11-11 22:45:23'),(220,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-11 22:45:23'),(221,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'127.0.0.1','User logged in','2026-11-11 22:45:23'),(222,10,'tourist_ana','LOGIN_SUCCESS','AUTH',10,'127.0.0.1','User logged in','2026-11-11 22:45:23'),(223,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'127.0.0.1','System settings saved: Platform Name, Carrying Capacity Alert Threshold, Default Currency, Live Broadcast Notice.','2026-11-11 22:45:24'),(224,2,'tourismoffice','CREATE_ANNOUNCEMENT','ANNOUNCEMENTS',10,'127.0.0.1','Created: Automated E2E Test Bulletin','2026-11-11 22:45:24'),(225,2,'tourismoffice','DELETE_ANNOUNCEMENT','ANNOUNCEMENTS',10,'127.0.0.1','Deleted announcement ID: 10','2026-11-11 22:45:24'),(226,1,'admin','DATABASE_BACKUP','DATABASE',1,'127.0.0.1','Backup created: lakbay_lokal_backup_20261112_064524.sql','2026-11-11 22:45:24'),(227,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-11 22:56:02'),(228,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'127.0.0.1','User logged in','2026-11-11 22:56:02'),(229,3,'lgu_naval','LOGIN_SUCCESS','AUTH',3,'127.0.0.1','User logged in','2026-11-11 22:56:02'),(230,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-11 22:56:02'),(231,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'127.0.0.1','User logged in','2026-11-11 22:56:02'),(232,10,'tourist_ana','LOGIN_SUCCESS','AUTH',10,'127.0.0.1','User logged in','2026-11-11 22:56:02'),(233,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'127.0.0.1','System settings saved (Platform Name, Provincial Jurisdiction, Carrying Capacity, Default Currency, Live Broadcast Notice).','2026-11-11 22:56:03'),(234,2,'tourismoffice','CREATE_ANNOUNCEMENT','ANNOUNCEMENTS',11,'127.0.0.1','Created: Automated E2E Test Bulletin','2026-11-11 22:56:03'),(235,2,'tourismoffice','DELETE_ANNOUNCEMENT','ANNOUNCEMENTS',11,'127.0.0.1','Deleted announcement ID: 11','2026-11-11 22:56:03'),(236,1,'admin','DATABASE_BACKUP','DATABASE',1,'127.0.0.1','Backup created: lakbay_lokal_backup_20261112_065603.sql','2026-11-11 22:56:03'),(237,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-11 22:57:02'),(238,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-12 02:08:13'),(239,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-12 02:09:01'),(240,4,'brgy_olog','REGISTER_STAKEHOLDER','STAKEHOLDER_PROFILES',8,'127.0.0.1','Registered stakeholder: Lily\'s Pottery','2026-11-12 02:10:49'),(241,3,'lgu_naval','LOGIN_SUCCESS','AUTH',3,'127.0.0.1','User logged in','2026-11-12 02:12:37'),(242,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'127.0.0.1','User logged in','2026-11-12 02:13:40'),(243,2,'tourismoffice','UPDATE_STAKEHOLDER_PROFILE','STAKEHOLDER_PROFILES',8,'127.0.0.1','Updated stakeholder: Lily\'s Pottery','2026-11-12 02:13:57'),(244,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-12 02:14:49'),(245,1,'admin','UPDATE_USER','USERS',19,'127.0.0.1','Updated user account: Artisan','2026-11-12 02:14:58'),(246,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'127.0.0.1','Carrying Capacity Alert Threshold saved (84%).','2026-11-12 02:15:48'),(247,1,'admin','UPDATE_BOOKING_STATUS','BOOKINGS',3,'127.0.0.1','Booking status set to ACCEPTED','2026-11-12 02:16:17'),(248,1,'admin','UPDATE_SERVICE','SERVICES',1,'127.0.0.1','Updated Sambawan Marine Sanctuary Snorkel & Viewpoint Guide','2026-11-12 02:16:39'),(249,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-12 03:25:17'),(250,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'127.0.0.1','User logged in','2026-11-12 03:25:17'),(251,3,'lgu_naval','LOGIN_SUCCESS','AUTH',3,'127.0.0.1','User logged in','2026-11-12 03:25:17'),(252,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-12 03:25:17'),(253,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'127.0.0.1','User logged in','2026-11-12 03:25:18'),(254,10,'tourist_ana','LOGIN_SUCCESS','AUTH',10,'127.0.0.1','User logged in','2026-11-12 03:25:18'),(255,4,'brgy_olog','VERIFY_STAKEHOLDER','STAKEHOLDER_PROFILES',1,'127.0.0.1','Decision: APPROVED | Unauthorized cross-barangay evaluation attempt','2026-11-12 03:25:18'),(256,4,'brgy_olog','LOG_ARRIVAL','ARRIVAL_LOGS',7,'127.0.0.1','Visitors recorded for destination ID: 1','2026-11-12 03:25:18'),(257,10,'tourist_ana','CREATE_BOOKING','BOOKINGS',11,'127.0.0.1','New booking created: LL-2026-2635','2026-11-12 03:25:18'),(258,5,'guide_pedro','UPDATE_ITEM_STATUS','BOOKING_ITEMS',7,'127.0.0.1','Service item 7 set to ACCEPTED','2026-11-12 03:25:18'),(259,1,'admin','UPDATE_BOOKING_STATUS','BOOKINGS',11,'127.0.0.1','Booking status set to COMPLETED','2026-11-12 03:25:18'),(260,10,'tourist_ana','CREATE_REVIEW','REVIEWS',10,'127.0.0.1','Target: STAKEHOLDER #1 | Rating: 5 stars','2026-11-12 03:25:18'),(261,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-12 03:26:20'),(262,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'127.0.0.1','User logged in','2026-11-12 03:27:11'),(263,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-12 03:27:32'),(264,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'127.0.0.1','User logged in','2026-11-12 03:27:33'),(265,3,'lgu_naval','LOGIN_SUCCESS','AUTH',3,'127.0.0.1','User logged in','2026-11-12 03:27:33'),(266,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-12 03:27:33'),(267,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'127.0.0.1','User logged in','2026-11-12 03:27:33'),(268,10,'tourist_ana','LOGIN_SUCCESS','AUTH',10,'127.0.0.1','User logged in','2026-11-12 03:27:33'),(269,1,'admin','REGISTER_STAKEHOLDER','STAKEHOLDER_PROFILES',9,'127.0.0.1','Registered stakeholder: Naval Heritage \\u0026 Island Tours 1db56f','2026-11-12 03:27:33'),(270,4,'brgy_olog','LOG_ARRIVAL','ARRIVAL_LOGS',8,'127.0.0.1','Visitors recorded for destination ID: 1','2026-11-12 03:27:33'),(271,10,'tourist_ana','CREATE_BOOKING','BOOKINGS',12,'127.0.0.1','New booking created: LL-2026-7851','2026-11-12 03:27:33'),(272,5,'guide_pedro','UPDATE_ITEM_STATUS','BOOKING_ITEMS',9,'127.0.0.1','Service item 9 set to ACCEPTED','2026-11-12 03:27:34'),(273,1,'admin','UPDATE_BOOKING_STATUS','BOOKINGS',12,'127.0.0.1','Booking status set to COMPLETED','2026-11-12 03:27:34'),(274,10,'tourist_ana','CREATE_REVIEW','REVIEWS',11,'127.0.0.1','Target: STAKEHOLDER #1 | Rating: 5 stars','2026-11-12 03:27:34'),(275,10,'tourist_ana','LOGIN_SUCCESS','AUTH',10,'127.0.0.1','User logged in','2026-11-12 03:28:09'),(276,10,'tourist_ana','CREATE_BOOKING','BOOKINGS',13,'127.0.0.1','New booking created: LL-2026-4775','2026-11-12 03:28:35'),(277,3,'lgu_naval','LOGIN_SUCCESS','AUTH',3,'127.0.0.1','User logged in','2026-11-12 03:29:02'),(278,3,'lgu_naval','UPDATE_BOOKING_STATUS','BOOKINGS',13,'127.0.0.1','Booking status set to ACCEPTED','2026-11-12 03:29:11'),(279,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-12 03:29:56'),(280,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'127.0.0.1','User logged in','2026-11-12 03:29:57'),(281,3,'lgu_naval','LOGIN_SUCCESS','AUTH',3,'127.0.0.1','User logged in','2026-11-12 03:29:57'),(282,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-12 03:29:57'),(283,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'127.0.0.1','User logged in','2026-11-12 03:29:57'),(284,10,'tourist_ana','LOGIN_SUCCESS','AUTH',10,'127.0.0.1','User logged in','2026-11-12 03:29:57'),(285,1,'admin','REGISTER_STAKEHOLDER','STAKEHOLDER_PROFILES',10,'127.0.0.1','Registered stakeholder: Naval Heritage \\u0026 Island Tours 41793f','2026-11-12 03:29:57'),(286,4,'brgy_olog','LOG_ARRIVAL','ARRIVAL_LOGS',9,'127.0.0.1','Visitors recorded for destination ID: 1','2026-11-12 03:29:57'),(287,10,'tourist_ana','CREATE_BOOKING','BOOKINGS',14,'127.0.0.1','New booking created: LL-2026-2160','2026-11-12 03:29:57'),(288,5,'guide_pedro','UPDATE_ITEM_STATUS','BOOKING_ITEMS',12,'127.0.0.1','Service item 12 set to ACCEPTED','2026-11-12 03:29:57'),(289,1,'admin','UPDATE_BOOKING_STATUS','BOOKINGS',14,'127.0.0.1','Booking status set to COMPLETED','2026-11-12 03:29:57'),(290,10,'tourist_ana','CREATE_REVIEW','REVIEWS',12,'127.0.0.1','Target: STAKEHOLDER #1 | Rating: 5 stars','2026-11-12 03:29:57'),(291,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-12 03:31:06'),(292,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'127.0.0.1','User logged in','2026-11-12 03:31:06'),(293,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-15 01:53:58'),(294,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'127.0.0.1','User logged in','2026-11-15 01:53:58'),(295,3,'lgu_naval','LOGIN_SUCCESS','AUTH',3,'127.0.0.1','User logged in','2026-11-15 01:53:58'),(296,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-15 01:53:58'),(297,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'127.0.0.1','User logged in','2026-11-15 01:53:58'),(298,10,'tourist_ana','LOGIN_SUCCESS','AUTH',10,'127.0.0.1','User logged in','2026-11-15 01:53:58'),(299,4,'brgy_olog','REGISTER_STAKEHOLDER','STAKEHOLDER_PROFILES',11,'127.0.0.1','Registered stakeholder: Olog Local Seafood \\u0026 Native Catering deba81','2026-11-15 01:53:58'),(300,4,'brgy_olog','VERIFY_STAKEHOLDER','STAKEHOLDER_PROFILES',11,'127.0.0.1','Decision: APPROVED | Fully compliant with local ecotourism standards. Approved by Barangay Official.','2026-11-15 01:53:58'),(301,1,'admin','REGISTER_STAKEHOLDER','STAKEHOLDER_PROFILES',12,'127.0.0.1','Registered stakeholder: Naval Heritage \\u0026 Island Tours deba81','2026-11-15 01:53:58'),(302,4,'brgy_olog','LOG_ARRIVAL','ARRIVAL_LOGS',10,'127.0.0.1','Visitors recorded for destination ID: 1','2026-11-15 01:53:59'),(303,10,'tourist_ana','CREATE_BOOKING','BOOKINGS',15,'127.0.0.1','New booking created: LL-2026-6291','2026-11-15 01:53:59'),(304,5,'guide_pedro','UPDATE_ITEM_STATUS','BOOKING_ITEMS',14,'127.0.0.1','Service item 14 set to ACCEPTED','2026-11-15 01:53:59'),(305,1,'admin','UPDATE_BOOKING_STATUS','BOOKINGS',15,'127.0.0.1','Booking status set to COMPLETED','2026-11-15 01:53:59'),(306,10,'tourist_ana','CREATE_REVIEW','REVIEWS',13,'127.0.0.1','Target: STAKEHOLDER #1 | Rating: 5 stars','2026-11-15 01:53:59'),(307,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-15 01:54:59'),(308,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'127.0.0.1','User logged in','2026-11-15 01:54:59'),(309,3,'lgu_naval','LOGIN_SUCCESS','AUTH',3,'127.0.0.1','User logged in','2026-11-15 01:54:59'),(310,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-15 01:54:59'),(311,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'127.0.0.1','User logged in','2026-11-15 01:54:59'),(312,10,'tourist_ana','LOGIN_SUCCESS','AUTH',10,'127.0.0.1','User logged in','2026-11-15 01:54:59'),(313,1,'admin','UPDATE_SETTINGS','SETTINGS',1,'127.0.0.1','Carrying Capacity Alert Threshold saved (85%).','2026-11-15 01:54:59'),(314,2,'tourismoffice','CREATE_ANNOUNCEMENT','ANNOUNCEMENTS',12,'127.0.0.1','Created: Automated E2E Test Bulletin','2026-11-15 01:54:59'),(315,2,'tourismoffice','DELETE_ANNOUNCEMENT','ANNOUNCEMENTS',12,'127.0.0.1','Deleted announcement ID: 12','2026-11-15 01:55:00'),(316,1,'admin','DATABASE_BACKUP','DATABASE',1,'127.0.0.1','Backup created: lakbay_lokal_backup_20261115_095500.sql','2026-11-15 01:55:00'),(317,10,'tourist_ana','LOGIN_SUCCESS','AUTH',10,'127.0.0.1','User logged in','2026-11-15 01:59:51'),(318,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-15 02:04:55'),(319,4,'brgy_olog','UPDATE_BARANGAY','BARANGAYS',1,'127.0.0.1','Updated focal contact: Hon. Ramon Corpin','2026-11-15 02:05:28'),(320,4,'brgy_olog','VERIFY_STAKEHOLDER','STAKEHOLDER_PROFILES',8,'127.0.0.1','Decision: APPROVED | ','2026-11-15 02:06:43'),(321,3,'lgu_naval','LOGIN_SUCCESS','AUTH',3,'127.0.0.1','User logged in','2026-11-15 03:59:18'),(322,3,'lgu_naval','UPDATE_BOOKING_STATUS','BOOKINGS',10,'127.0.0.1','Booking status set to CONFIRMED','2026-11-15 03:59:52'),(323,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'127.0.0.1','User logged in','2026-11-15 04:00:47'),(324,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'127.0.0.1','User logged in','2026-11-15 04:01:59'),(325,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'127.0.0.1','User logged in','2026-11-15 04:02:29'),(326,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-15 04:04:17'),(332,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-19 13:36:04'),(333,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-19 13:40:09'),(334,1,'admin','LOGIN_SUCCESS','AUTH',1,'127.0.0.1','User logged in','2026-11-19 15:45:07'),(335,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-19 15:46:27'),(336,3,'lgu_naval','LOGIN_SUCCESS','AUTH',3,'127.0.0.1','User logged in','2026-11-19 15:47:46'),(337,10,'tourist_ana','LOGIN_SUCCESS','AUTH',10,'127.0.0.1','User logged in','2026-11-19 15:49:13'),(338,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-19 21:41:03'),(339,NULL,'daraxie','REGISTER_TOURIST','USERS',NULL,'127.0.0.1','New tourist registered: Darra Magallanes','2026-11-19 21:45:00'),(340,42,'daraxie','LOGIN_SUCCESS','AUTH',42,'127.0.0.1','User logged in','2026-11-19 21:45:15'),(341,42,'daraxie','LOGIN_SUCCESS','AUTH',42,'127.0.0.1','User logged in','2026-11-19 22:41:35'),(342,42,'daraxie','CREATE_BOOKING','BOOKINGS',16,'127.0.0.1','New booking created: LL-2026-9113','2026-11-19 22:44:43'),(343,5,'guide_pedro','LOGIN_SUCCESS','AUTH',5,'127.0.0.1','User logged in','2026-11-19 22:45:12'),(344,4,'brgy_olog','LOGIN_SUCCESS','AUTH',4,'127.0.0.1','User logged in','2026-11-19 22:46:24'),(345,4,'brgy_olog','UPDATE_BARANGAY','BARANGAYS',1,'127.0.0.1','Updated focal contact: Hon. Ramon Corpin','2026-11-19 22:47:09'),(346,4,'brgy_olog','UPDATE_BARANGAY','BARANGAYS',1,'127.0.0.1','Updated focal contact: Hon. Ramon Corpin','2026-11-19 22:47:22'),(347,3,'lgu_naval','LOGIN_SUCCESS','AUTH',3,'127.0.0.1','User logged in','2026-11-19 22:48:04'),(348,3,'lgu_naval','UPDATE_BOOKING_STATUS','BOOKINGS',16,'127.0.0.1','Booking status set to ACCEPTED','2026-11-19 22:48:33'),(349,2,'tourismoffice','LOGIN_SUCCESS','AUTH',2,'127.0.0.1','User logged in','2026-11-19 22:50:01'),(350,2,'tourismoffice','UPDATE_SERVICE','SERVICES',3,'127.0.0.1','Updated Biliran Waterfalls Circuit Habal-Habal Tour (Driver & Fuel)','2026-11-19 22:51:22'),(351,2,'tourismoffice','UPDATE_SERVICE','SERVICES',1,'127.0.0.1','Updated Sambawan Marine Sanctuary Snorkel & Viewpoint Guide','2026-11-19 22:51:26');
+/*!40000 ALTER TABLE `audit_logs` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `barangays`
+--
+
+DROP TABLE IF EXISTS `barangays`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `barangays` (
+  `barangay_id` int NOT NULL AUTO_INCREMENT,
+  `municipality_id` int NOT NULL,
+  `name` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `contact_person` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `contact_number` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`barangay_id`),
+  UNIQUE KEY `uq_municipality_barangay` (`municipality_id`,`name`),
+  CONSTRAINT `barangays_ibfk_1` FOREIGN KEY (`municipality_id`) REFERENCES `municipalities` (`municipality_id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `barangays`
+--
+
+LOCK TABLES `barangays` WRITE;
+/*!40000 ALTER TABLE `barangays` DISABLE KEYS */;
+INSERT INTO `barangays` VALUES (1,8,'Ol-og (Sambawan)','Hon. Ramon Corpin','+63 917 111 2001'),(2,8,'Bato','Hon. Elena Tan','+63 917 111 2002'),(3,8,'Ermita','Hon. Lucas Del Rosario','+63 917 111 2003'),(4,5,'Cabibihan (Tinago)','Hon. Roberto Gomez','+63 918 222 3001'),(5,5,'Manlabang','Hon. Corazon Santos','+63 918 222 3002'),(6,2,'Sampao (Ulan-Ulan)','Hon. Mario Morales','+63 919 333 4001'),(7,2,'Iyusan','Hon. Teresa Cruz','+63 919 333 4002'),(8,2,'Kawayanon','Hon. Daniel Navarro','+63 919 333 4003'),(9,1,'P.I. Garcia','Hon. Fernando Perez','+63 920 444 5001'),(10,1,'Smo. Rosario (Higatangan)','Hon. Gabriel Lim','+63 920 444 5002'),(11,7,'Busali','Hon. Gloria Bautista','+63 921 555 6001'),(12,3,'Baganito','Hon. Angela Rivera','+63 922 666 7001');
+/*!40000 ALTER TABLE `barangays` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `booking_service_items`
+--
+
+DROP TABLE IF EXISTS `booking_service_items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `booking_service_items` (
+  `item_id` int NOT NULL AUTO_INCREMENT,
+  `booking_id` int NOT NULL,
+  `service_id` int NOT NULL,
+  `stakeholder_id` int NOT NULL,
+  `scheduled_time` datetime DEFAULT NULL,
+  `unit_price` decimal(10,2) NOT NULL,
+  `quantity` int NOT NULL DEFAULT '1',
+  `subtotal` decimal(10,2) NOT NULL,
+  `status` enum('PENDING','ACCEPTED','REJECTED','COMPLETED') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PENDING',
+  PRIMARY KEY (`item_id`),
+  KEY `booking_id` (`booking_id`),
+  KEY `service_id` (`service_id`),
+  KEY `stakeholder_id` (`stakeholder_id`),
+  CONSTRAINT `booking_service_items_ibfk_1` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`booking_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `booking_service_items_ibfk_2` FOREIGN KEY (`service_id`) REFERENCES `tourism_services` (`service_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `booking_service_items_ibfk_3` FOREIGN KEY (`stakeholder_id`) REFERENCES `stakeholder_profiles` (`profile_id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `booking_service_items`
+--
+
+LOCK TABLES `booking_service_items` WRITE;
+/*!40000 ALTER TABLE `booking_service_items` DISABLE KEYS */;
+INSERT INTO `booking_service_items` VALUES (6,10,5,3,NULL,3000.00,1,3000.00,'PENDING'),(7,11,1,1,NULL,1500.00,1,1500.00,'ACCEPTED'),(8,11,4,2,NULL,2000.00,1,2000.00,'PENDING'),(9,12,1,1,NULL,1500.00,1,1500.00,'ACCEPTED'),(10,12,4,2,NULL,2000.00,1,2000.00,'PENDING'),(11,13,3,2,NULL,800.00,2,1600.00,'PENDING'),(12,14,1,1,NULL,1500.00,1,1500.00,'ACCEPTED'),(13,14,4,2,NULL,2000.00,1,2000.00,'PENDING'),(14,15,1,1,NULL,1500.00,1,1500.00,'ACCEPTED'),(15,15,4,2,NULL,2000.00,1,2000.00,'PENDING'),(16,16,3,2,NULL,800.00,2,1600.00,'PENDING'),(17,16,6,3,NULL,2200.00,1,2200.00,'PENDING');
+/*!40000 ALTER TABLE `booking_service_items` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `bookings`
+--
+
+DROP TABLE IF EXISTS `bookings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `bookings` (
+  `booking_id` int NOT NULL AUTO_INCREMENT,
+  `booking_reference` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `tourist_id` int NOT NULL,
+  `package_id` int DEFAULT NULL,
+  `booking_date` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `travel_date_start` date NOT NULL,
+  `travel_date_end` date NOT NULL,
+  `number_of_pax` int NOT NULL DEFAULT '1',
+  `total_amount` decimal(10,2) NOT NULL,
+  `status` enum('PENDING','ACCEPTED','CONFIRMED','COMPLETED','CANCELLED','REJECTED') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PENDING',
+  `custom_notes` text COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`booking_id`),
+  UNIQUE KEY `booking_reference` (`booking_reference`),
+  KEY `package_id` (`package_id`),
+  KEY `idx_bookings_tourist` (`tourist_id`),
+  KEY `idx_bookings_status` (`status`),
+  KEY `idx_bookings_dates` (`travel_date_start`,`travel_date_end`),
+  CONSTRAINT `bookings_ibfk_1` FOREIGN KEY (`tourist_id`) REFERENCES `tourist_profiles` (`profile_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `bookings_ibfk_2` FOREIGN KEY (`package_id`) REFERENCES `tourism_packages` (`package_id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `bookings`
+--
+
+LOCK TABLES `bookings` WRITE;
+/*!40000 ALTER TABLE `bookings` DISABLE KEYS */;
+INSERT INTO `bookings` VALUES (1,'LL-2026-0001',1,1,'2026-02-15 02:00:00','2026-03-20','2026-03-21',4,7400.00,'COMPLETED','Group of 4 photography enthusiasts, requesting sunset trek at Sambawan hill.','2026-11-11 11:43:26','2026-11-11 11:43:26'),(2,'LL-2026-0002',1,2,'2026-03-01 06:30:00','2026-04-10','2026-04-10',2,2500.00,'CONFIRMED','Vegetarian lunch request for one guest.','2026-11-11 11:43:26','2026-11-11 11:43:26'),(3,'LL-2026-0003',1,NULL,'2026-03-05 01:15:00','2026-04-18','2026-04-18',3,2100.00,'ACCEPTED','Custom booking: Habal-habal tour plus Pottery workshop.','2026-11-11 11:43:26','2026-11-12 02:16:17'),(10,'LL-2026-1531',1,NULL,'2026-11-11 13:36:33','2026-11-11','2026-11-12',2,3000.00,'CONFIRMED','Custom Community Circuit: ','2026-11-11 13:36:33','2026-11-15 03:59:52'),(11,'LL-2026-2635',1,NULL,'2026-11-12 03:25:18','2026-11-17','2026-11-19',2,3500.00,'COMPLETED','Phase 1 Co-op multi-stakeholder booking test','2026-11-12 03:25:18','2026-11-12 03:25:18'),(12,'LL-2026-7851',1,NULL,'2026-11-12 03:27:33','2026-11-17','2026-11-19',2,3500.00,'COMPLETED','Phase 1 Co-op multi-stakeholder booking test','2026-11-12 03:27:33','2026-11-12 03:27:34'),(13,'LL-2026-4775',1,NULL,'2026-11-12 03:28:35','2026-11-12','2026-11-13',2,1600.00,'ACCEPTED','Custom Community Circuit: ','2026-11-12 03:28:35','2026-11-12 03:29:11'),(14,'LL-2026-2160',1,NULL,'2026-11-12 03:29:57','2026-11-17','2026-11-19',2,3500.00,'COMPLETED','Phase 1 Co-op multi-stakeholder booking test','2026-11-12 03:29:57','2026-11-12 03:29:57'),(15,'LL-2026-6291',1,NULL,'2026-11-15 01:53:59','2026-11-20','2026-11-22',2,3500.00,'COMPLETED','Phase 1 Co-op multi-stakeholder booking test','2026-11-15 01:53:59','2026-11-15 01:53:59'),(16,'LL-2026-9113',3,NULL,'2026-11-19 22:44:43','2026-11-21','2026-11-26',2,3800.00,'ACCEPTED','Custom Community Circuit: ','2026-11-19 22:44:43','2026-11-19 22:48:33');
+/*!40000 ALTER TABLE `bookings` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `destinations`
+--
+
+DROP TABLE IF EXISTS `destinations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `destinations` (
+  `destination_id` int NOT NULL AUTO_INCREMENT,
+  `barangay_id` int NOT NULL,
+  `name` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `category` enum('WATERFALL','ISLAND_BEACH','HOT_SPRING','CULTURAL_HERITAGE','CAVE_MOUNTAIN') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `entrance_fee` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `operating_hours` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT '6:00 AM - 5:00 PM',
+  `location_coordinates` varchar(80) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `contact_info` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `image_url` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` enum('ACTIVE','UNDER_MAINTENANCE','CLOSED') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ACTIVE',
+  `validated_by` int DEFAULT NULL,
+  `validated_at` datetime DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`destination_id`),
+  KEY `validated_by` (`validated_by`),
+  KEY `idx_destinations_barangay` (`barangay_id`),
+  KEY `idx_destinations_category` (`category`),
+  CONSTRAINT `destinations_ibfk_1` FOREIGN KEY (`barangay_id`) REFERENCES `barangays` (`barangay_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `destinations_ibfk_2` FOREIGN KEY (`validated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `destinations`
+--
+
+LOCK TABLES `destinations` WRITE;
+/*!40000 ALTER TABLE `destinations` DISABLE KEYS */;
+INSERT INTO `destinations` VALUES (1,1,'Sambawan Island Marine Sanctuary','ISLAND_BEACH','A world-class semi-curved island paradise featuring rocky volcanic peaks, pristine white sand beaches, rich coral marine sanctuary, and a scenic observation tower.',120.00,'Open 24 Hours (Overnight Camping Available)','11.6025, 124.2628','maripipi.tourism@biliran.gov.ph','sambawan_island.jpg','ACTIVE',1,'2026-01-10 10:00:00','2026-11-11 11:43:26'),(2,4,'Tinago Falls Eco-Park','WATERFALL','A majestic waterfall gracefully cascading into a deep, turquoise blue natural pool framed by lush jungle foliage and wooden picnic cottages.',50.00,'7:00 AM - 5:00 PM','11.5367, 124.5244','tinago.caibiran@biliran.gov.ph','tinago_falls.jpg','ACTIVE',1,'2026-01-10 10:00:00','2026-11-11 11:43:26'),(3,6,'Ulan-Ulan Falls','WATERFALL','A 25-meter roaring waterfall whose spray resembles a gentle rain shower (ulan), nestled in a tropical ravine perfect for nature enthusiasts.',40.00,'6:30 AM - 4:30 PM','11.5839, 124.4172','almeria.tourism@biliran.gov.ph','ulan_ulan_falls.jpg','ACTIVE',1,'2026-01-10 10:00:00','2026-11-11 11:43:26'),(4,10,'Higatangan Island & Shifting Sandbar','ISLAND_BEACH','An island marvel featuring a 200-meter white sandbar that magically shifts direction with ocean tides, clear snorkeling waters, and volcanic rock formations.',80.00,'6:00 AM - 6:00 PM','11.5647, 124.2811','naval.tourism@biliran.gov.ph','higatangan_sandbar.jpg','ACTIVE',1,'2026-01-10 10:00:00','2026-11-11 11:43:26'),(5,5,'Mainit Hot Spring','HOT_SPRING','Natural therapeutic mineral hot springs flowing down a geothermal river bed with temperature pools designed for relaxation and healing.',40.00,'7:00 AM - 7:00 PM','11.5511, 124.5422','caibiran.hotspring@biliran.gov.ph','mainit_spring.jpg','ACTIVE',1,'2026-01-10 10:00:00','2026-11-11 11:43:26'),(6,7,'Iyusan Rice Terraces','CULTURAL_HERITAGE','Spectacular centuries-old stone-walled rice terraces carved onto verdant mountain slopes reflecting community agricultural heritage.',25.00,'6:00 AM - 5:30 PM','11.5714, 124.4022','iyusan.brgy@almeria.gov.ph','iyusan_terraces.jpg','ACTIVE',1,'2026-01-10 10:00:00','2026-11-11 11:43:26'),(7,2,'Maripipi Pottery & Cultural Village','CULTURAL_HERITAGE','Traditional community hub where generational pottery artisans mold natural red clay pots (daba) and clay ovens using indigenous techniques.',30.00,'8:00 AM - 4:00 PM','11.7708, 124.3411','maripipi.artisan@biliran.gov.ph','maripipi_pottery.jpg','ACTIVE',1,'2026-01-10 10:00:00','2026-11-11 11:43:26'),(8,6,'Reco Falls','WATERFALL','A serene and tranquil swimming hole located upstream from Ulan-Ulan falls, offering calm emerald waters and natural diving ledges.',30.00,'7:00 AM - 4:30 PM','11.5894, 124.4219','almeria.tourism@biliran.gov.ph','reco_falls.jpg','ACTIVE',1,'2026-01-10 10:00:00','2026-11-11 11:43:26');
+/*!40000 ALTER TABLE `destinations` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `municipalities`
+--
+
+DROP TABLE IF EXISTS `municipalities`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `municipalities` (
+  `municipality_id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `province` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Biliran',
+  `zip_code` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`municipality_id`),
+  UNIQUE KEY `name` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `municipalities`
+--
+
+LOCK TABLES `municipalities` WRITE;
+/*!40000 ALTER TABLE `municipalities` DISABLE KEYS */;
+INSERT INTO `municipalities` VALUES (1,'Naval','Biliran','6560'),(2,'Almeria','Biliran','6561'),(3,'Kawayan','Biliran','6562'),(4,'Culaba','Biliran','6563'),(5,'Caibiran','Biliran','6564'),(6,'Cabucgayan','Biliran','6565'),(7,'Biliran','Biliran','6566'),(8,'Maripipi','Biliran','6567');
+/*!40000 ALTER TABLE `municipalities` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `package_destinations`
+--
+
+DROP TABLE IF EXISTS `package_destinations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `package_destinations` (
+  `package_id` int NOT NULL,
+  `destination_id` int NOT NULL,
+  `visit_order` int NOT NULL DEFAULT '1',
+  PRIMARY KEY (`package_id`,`destination_id`),
+  KEY `destination_id` (`destination_id`),
+  CONSTRAINT `package_destinations_ibfk_1` FOREIGN KEY (`package_id`) REFERENCES `tourism_packages` (`package_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `package_destinations_ibfk_2` FOREIGN KEY (`destination_id`) REFERENCES `destinations` (`destination_id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `package_destinations`
+--
+
+LOCK TABLES `package_destinations` WRITE;
+/*!40000 ALTER TABLE `package_destinations` DISABLE KEYS */;
+INSERT INTO `package_destinations` VALUES (1,1,1),(2,2,1),(2,3,2),(2,8,3),(3,4,1),(4,7,1);
+/*!40000 ALTER TABLE `package_destinations` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `package_services`
+--
+
+DROP TABLE IF EXISTS `package_services`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `package_services` (
+  `package_id` int NOT NULL,
+  `service_id` int NOT NULL,
+  PRIMARY KEY (`package_id`,`service_id`),
+  KEY `service_id` (`service_id`),
+  CONSTRAINT `package_services_ibfk_1` FOREIGN KEY (`package_id`) REFERENCES `tourism_packages` (`package_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `package_services_ibfk_2` FOREIGN KEY (`service_id`) REFERENCES `tourism_services` (`service_id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `package_services`
+--
+
+LOCK TABLES `package_services` WRITE;
+/*!40000 ALTER TABLE `package_services` DISABLE KEYS */;
+INSERT INTO `package_services` VALUES (1,1),(2,2),(2,3),(1,5),(3,6),(4,9);
+/*!40000 ALTER TABLE `package_services` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `permissions`
+--
+
+DROP TABLE IF EXISTS `permissions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `permissions` (
+  `permission_id` int NOT NULL AUTO_INCREMENT,
+  `permission_code` varchar(60) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `module` varchar(40) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`permission_id`),
+  UNIQUE KEY `permission_code` (`permission_code`)
+) ENGINE=InnoDB AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `permissions`
+--
+
+LOCK TABLES `permissions` WRITE;
+/*!40000 ALTER TABLE `permissions` DISABLE KEYS */;
+INSERT INTO `permissions` VALUES (1,'DESTINATION_VIEW','DESTINATIONS','View published eco-destinations and tourist spots'),(2,'DESTINATION_CREATE','DESTINATIONS','Register and publish new tourism destinations in Biliran'),(3,'DESTINATION_UPDATE','DESTINATIONS','Modify destination details, entrance fees, and descriptions'),(4,'DESTINATION_DELETE','DESTINATIONS','Remove or archive destination records'),(5,'DESTINATION_VALIDATE','DESTINATIONS','Validate and endorse destination within authorized jurisdiction'),(6,'PACKAGE_VIEW','PACKAGES','Browse community-curated tour circuits and packages'),(7,'PACKAGE_CREATE','PACKAGES','Create new community tourism packages and itinerary circuits'),(8,'PACKAGE_UPDATE','PACKAGES','Edit package pricing, itinerary inclusions, and durations'),(9,'PACKAGE_DELETE','PACKAGES','Remove or archive community travel packages'),(10,'SERVICE_VIEW','SERVICES','View accredited stakeholder rate cards and services'),(11,'SERVICE_MANAGE_OWN','SERVICES','Manage, create, and update own stakeholder service offerings'),(12,'SERVICE_MANAGE_ALL','SERVICES','Manage, edit, or adjust all stakeholder services province-wide'),(13,'STAKEHOLDER_VIEW','STAKEHOLDERS','Access verified stakeholder registry and contact details'),(14,'STAKEHOLDER_MANAGE_OWN','STAKEHOLDERS','Manage personal stakeholder business profile'),(15,'STAKEHOLDER_VERIFY','STAKEHOLDERS','Conduct verification, inspect documents, and endorse local stakeholders'),(16,'BOOKING_CREATE','BOOKINGS','Submit custom and pre-designed travel bookings'),(17,'BOOKING_VIEW_OWN','BOOKINGS','View own tourist reservations or stakeholder assigned bookings'),(18,'BOOKING_VIEW_JURISDICTION','BOOKINGS','View bookings for attractions and services within assigned jurisdiction'),(19,'BOOKING_VIEW_ALL','BOOKINGS','View all provincial bookings and reservations'),(20,'BOOKING_UPDATE_STATUS','BOOKINGS','Accept, reject, confirm, or complete booking items'),(21,'REVIEW_VIEW','REVIEWS','Read traveler feedback and ratings'),(22,'REVIEW_CREATE','REVIEWS','Submit reviews and ratings for verified travel bookings'),(23,'REVIEW_MANAGE','REVIEWS','Moderate and manage published user reviews'),(24,'ANNOUNCEMENT_VIEW','ANNOUNCEMENTS','Read provincial travel advisories and weather alerts'),(25,'ANNOUNCEMENT_PUBLISH','ANNOUNCEMENTS','Draft and broadcast provincial travel announcements'),(26,'ANNOUNCEMENT_DELETE','ANNOUNCEMENTS','Delete expired announcements'),(27,'REPORT_RECORD_ARRIVAL','REPORTS','Log tourist footfall and carrying-capacity headcounts'),(28,'REPORT_VIEW_BARANGAY','REPORTS','Access barangay footfall records and carrying-capacity indicators'),(29,'REPORT_VIEW_MUNICIPALITY','REPORTS','Access municipal consolidated tourism statistics'),(30,'REPORT_VIEW_PROVINCIAL','REPORTS','Access province-wide arrival statistics, trends, and analytics'),(31,'USER_MANAGE','ADMINISTRATION','Manage user accounts, assign roles, and handle account status'),(32,'AUDIT_VIEW','ADMINISTRATION','Inspect immutable security audit logs'),(33,'DATABASE_MANAGE','ADMINISTRATION','Generate database snapshots and perform maintenance');
+/*!40000 ALTER TABLE `permissions` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `reviews`
+--
+
+DROP TABLE IF EXISTS `reviews`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `reviews` (
+  `review_id` int NOT NULL AUTO_INCREMENT,
+  `booking_id` int NOT NULL,
+  `tourist_id` int NOT NULL,
+  `target_type` enum('PACKAGE','STAKEHOLDER','DESTINATION') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `target_id` int NOT NULL,
+  `rating` int NOT NULL,
+  `comment` text COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`review_id`),
+  KEY `booking_id` (`booking_id`),
+  KEY `tourist_id` (`tourist_id`),
+  CONSTRAINT `reviews_ibfk_1` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`booking_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `reviews_ibfk_2` FOREIGN KEY (`tourist_id`) REFERENCES `tourist_profiles` (`profile_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `reviews_chk_1` CHECK ((`rating` between 1 and 5))
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `reviews`
+--
+
+LOCK TABLES `reviews` WRITE;
+/*!40000 ALTER TABLE `reviews` DISABLE KEYS */;
+INSERT INTO `reviews` VALUES (1,1,1,'PACKAGE',1,5,'Sambawan Island is sheer paradise! The boat ride was smooth, our guide Kuya Pedro took magnificent photos, and the seafood boodle fight was delicious!','2026-03-22 00:30:00'),(2,1,1,'STAKEHOLDER',1,5,'Kuya Pedro is very knowledgeable about the coral reefs and ensured all of us wore life jackets while snorkeling. Truly community-based excellence!','2026-03-22 00:35:00'),(3,1,1,'DESTINATION',1,5,'The view from the Sambawan hill at sunrise took our breath away. Clean facilities and well-maintained trail.','2026-03-22 00:40:00'),(9,1,1,'PACKAGE',1,3,'good','2026-11-11 13:37:11'),(10,11,1,'STAKEHOLDER',1,5,'Pedro provided an exceptional guided tour of Sambawan and Biliran waterfalls!','2026-11-12 03:25:18'),(11,12,1,'STAKEHOLDER',1,5,'Pedro provided an exceptional guided tour of Sambawan and Biliran waterfalls!','2026-11-12 03:27:34'),(12,14,1,'STAKEHOLDER',1,5,'Pedro provided an exceptional guided tour of Sambawan and Biliran waterfalls!','2026-11-12 03:29:57'),(13,15,1,'STAKEHOLDER',1,5,'Pedro provided an exceptional guided tour of Sambawan and Biliran waterfalls!','2026-11-15 01:53:59');
+/*!40000 ALTER TABLE `reviews` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `role_permissions`
+--
+
+DROP TABLE IF EXISTS `role_permissions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `role_permissions` (
+  `role_id` int NOT NULL,
+  `permission_id` int NOT NULL,
+  PRIMARY KEY (`role_id`,`permission_id`),
+  KEY `permission_id` (`permission_id`),
+  CONSTRAINT `role_permissions_ibfk_1` FOREIGN KEY (`role_id`) REFERENCES `roles` (`role_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `role_permissions_ibfk_2` FOREIGN KEY (`permission_id`) REFERENCES `permissions` (`permission_id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `role_permissions`
+--
+
+LOCK TABLES `role_permissions` WRITE;
+/*!40000 ALTER TABLE `role_permissions` DISABLE KEYS */;
+INSERT INTO `role_permissions` VALUES (1,1),(2,1),(3,1),(4,1),(5,1),(6,1),(1,2),(2,2),(1,3),(2,3),(1,4),(2,4),(1,5),(2,5),(4,5),(1,6),(2,6),(3,6),(4,6),(5,6),(6,6),(1,7),(2,7),(1,8),(2,8),(1,9),(2,9),(1,10),(2,10),(3,10),(4,10),(5,10),(6,10),(1,11),(5,11),(1,12),(2,12),(1,13),(2,13),(3,13),(4,13),(5,13),(6,13),(1,14),(5,14),(1,15),(4,15),(1,16),(6,16),(1,17),(5,17),(6,17),(1,18),(3,18),(4,18),(1,19),(2,19),(1,20),(5,20),(1,21),(2,21),(3,21),(4,21),(5,21),(6,21),(1,22),(6,22),(1,23),(2,23),(1,24),(2,24),(3,24),(4,24),(5,24),(6,24),(1,25),(2,25),(1,26),(2,26),(1,27),(2,27),(3,27),(4,27),(1,28),(2,28),(3,28),(4,28),(1,29),(2,29),(3,29),(1,30),(2,30),(1,31),(1,32),(1,33);
+/*!40000 ALTER TABLE `role_permissions` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `roles`
+--
+
+DROP TABLE IF EXISTS `roles`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `roles` (
+  `role_id` int NOT NULL AUTO_INCREMENT,
+  `role_code` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `role_name` varchar(60) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`role_id`),
+  UNIQUE KEY `role_code` (`role_code`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `roles`
+--
+
+LOCK TABLES `roles` WRITE;
+/*!40000 ALTER TABLE `roles` DISABLE KEYS */;
+INSERT INTO `roles` VALUES (1,'SYSTEM_ADMIN','System Administrator','Full administrative authority across all modules, roles, security, and databases.'),(2,'TOURISM_OFFICE','Tourism Office Officer','Province-wide promotion, announcements, arrival trend analytics, and project supervision.'),(3,'LGU_OFFICER','Local Government Unit Officer','Municipal-level tourism monitoring, inter-barangay coordination, and consolidated reporting.'),(4,'BARANGAY_OFFICIAL','Barangay Official','Local stakeholder verification, attraction validation, footfall logging, and barangay records.'),(5,'STAKEHOLDER','Local Tourism Stakeholder','Community guides, drivers, boat operators, cooks, and artisans managing services and bookings.'),(6,'TOURIST','Tourist','Visitors exploring destinations, customizing packages, booking services, and leaving reviews.');
+/*!40000 ALTER TABLE `roles` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `stakeholder_profiles`
+--
+
+DROP TABLE IF EXISTS `stakeholder_profiles`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `stakeholder_profiles` (
+  `profile_id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `barangay_id` int NOT NULL,
+  `business_name` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `category` enum('TOUR_GUIDE','TRANSPORT_DRIVER','BOAT_OPERATOR','LOCAL_COOK','ARTISAN') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `accreditation_no` varchar(60) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `contact_number` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `years_experience` int DEFAULT '1',
+  `verification_status` enum('PENDING','UNDER_REVIEW','NEEDS_CORRECTION','VERIFIED','REJECTED') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PENDING',
+  `verified_by` int DEFAULT NULL,
+  `verified_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`profile_id`),
+  UNIQUE KEY `user_id` (`user_id`),
+  KEY `verified_by` (`verified_by`),
+  KEY `idx_stakeholders_barangay` (`barangay_id`),
+  KEY `idx_stakeholders_status` (`verification_status`),
+  CONSTRAINT `stakeholder_profiles_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `stakeholder_profiles_ibfk_2` FOREIGN KEY (`barangay_id`) REFERENCES `barangays` (`barangay_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `stakeholder_profiles_ibfk_3` FOREIGN KEY (`verified_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `stakeholder_profiles`
+--
+
+LOCK TABLES `stakeholder_profiles` WRITE;
+/*!40000 ALTER TABLE `stakeholder_profiles` DISABLE KEYS */;
+INSERT INTO `stakeholder_profiles` VALUES (1,5,1,'Sambawan Island Eco-Trek \\u0026 Marine Guides','TOUR_GUIDE','DOT-R8-TG-2024-001','+63 928 111 8888',6,'VERIFIED',4,'2026-11-12 11:25:18'),(2,6,6,'Almeria Habal-Habal & Van Adventure Transport','TRANSPORT_DRIVER','LGU-ALM-TR-2025-014','+63 928 222 9999',4,'VERIFIED',4,'2026-02-10 14:00:00'),(3,7,1,'Maripipi Seafarers Motorized Pumpboat Cooperative','BOAT_OPERATOR','MARINA-EV-2024-099','+63 928 333 7777',10,'VERIFIED',4,'2026-01-20 11:15:00'),(4,8,4,'Nanay Luz Traditional Biliran Kakanin & Beach Feasts','LOCAL_COOK','BRGY-CAB-LK-2025-003','+63 928 444 6666',8,'VERIFIED',4,'2026-02-05 10:00:00'),(5,9,2,'Maripipi Heritage Clay Pottery & Woven Handicrafts','ARTISAN','DTI-BIL-ART-2024-042','+63 928 555 5555',12,'VERIFIED',4,'2026-01-18 16:45:00'),(8,19,1,'Lily\'s Pottery','ARTISAN','','',2,'VERIFIED',4,'2026-11-15 10:06:43'),(9,21,9,'Naval Heritage \\u0026 Island Tours 1db56f','TOUR_GUIDE','DOT-NAV-2026-01','+63 920 333 4444',5,'PENDING',NULL,NULL),(10,23,9,'Naval Heritage \\u0026 Island Tours 41793f','TOUR_GUIDE','DOT-NAV-2026-01','+63 920 333 4444',5,'PENDING',NULL,NULL),(11,24,1,'Olog Local Seafood \\u0026 Native Catering deba81','LOCAL_COOK','BRGY-OLOG-2026-001','+63 917 888 1234',4,'VERIFIED',4,'2026-11-15 09:53:58'),(12,25,9,'Naval Heritage \\u0026 Island Tours deba81','TOUR_GUIDE','DOT-NAV-2026-01','+63 920 333 4444',5,'PENDING',NULL,NULL);
+/*!40000 ALTER TABLE `stakeholder_profiles` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `system_settings`
+--
+
+DROP TABLE IF EXISTS `system_settings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `system_settings` (
+  `setting_key` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `setting_value` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`setting_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `system_settings`
+--
+
+LOCK TABLES `system_settings` WRITE;
+/*!40000 ALTER TABLE `system_settings` DISABLE KEYS */;
+INSERT INTO `system_settings` VALUES ('appName','Lakbay Lokal - Biliran Tourism Information System','2026-11-11 22:45:24'),('broadcastMsg','Welcome to Lakbay Lokal! Experience Biliran\\u0027s natural wonders responsibly.','2026-11-11 22:45:24'),('capacityThreshold','85','2026-11-15 01:54:59'),('currency','PHP (Philippine Peso ₱)','2026-11-11 22:45:24'),('province','Biliran Province, Region VIII, Philippines','2026-11-11 17:05:27');
+/*!40000 ALTER TABLE `system_settings` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `tourism_arrival_logs`
+--
+
+DROP TABLE IF EXISTS `tourism_arrival_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tourism_arrival_logs` (
+  `log_id` int NOT NULL AUTO_INCREMENT,
+  `destination_id` int NOT NULL,
+  `log_date` date NOT NULL,
+  `local_tourists_count` int NOT NULL DEFAULT '0',
+  `domestic_tourists_count` int NOT NULL DEFAULT '0',
+  `foreign_tourists_count` int NOT NULL DEFAULT '0',
+  `total_revenue` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `recorded_by` int NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`log_id`),
+  KEY `recorded_by` (`recorded_by`),
+  KEY `idx_arrival_logs_dest_date` (`destination_id`,`log_date`),
+  CONSTRAINT `tourism_arrival_logs_ibfk_1` FOREIGN KEY (`destination_id`) REFERENCES `destinations` (`destination_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `tourism_arrival_logs_ibfk_2` FOREIGN KEY (`recorded_by`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `tourism_arrival_logs`
+--
+
+LOCK TABLES `tourism_arrival_logs` WRITE;
+/*!40000 ALTER TABLE `tourism_arrival_logs` DISABLE KEYS */;
+INSERT INTO `tourism_arrival_logs` VALUES (1,1,'2026-03-01',45,120,18,21960.00,4,'2026-11-11 11:43:26'),(2,1,'2026-03-02',30,85,12,15240.00,4,'2026-11-11 11:43:26'),(3,2,'2026-03-01',60,140,5,10250.00,1,'2026-11-11 11:43:26'),(4,3,'2026-03-01',25,90,8,4920.00,1,'2026-11-11 11:43:26'),(5,4,'2026-03-01',20,65,4,7120.00,1,'2026-11-11 11:43:26'),(7,1,'2026-11-12',25,10,2,1500.00,4,'2026-11-12 03:25:18'),(8,1,'2026-11-12',12,8,3,950.00,4,'2026-11-12 03:27:33'),(9,1,'2026-11-12',12,8,3,950.00,4,'2026-11-12 03:29:57'),(10,1,'2026-11-15',12,8,3,950.00,4,'2026-11-15 01:53:59');
+/*!40000 ALTER TABLE `tourism_arrival_logs` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `tourism_packages`
+--
+
+DROP TABLE IF EXISTS `tourism_packages`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tourism_packages` (
+  `package_id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(140) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `package_type` enum('PRE_DESIGNED','CUSTOM') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PRE_DESIGNED',
+  `price_per_pax` decimal(10,2) NOT NULL,
+  `duration_days` int NOT NULL DEFAULT '1',
+  `min_pax` int NOT NULL DEFAULT '1',
+  `max_pax` int NOT NULL DEFAULT '15',
+  `inclusions` text COLLATE utf8mb4_unicode_ci,
+  `exclusions` text COLLATE utf8mb4_unicode_ci,
+  `status` enum('ACTIVE','DRAFT','ARCHIVED') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ACTIVE',
+  `image_url` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_by` int DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`package_id`),
+  KEY `created_by` (`created_by`),
+  CONSTRAINT `tourism_packages_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `tourism_packages`
+--
+
+LOCK TABLES `tourism_packages` WRITE;
+/*!40000 ALTER TABLE `tourism_packages` DISABLE KEYS */;
+INSERT INTO `tourism_packages` VALUES (1,'Sambawan Island Marine Paradise Escape','Experience Biliran’s premier marine sanctuary with roundtrip boat charter from Kawayan, hilltop viewpoint trek, snorkeling guide, and beach boodle feast.','PRE_DESIGNED',1850.00,2,4,10,'Boat charter, entrance fees, certified guide, camping tent/cottage, seafood lunch feast','Personal snacks, snorkeling gear rental','ACTIVE','package_sambawan.jpg',1,'2026-11-11 11:43:26'),(2,'Biliran Chasing Waterfalls Eco-Trek','A full-day thrilling adventure traversing Tinago Falls, Ulan-Ulan Falls, and Reco Falls with habal-habal transport and native lunch.','PRE_DESIGNED',1250.00,1,2,8,'Habal-habal transport, safety helmets, entrance fees to 3 falls, local trek guide, native lunch','Tips and personal souvenirs','ACTIVE','package_waterfalls.jpg',1,'2026-11-11 11:43:26'),(3,'Higatangan Shifting Sandbar & Heritage Cruise','Sail to Higatangan Island, walk the legendary shifting sandbar, and discover local weaving communities.','PRE_DESIGNED',1400.00,1,4,8,'Roundtrip chartered boat, environmental fee, seafood picnic, community guide','Alcoholic beverages','ACTIVE','package_higatangan.jpg',1,'2026-11-11 11:43:26'),(4,'Maripipi Artisan Culture & Pottery Immersion','Discover ancient pottery making in Bato, visit the historic watchtower, and sample authentic Maripipi delicacies.','PRE_DESIGNED',950.00,1,2,6,'Pottery clay workshop materials, local guide, afternoon native snack, village tour','Personal transport to Maripipi','ACTIVE','package_artisan.jpg',1,'2026-11-11 11:43:26');
+/*!40000 ALTER TABLE `tourism_packages` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `tourism_services`
+--
+
+DROP TABLE IF EXISTS `tourism_services`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tourism_services` (
+  `service_id` int NOT NULL AUTO_INCREMENT,
+  `stakeholder_id` int NOT NULL,
+  `service_name` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `service_category` enum('GUIDING','TRANSPORT','BOAT_CHARTER','FOOD_CATERING','HANDICRAFT') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text COLLATE utf8mb4_unicode_ci,
+  `base_price` decimal(10,2) NOT NULL,
+  `pricing_unit` enum('PER_PERSON','PER_GROUP','PER_TRIP','PER_ITEM') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PER_PERSON',
+  `max_capacity` int NOT NULL DEFAULT '1',
+  `is_available` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`service_id`),
+  KEY `stakeholder_id` (`stakeholder_id`),
+  CONSTRAINT `tourism_services_ibfk_1` FOREIGN KEY (`stakeholder_id`) REFERENCES `stakeholder_profiles` (`profile_id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `tourism_services`
+--
+
+LOCK TABLES `tourism_services` WRITE;
+/*!40000 ALTER TABLE `tourism_services` DISABLE KEYS */;
+INSERT INTO `tourism_services` VALUES (1,1,'Sambawan Marine Sanctuary Snorkel & Viewpoint Guide','GUIDING','Guided trek to the iconic Sambawan hill viewpoint and certified coral reef snorkeling orientation.',500.00,'PER_GROUP',6,1,'2026-11-11 11:43:26'),(2,1,'Ulan-Ulan & Reco Falls Canyon Trekking Guide','GUIDING','Expert guided jungle trek navigating the lush rainforest trails of Sampao waterfalls.',600.00,'PER_GROUP',5,1,'2026-11-11 11:43:26'),(3,2,'Biliran Waterfalls Circuit Habal-Habal Tour (Driver & Fuel)','TRANSPORT','Full-day motorcycle transport with helmet covering Tinago, Ulan-Ulan, and Iyusan terraces.',800.00,'PER_PERSON',1,0,'2026-11-11 11:43:26'),(4,2,'Naval to Kawayan / Caibiran Tourist Van Transfer','TRANSPORT','Air-conditioned van charter for group transfers across mainland Biliran destinations.',2500.00,'PER_TRIP',12,1,'2026-11-11 11:43:26'),(5,3,'Kawayan Port to Sambawan Island Roundtrip Boat Charter','BOAT_CHARTER','Coast Guard approved motorized pumpboat with life vests for up to 10 passengers.',3000.00,'PER_TRIP',10,1,'2026-11-11 11:43:26'),(6,3,'Naval Port to Higatangan Shifting Sandbar Island Boat Charter','BOAT_CHARTER','Roundtrip scenic boat crossing to Higatangan with crystal clear waters and sandbar.',2200.00,'PER_TRIP',8,1,'2026-11-11 11:43:26'),(8,4,'Traditional Biliran Suman & Native Hot Chocolate Breakfast','FOOD_CATERING','Authentic sticky rice roll with latik syrup paired with artisanal tablea hot cocoa.',150.00,'PER_PERSON',15,1,'2026-11-11 11:43:26'),(9,5,'Traditional Maripipi Terracotta Pottery Workshop','HANDICRAFT','Hands-on molding experience using local Maripipi clay led by master local potters.',400.00,'PER_PERSON',8,1,'2026-11-11 11:43:26');
+/*!40000 ALTER TABLE `tourism_services` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `tourist_profiles`
+--
+
+DROP TABLE IF EXISTS `tourist_profiles`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tourist_profiles` (
+  `profile_id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `origin_city` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `nationality` varchar(60) COLLATE utf8mb4_unicode_ci DEFAULT 'Filipino',
+  `emergency_contact` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `emergency_phone` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `travel_preferences` text COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`profile_id`),
+  UNIQUE KEY `user_id` (`user_id`),
+  CONSTRAINT `tourist_profiles_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `tourist_profiles`
+--
+
+LOCK TABLES `tourist_profiles` WRITE;
+/*!40000 ALTER TABLE `tourist_profiles` DISABLE KEYS */;
+INSERT INTO `tourist_profiles` VALUES (1,10,'Cebu City','Filipino','Marco Cortez (Father)','+63 915 888 4444','Eco-tourism, island hopping, waterfall trekking, cultural handicraft exploration'),(2,11,'Tacloban','Filipino',NULL,NULL,NULL),(3,42,'Talisay,Cebu','Filipino',NULL,NULL,NULL);
+/*!40000 ALTER TABLE `tourist_profiles` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `users`
+--
+
+DROP TABLE IF EXISTS `users`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `users` (
+  `user_id` int NOT NULL AUTO_INCREMENT,
+  `username` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `password_hash` varchar(128) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `salt` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `full_name` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `phone` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `role_id` int NOT NULL,
+  `barangay_id` int DEFAULT NULL,
+  `municipality_id` int DEFAULT NULL,
+  `status` enum('ACTIVE','PENDING_APPROVAL','DEACTIVATED') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ACTIVE',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_id`),
+  UNIQUE KEY `username` (`username`),
+  UNIQUE KEY `email` (`email`),
+  KEY `barangay_id` (`barangay_id`),
+  KEY `idx_users_role` (`role_id`),
+  KEY `idx_users_status` (`status`),
+  KEY `fk_user_municipality` (`municipality_id`),
+  CONSTRAINT `fk_user_municipality` FOREIGN KEY (`municipality_id`) REFERENCES `municipalities` (`municipality_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `users_ibfk_1` FOREIGN KEY (`role_id`) REFERENCES `roles` (`role_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `users_ibfk_2` FOREIGN KEY (`barangay_id`) REFERENCES `barangays` (`barangay_id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=43 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `users`
+--
+
+LOCK TABLES `users` WRITE;
+/*!40000 ALTER TABLE `users` DISABLE KEYS */;
+INSERT INTO `users` VALUES (1,'admin','pbkdf2$65536$cdcd7bb1ae36d588d84ab8c05f48c53d18cf39feb571b06e53c36874a61a1c66','0c7b56606c114a','admin@lakbaylokal.gov.ph','Administrator Maria Santos','+63 917 000 0001',1,9,1,'ACTIVE','2026-11-11 11:43:25','2026-11-19 13:36:04'),(2,'tourismoffice','pbkdf2$65536$6261f7135dad74b0afb00a6124edb48f5990953b15d4ee2519b5c4c87b225be5','lakbaysalt2026','tourism@biliran.gov.ph','Director Eduardo Reyes','+63 917 000 0002',2,9,1,'ACTIVE','2026-11-11 11:43:25','2026-11-12 02:58:35'),(3,'lgu_naval','pbkdf2$65536$6261f7135dad74b0afb00a6124edb48f5990953b15d4ee2519b5c4c87b225be5','lakbaysalt2026','lgu.naval@biliran.gov.ph','Officer Katrina Gonzales','+63 917 000 0003',3,9,1,'ACTIVE','2026-11-11 11:43:25','2026-11-11 13:23:44'),(4,'brgy_olog','pbkdf2$65536$6261f7135dad74b0afb00a6124edb48f5990953b15d4ee2519b5c4c87b225be5','lakbaysalt2026','brgy.olog@maripipi.gov.ph','Captain Ramon Corpin','+63 917 111 2001',4,1,8,'ACTIVE','2026-11-11 11:43:25','2026-11-12 02:58:35'),(5,'guide_pedro','pbkdf2$65536$6261f7135dad74b0afb00a6124edb48f5990953b15d4ee2519b5c4c87b225be5','lakbaysalt2026','pedro.guide@gmail.com','Pedro Penduko','+63 928 111 8888',5,1,8,'ACTIVE','2026-11-11 11:43:25','2026-11-12 02:58:35'),(6,'driver_juan','8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6','lakbaysalt2026','juan.transpo@gmail.com','Juan Dela Cruz','+63 928 222 9999',5,6,2,'ACTIVE','2026-11-11 11:43:25','2026-11-12 02:58:35'),(7,'boat_capitan','8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6','lakbaysalt2026','maripipi.boats@gmail.com','Capitan Danilo Flores','+63 928 333 7777',5,1,8,'ACTIVE','2026-11-11 11:43:25','2026-11-12 02:58:35'),(8,'cook_nanay_luz','8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6','lakbaysalt2026','nanayluz.catering@gmail.com','Luzviminda Ocampo','+63 928 444 6666',5,4,5,'ACTIVE','2026-11-11 11:43:25','2026-11-12 02:58:35'),(9,'artisan_rosa','8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6','lakbaysalt2026','maripipi.pottery@gmail.com','Rosa Mangahas','+63 928 555 5555',5,2,8,'ACTIVE','2026-11-11 11:43:25','2026-11-12 02:58:35'),(10,'tourist_ana','pbkdf2$65536$6261f7135dad74b0afb00a6124edb48f5990953b15d4ee2519b5c4c87b225be5','lakbaysalt2026','ana.tourist@gmail.com','Ana Sophia Cortez','+63 915 777 3333',6,NULL,NULL,'ACTIVE','2026-11-11 11:43:25','2026-11-11 13:23:45'),(11,'lexey','pbkdf2$65536$7eb1725075ca135e876c4399f712b28c30f1ec9d7126888f2875005f5e73e138','8277d85f2acc1ef1fc35b6e4d6a41184','romanialexa@gmail.com','Alexa Romania','+639262333060',6,NULL,NULL,'ACTIVE','2026-11-11 12:38:25','2026-11-11 13:44:45'),(19,'Artisan','pbkdf2$65536$7d6abdf1fd1120919a2acbe0b49266be92f2b4a2386d0e9c87d12732db561933','24015a7f42f411bee87d80a28a9a94f6','betaartisan@gmail.com','Beta Sabang','',5,1,8,'ACTIVE','2026-11-12 02:10:49','2026-11-12 02:58:35'),(20,'olog_host_1db56f','pbkdf2$65536$00f824dcef2bc35e7cd32d70d71d17d8ad9c3e53354fe038ce309514a3b6a33d','5eb65a0f6334cba04e7776360c271a73','olog_1db56f@test.ph','Maria Olog Host','+63 917 888 1234',5,1,8,'ACTIVE','2026-11-12 03:27:33','2026-11-12 03:29:56'),(21,'naval_guide_1db56f','pbkdf2$65536$26583d114eb5255ed55ad2481c8834cc64b733c7cecd20de527461dbec8a8525','8c4972e142320de01206f4c79ecc0781','naval_1db56f@test.ph','Naval Local Tour Specialist','+63 920 333 4444',5,9,1,'ACTIVE','2026-11-12 03:27:33','2026-11-12 03:29:56'),(22,'olog_host_41793f','pbkdf2$65536$4aa67942b668c58c859403f488cc0deeb62ee068dc86c7b6830eac4af34974d8','0958b052cefc838a495d9639b4df151c','olog_41793f@test.ph','Maria Olog Host','+63 917 888 1234',5,1,8,'ACTIVE','2026-11-12 03:29:57','2026-11-12 03:31:05'),(23,'naval_guide_41793f','pbkdf2$65536$3878aa74626cbb97651905485ba5e6f140a0603b0e82583d109a3363256baad7','448bc5323d8582a667fda11d30b4a4a4','naval_41793f@test.ph','Naval Local Tour Specialist','+63 920 333 4444',5,9,1,'ACTIVE','2026-11-12 03:29:57','2026-11-12 03:31:05'),(24,'olog_cook_deba81','pbkdf2$65536$11a2be33f93ae5973b68ef2b8ce268e797c26340c90a9e97bfbd7a158a60495f','855ab5d79135d55f916684798afcda41','olog_deba81@test.ph','Maria Olog Host','+63 917 888 1234',5,1,8,'ACTIVE','2026-11-15 01:53:58','2026-11-15 01:54:58'),(25,'naval_guide_deba81','pbkdf2$65536$f7fb7f24f8ed6f975c3f73d9cca14b5ba66b9950176055fe2fb721628b7dd7fa','f26237f688c22fb0b42036045ec7f2f5','naval_deba81@test.ph','Naval Local Tour Specialist','+63 920 333 4444',5,9,1,'ACTIVE','2026-11-15 01:53:58','2026-11-15 01:54:58'),(42,'daraxie','pbkdf2$65536$6c8fe3be99db53de82f3534a3360c119289db344a10898341a109a96123dd9ad','42ec11b413dadec3cf7cb34fe2d98ff7','dara@gmail.com','Darra Magallanes','09253470152',6,NULL,NULL,'ACTIVE','2026-11-19 21:45:00','2026-11-19 21:45:00');
+/*!40000 ALTER TABLE `users` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Temporary view structure for view `v_barangay_tourism_overview`
+--
+
+DROP TABLE IF EXISTS `v_barangay_tourism_overview`;
+/*!50001 DROP VIEW IF EXISTS `v_barangay_tourism_overview`*/;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `v_barangay_tourism_overview` AS SELECT 
+ 1 AS `barangay_id`,
+ 1 AS `barangay_name`,
+ 1 AS `municipality_name`,
+ 1 AS `contact_person`,
+ 1 AS `contact_number`,
+ 1 AS `total_destinations`,
+ 1 AS `total_stakeholders`,
+ 1 AS `verified_stakeholders`,
+ 1 AS `pending_stakeholders`*/;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Temporary view structure for view `v_destination_footfall_summary`
+--
+
+DROP TABLE IF EXISTS `v_destination_footfall_summary`;
+/*!50001 DROP VIEW IF EXISTS `v_destination_footfall_summary`*/;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `v_destination_footfall_summary` AS SELECT 
+ 1 AS `destination_id`,
+ 1 AS `destination_name`,
+ 1 AS `category`,
+ 1 AS `barangay_name`,
+ 1 AS `municipality_name`,
+ 1 AS `entrance_fee`,
+ 1 AS `status`,
+ 1 AS `total_local_visitors`,
+ 1 AS `total_domestic_visitors`,
+ 1 AS `total_foreign_visitors`,
+ 1 AS `grand_total_visitors`,
+ 1 AS `total_revenue_generated`,
+ 1 AS `average_rating`,
+ 1 AS `total_reviews_count`*/;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Temporary view structure for view `v_stakeholder_performance_summary`
+--
+
+DROP TABLE IF EXISTS `v_stakeholder_performance_summary`;
+/*!50001 DROP VIEW IF EXISTS `v_stakeholder_performance_summary`*/;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `v_stakeholder_performance_summary` AS SELECT 
+ 1 AS `profile_id`,
+ 1 AS `business_name`,
+ 1 AS `category`,
+ 1 AS `stakeholder_owner`,
+ 1 AS `barangay_name`,
+ 1 AS `municipality_name`,
+ 1 AS `verification_status`,
+ 1 AS `active_services_count`,
+ 1 AS `total_service_bookings`,
+ 1 AS `estimated_gross_income`,
+ 1 AS `average_rating`,
+ 1 AS `review_count`*/;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Table structure for table `verification_records`
+--
+
+DROP TABLE IF EXISTS `verification_records`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `verification_records` (
+  `verification_id` int NOT NULL AUTO_INCREMENT,
+  `stakeholder_id` int NOT NULL,
+  `barangay_id` int NOT NULL,
+  `reviewer_id` int NOT NULL,
+  `status` enum('PENDING','APPROVED','REJECTED','REQUEST_CORRECTION') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `requirements_submitted` text COLLATE utf8mb4_unicode_ci,
+  `remarks` text COLLATE utf8mb4_unicode_ci,
+  `decision_date` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`verification_id`),
+  KEY `stakeholder_id` (`stakeholder_id`),
+  KEY `barangay_id` (`barangay_id`),
+  KEY `reviewer_id` (`reviewer_id`),
+  CONSTRAINT `verification_records_ibfk_1` FOREIGN KEY (`stakeholder_id`) REFERENCES `stakeholder_profiles` (`profile_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `verification_records_ibfk_2` FOREIGN KEY (`barangay_id`) REFERENCES `barangays` (`barangay_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `verification_records_ibfk_3` FOREIGN KEY (`reviewer_id`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `verification_records`
+--
+
+LOCK TABLES `verification_records` WRITE;
+/*!40000 ALTER TABLE `verification_records` DISABLE KEYS */;
+INSERT INTO `verification_records` VALUES (3,1,1,4,'APPROVED',NULL,'Unauthorized cross-barangay evaluation attempt','2026-11-12 03:25:18'),(4,11,1,4,'APPROVED','Barangay Clearance, DTI Certificate, Sanitary Permit','Fully compliant with local ecotourism standards. Approved by Barangay Official.','2026-11-15 01:53:58'),(5,8,1,4,'APPROVED','Barangay clearance, valid government ID, training credentials submitted.','','2026-11-15 02:06:43');
+/*!40000 ALTER TABLE `verification_records` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Dumping events for database 'lakbay_lokal_db'
+--
+
+--
+-- Dumping routines for database 'lakbay_lokal_db'
+--
+
+--
+-- Current Database: `lakbay_lokal_db`
+--
+
+USE `lakbay_lokal_db`;
+
+--
+-- Final view structure for view `v_barangay_tourism_overview`
+--
+
+/*!50001 DROP VIEW IF EXISTS `v_barangay_tourism_overview`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_unicode_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v_barangay_tourism_overview` AS select `b`.`barangay_id` AS `barangay_id`,`b`.`name` AS `barangay_name`,`m`.`name` AS `municipality_name`,`b`.`contact_person` AS `contact_person`,`b`.`contact_number` AS `contact_number`,count(distinct `d`.`destination_id`) AS `total_destinations`,count(distinct `sp`.`profile_id`) AS `total_stakeholders`,count(distinct (case when (`sp`.`verification_status` = 'VERIFIED') then `sp`.`profile_id` end)) AS `verified_stakeholders`,count(distinct (case when (`sp`.`verification_status` = 'PENDING') then `sp`.`profile_id` end)) AS `pending_stakeholders` from (((`barangays` `b` join `municipalities` `m` on((`b`.`municipality_id` = `m`.`municipality_id`))) left join `destinations` `d` on((`b`.`barangay_id` = `d`.`barangay_id`))) left join `stakeholder_profiles` `sp` on((`b`.`barangay_id` = `sp`.`barangay_id`))) group by `b`.`barangay_id`,`b`.`name`,`m`.`name`,`b`.`contact_person`,`b`.`contact_number` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
+-- Final view structure for view `v_destination_footfall_summary`
+--
+
+/*!50001 DROP VIEW IF EXISTS `v_destination_footfall_summary`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_unicode_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v_destination_footfall_summary` AS select `d`.`destination_id` AS `destination_id`,`d`.`name` AS `destination_name`,`d`.`category` AS `category`,`b`.`name` AS `barangay_name`,`m`.`name` AS `municipality_name`,`d`.`entrance_fee` AS `entrance_fee`,`d`.`status` AS `status`,coalesce(sum(`al`.`local_tourists_count`),0) AS `total_local_visitors`,coalesce(sum(`al`.`domestic_tourists_count`),0) AS `total_domestic_visitors`,coalesce(sum(`al`.`foreign_tourists_count`),0) AS `total_foreign_visitors`,coalesce(sum(((`al`.`local_tourists_count` + `al`.`domestic_tourists_count`) + `al`.`foreign_tourists_count`)),0) AS `grand_total_visitors`,coalesce(sum(`al`.`total_revenue`),0) AS `total_revenue_generated`,coalesce(round(avg(`r`.`rating`),1),5.0) AS `average_rating`,count(distinct `r`.`review_id`) AS `total_reviews_count` from ((((`destinations` `d` join `barangays` `b` on((`d`.`barangay_id` = `b`.`barangay_id`))) join `municipalities` `m` on((`b`.`municipality_id` = `m`.`municipality_id`))) left join `tourism_arrival_logs` `al` on((`d`.`destination_id` = `al`.`destination_id`))) left join `reviews` `r` on(((`r`.`target_type` = 'DESTINATION') and (`r`.`target_id` = `d`.`destination_id`)))) group by `d`.`destination_id`,`d`.`name`,`d`.`category`,`b`.`name`,`m`.`name`,`d`.`entrance_fee`,`d`.`status` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
+-- Final view structure for view `v_stakeholder_performance_summary`
+--
+
+/*!50001 DROP VIEW IF EXISTS `v_stakeholder_performance_summary`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_unicode_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v_stakeholder_performance_summary` AS select `sp`.`profile_id` AS `profile_id`,`sp`.`business_name` AS `business_name`,`sp`.`category` AS `category`,`u`.`full_name` AS `stakeholder_owner`,`b`.`name` AS `barangay_name`,`m`.`name` AS `municipality_name`,`sp`.`verification_status` AS `verification_status`,count(distinct `ts`.`service_id`) AS `active_services_count`,count(distinct `bsi`.`item_id`) AS `total_service_bookings`,coalesce(sum(`bsi`.`subtotal`),0.00) AS `estimated_gross_income`,coalesce(round(avg(`r`.`rating`),1),5.0) AS `average_rating`,count(distinct `r`.`review_id`) AS `review_count` from ((((((`stakeholder_profiles` `sp` join `users` `u` on((`sp`.`user_id` = `u`.`user_id`))) join `barangays` `b` on((`sp`.`barangay_id` = `b`.`barangay_id`))) join `municipalities` `m` on((`b`.`municipality_id` = `m`.`municipality_id`))) left join `tourism_services` `ts` on((`sp`.`profile_id` = `ts`.`stakeholder_id`))) left join `booking_service_items` `bsi` on(((`ts`.`service_id` = `bsi`.`service_id`) and (`bsi`.`status` in ('ACCEPTED','COMPLETED'))))) left join `reviews` `r` on(((`r`.`target_type` = 'STAKEHOLDER') and (`r`.`target_id` = `sp`.`profile_id`)))) group by `sp`.`profile_id`,`sp`.`business_name`,`sp`.`category`,`u`.`full_name`,`b`.`name`,`m`.`name`,`sp`.`verification_status` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed on 2026-11-20  8:41:58

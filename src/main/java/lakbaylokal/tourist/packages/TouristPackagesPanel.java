@@ -109,7 +109,7 @@ public class TouristPackagesPanel extends JPanel {
         loadData();
     }
 
-    public void loadData() {
+    public final void loadData() {
         currentPackages = packageService.getAllPackages();
         applyFilter();
     }
@@ -324,11 +324,15 @@ public class TouristPackagesPanel extends JPanel {
                 dialog.dispose();
                 int choice = JOptionPane.showOptionDialog(
                         this,
-                        "🎉 Reservation Successfully Placed!\n\n" +
-                                "Booking Reference: " + b.getBookingReference() + "\n" +
-                                "Package: " + title + "\n" +
-                                "Total: " + String.format("₱%,.2f", total) + "\n\n" +
-                                "Would you like to view your booking in 'My Bookings' tab?",
+                        """
+                        🎉 Reservation Successfully Placed!
+
+                        Booking Reference: %s
+                        Package: %s
+                        Total: %s
+
+                        Would you like to view your booking in 'My Bookings' tab?"""
+                                .formatted(b.getBookingReference(), title, String.format("₱%,.2f", total)),
                         "Booking Confirmed",
                         JOptionPane.YES_NO_OPTION,
                         JOptionPane.INFORMATION_MESSAGE,

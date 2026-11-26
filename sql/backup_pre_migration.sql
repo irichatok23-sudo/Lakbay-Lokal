@@ -102,16 +102,16 @@ CREATE TABLE IF NOT EXISTS users (
 ) ENGINE=InnoDB;
 
 INSERT INTO users (user_id, username, password_hash, salt, email, full_name, phone, role_id, barangay_id, status) VALUES
-(1, 'admin', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'admin@lakbaylokal.gov.ph', 'Administrator Maria Santos', '+63 917 000 0001', 1, 9, 'ACTIVE'),
-(2, 'tourismoffice', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'tourism@biliran.gov.ph', 'Director Eduardo Reyes', '+63 917 000 0002', 2, 9, 'ACTIVE'),
-(3, 'lgu_naval', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'lgu.naval@biliran.gov.ph', 'Officer Katrina Gonzales', '+63 917 000 0003', 3, 9, 'ACTIVE'),
-(4, 'brgy_olog', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'brgy.olog@maripipi.gov.ph', 'Captain Ramon Corpin', '+63 917 111 2001', 4, 1, 'ACTIVE'),
-(5, 'guide_pedro', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'pedro.guide@gmail.com', 'Pedro Penduko', '+63 928 111 8888', 5, 1, 'ACTIVE'),
-(6, 'driver_juan', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'juan.transpo@gmail.com', 'Juan Dela Cruz', '+63 928 222 9999', 5, 6, 'ACTIVE'),
-(7, 'boat_capitan', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'maripipi.boats@gmail.com', 'Capitan Danilo Flores', '+63 928 333 7777', 5, 1, 'ACTIVE'),
-(8, 'cook_nanay_luz', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'nanayluz.catering@gmail.com', 'Luzviminda Ocampo', '+63 928 444 6666', 5, 4, 'ACTIVE'),
-(9, 'artisan_rosa', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'maripipi.pottery@gmail.com', 'Rosa Mangahas', '+63 928 555 5555', 5, 2, 'ACTIVE'),
-(10, 'tourist_ana', '4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853', 'lakbaysalt2026', 'ana.tourist@gmail.com', 'Ana Sophia Cortez', '+63 915 777 3333', 6, NULL, 'ACTIVE')
-ON DUPLICATE KEY UPDATE full_name = VALUES(full_name);
+(1, 'admin', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'admin@lakbaylokal.gov.ph', 'Administrator Maria Santos', '+63 917 000 0001', 1, 9, 'ACTIVE'),
+(2, 'tourismoffice', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'tourism@biliran.gov.ph', 'Director Eduardo Reyes', '+63 917 000 0002', 2, 9, 'ACTIVE'),
+(3, 'lgu_naval', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'lgu.naval@biliran.gov.ph', 'Officer Katrina Gonzales', '+63 917 000 0003', 3, 9, 'ACTIVE'),
+(4, 'brgy_olog', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'brgy.olog@maripipi.gov.ph', 'Captain Ramon Corpin', '+63 917 111 2001', 4, 1, 'ACTIVE'),
+(5, 'guide_pedro', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'pedro.guide@gmail.com', 'Pedro Penduko', '+63 928 111 8888', 5, 1, 'ACTIVE'),
+(6, 'driver_juan', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'juan.transpo@gmail.com', 'Juan Dela Cruz', '+63 928 222 9999', 5, 6, 'ACTIVE'),
+(7, 'boat_capitan', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'maripipi.boats@gmail.com', 'Capitan Danilo Flores', '+63 928 333 7777', 5, 1, 'ACTIVE'),
+(8, 'cook_nanay_luz', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'nanayluz.catering@gmail.com', 'Luzviminda Ocampo', '+63 928 444 6666', 5, 4, 'ACTIVE'),
+(9, 'artisan_rosa', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'maripipi.pottery@gmail.com', 'Rosa Mangahas', '+63 928 555 5555', 5, 2, 'ACTIVE'),
+(10, 'tourist_ana', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'ana.tourist@gmail.com', 'Ana Sophia Cortez', '+63 915 777 3333', 6, NULL, 'ACTIVE')
+ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), salt = VALUES(salt), full_name = VALUES(full_name);
 
 SET FOREIGN_KEY_CHECKS = 1;

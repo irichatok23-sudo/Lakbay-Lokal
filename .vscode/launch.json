@@ -1,0 +1,32 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Run Lakbay Lokal (Web + Launcher)",
+            "request": "launch",
+            "mainClass": "com.lakbaylokal.Main",
+            "projectName": "lakbay-lokal-cbtis",
+            "cwd": "${workspaceFolder}",
+            "classPaths": [
+                "${workspaceFolder}/bin",
+                "${workspaceFolder}/target/classes",
+                "${workspaceFolder}/lib/mysql-connector-j.jar"
+            ]
+        },
+        {
+            "type": "java",
+            "name": "Run Lakbay Lokal (Swing Desktop App)",
+            "request": "launch",
+            "mainClass": "lakbaylokal.Main",
+            "projectName": "lakbay-lokal-cbtis",
+            "cwd": "${workspaceFolder}",
+            "classPaths": [
+                "${workspaceFolder}/bin",
+                "${workspaceFolder}/target/classes",
+                "${workspaceFolder}/lib/mysql-connector-j.jar"
+            ]
+        }
+    ]
+}
+

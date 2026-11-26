@@ -38,6 +38,11 @@ public class DestinationDAOImpl implements DestinationDAO {
 
     @Override
     public List<Destination> findAll(String category, Integer barangayId, String status) {
+        return findAll(category, barangayId, null, status);
+    }
+
+    @Override
+    public List<Destination> findAll(String category, Integer barangayId, Integer municipalityId, String status) {
         List<Destination> list = new ArrayList<>();
         StringBuilder sql = new StringBuilder(SELECT_BASE).append("WHERE 1=1 ");
         List<Object> params = new ArrayList<>();
@@ -49,6 +54,10 @@ public class DestinationDAOImpl implements DestinationDAO {
         if (barangayId != null && barangayId > 0) {
             sql.append("AND d.barangay_id = ? ");
             params.add(barangayId);
+        }
+        if (municipalityId != null && municipalityId > 0) {
+            sql.append("AND b.municipality_id = ? ");
+            params.add(municipalityId);
         }
         if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
             sql.append("AND d.status = ? ");
@@ -193,6 +202,74 @@ public class DestinationDAOImpl implements DestinationDAO {
             System.err.println("[DestinationDAO] findAllBarangays error: " + e.getMessage());
         }
         return list;
+    }
+
+    @Override
+    public boolean updateBarangayContact(int barangayId, String contactPerson, String contactNumber) {
+        String sql = "UPDATE barangays SET contact_person = ?, contact_number = ? WHERE barangay_id = ?";
+        try (Connection conn = ConnectionFactory.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, contactPerson);
+            ps.setString(2, contactNumber);
+            ps.setInt(3, barangayId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("[DestinationDAO] updateBarangayContact error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    @Override
+    public boolean deleteBarangay(int barangayId) {
+        try (Connection conn = ConnectionFactory.getConnection()) {
+            conn.setAutoCommit(false);
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("SET FOREIGN_KEY_CHECKS = 0");
+
+                // Detach foreign keys safely
+                try (PreparedStatement psUsers = conn.prepareStatement("UPDATE users SET barangay_id = NULL WHERE barangay_id = ?")) {
+                    psUsers.setInt(1, barangayId);
+                    psUsers.executeUpdate();
+                } catch (SQLException ignored) {}
+
+                try (PreparedStatement psDest = conn.prepareStatement("UPDATE destinations SET barangay_id = NULL WHERE barangay_id = ?")) {
+                    psDest.setInt(1, barangayId);
+                    psDest.executeUpdate();
+                } catch (SQLException ignored) {}
+
+                try (PreparedStatement psStk = conn.prepareStatement("UPDATE stakeholder_profiles SET barangay_id = NULL WHERE barangay_id = ?")) {
+                    psStk.setInt(1, barangayId);
+                    psStk.executeUpdate();
+                } catch (SQLException ignored) {}
+
+                try (PreparedStatement psAnn = conn.prepareStatement("UPDATE announcements SET target_barangay_id = NULL WHERE target_barangay_id = ?")) {
+                    psAnn.setInt(1, barangayId);
+                    psAnn.executeUpdate();
+                } catch (SQLException ignored) {}
+
+                // Delete barangay record
+                int rows;
+                try (PreparedStatement ps = conn.prepareStatement("DELETE FROM barangays WHERE barangay_id = ?")) {
+                    ps.setInt(1, barangayId);
+                    rows = ps.executeUpdate();
+                }
+
+                stmt.execute("SET FOREIGN_KEY_CHECKS = 1");
+                conn.commit();
+                return rows > 0;
+            } catch (SQLException ex) {
+                conn.rollback();
+                throw ex;
+            } finally {
+                try (Statement s = conn.createStatement()) {
+                    s.execute("SET FOREIGN_KEY_CHECKS = 1");
+                } catch (SQLException ignored) {}
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            System.err.println("[DestinationDAO] deleteBarangay error: " + e.getMessage());
+            return false;
+        }
     }
 
     private Destination mapRow(ResultSet rs) throws SQLException {

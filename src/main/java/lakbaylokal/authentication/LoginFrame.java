@@ -170,15 +170,7 @@ public class LoginFrame extends JFrame {
         rightWrapper.setBackground(UITheme.BG_LIGHT);
         rightWrapper.setBorder(new EmptyBorder(30, 36, 30, 36));
 
-        JTabbedPane tabbedPane = new JTabbedPane();
-        tabbedPane.setFont(UITheme.FONT_BOLD);
-        tabbedPane.setBackground(Color.WHITE);
-        tabbedPane.setForeground(UITheme.TEXT_DARK);
-
-        tabbedPane.addTab("🔑 User Sign In", createLoginForm());
-        tabbedPane.addTab("⚡ 1-Click Role Launcher", createQuickDemoPanel());
-
-        rightWrapper.add(tabbedPane, BorderLayout.CENTER);
+        rightWrapper.add(createLoginForm(), BorderLayout.CENTER);
         return rightWrapper;
     }
 
@@ -192,7 +184,7 @@ public class LoginFrame extends JFrame {
         title.setFont(UITheme.FONT_TITLE);
         title.setForeground(UITheme.TEXT_DARK);
 
-        JLabel sub = new JLabel("Enter your credentials or use test account 'password123'");
+        JLabel sub = new JLabel("Enter your registered credentials to access your dashboard");
         sub.setFont(UITheme.FONT_SMALL);
         sub.setForeground(UITheme.TEXT_MUTED);
 
@@ -204,7 +196,7 @@ public class LoginFrame extends JFrame {
         // Username
         form.add(new JLabel("Username or Email:"));
         form.add(Box.createVerticalStrut(6));
-        usernameField = new JTextField("tourist_ana");
+        usernameField = new JTextField();
         usernameField.setFont(UITheme.FONT_BODY);
         usernameField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
         usernameField.setBorder(BorderFactory.createCompoundBorder(
@@ -217,7 +209,7 @@ public class LoginFrame extends JFrame {
         // Password
         form.add(new JLabel("Password:"));
         form.add(Box.createVerticalStrut(6));
-        passwordField = new JPasswordField("password123");
+        passwordField = new JPasswordField();
         passwordField.setFont(UITheme.FONT_BODY);
         passwordField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
         passwordField.setBorder(BorderFactory.createCompoundBorder(
@@ -287,6 +279,7 @@ public class LoginFrame extends JFrame {
         return form;
     }
 
+    @SuppressWarnings("unused")
     private JPanel createQuickDemoPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -345,37 +338,21 @@ public class LoginFrame extends JFrame {
             return;
         }
 
+        if (!lakbaylokal.database.ConnectionFactory.testConnection()) {
+            JOptionPane.showMessageDialog(this,
+                    "Database server connection error. Unable to reach MySQL on localhost:3306.\nPlease start MySQL via WAMP or XAMPP and try again.",
+                    "Connection Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         User user = authService.authenticate(u, p);
         if (user != null) {
             routeUserToDashboard(user);
             return;
         }
 
-        // Comprehensive Fallback Authentication for all pre-seeded accounts
-        if ("password123".equals(p)) {
-            if ("admin".equalsIgnoreCase(u)) {
-                launchRoleDirectly(1);
-                return;
-            } else if ("tourismoffice".equalsIgnoreCase(u)) {
-                launchRoleDirectly(2);
-                return;
-            } else if ("lgu_naval".equalsIgnoreCase(u) || "lgu".equalsIgnoreCase(u)) {
-                launchRoleDirectly(3);
-                return;
-            } else if ("brgy_olog".equalsIgnoreCase(u) || "barangay".equalsIgnoreCase(u)) {
-                launchRoleDirectly(4);
-                return;
-            } else if ("boat_capitan".equalsIgnoreCase(u) || "guide_pedro".equalsIgnoreCase(u) || "stakeholder".equalsIgnoreCase(u)) {
-                launchRoleDirectly(5);
-                return;
-            } else if ("tourist_ana".equalsIgnoreCase(u) || "tourist".equalsIgnoreCase(u)) {
-                launchRoleDirectly(6);
-                return;
-            }
-        }
-
         JOptionPane.showMessageDialog(this,
-                "Invalid credentials or inactive user account.\nDefault password for test accounts is 'password123'.",
+                "Invalid credentials or inactive user account. Please check your username and password.",
                 "Login Failed", JOptionPane.ERROR_MESSAGE);
     }
 

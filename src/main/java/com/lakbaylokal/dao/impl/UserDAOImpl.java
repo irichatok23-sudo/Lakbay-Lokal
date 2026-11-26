@@ -13,12 +13,15 @@ public class UserDAOImpl implements UserDAO {
 
     private static final String SELECT_BASE = 
             "SELECT u.user_id, u.username, u.password_hash, u.salt, u.email, u.full_name, u.phone, " +
-            "u.role_id, r.role_code, r.role_name, u.barangay_id, b.name AS barangay_name, m.name AS municipality_name, " +
+            "u.role_id, r.role_code, r.role_name, u.barangay_id, b.name AS barangay_name, " +
+            "COALESCE(u.municipality_id, b.municipality_id) AS municipality_id, " +
+            "COALESCE(mu.name, m.name) AS municipality_name, " +
             "u.status, u.created_at, u.updated_at " +
             "FROM users u " +
             "JOIN roles r ON u.role_id = r.role_id " +
             "LEFT JOIN barangays b ON u.barangay_id = b.barangay_id " +
-            "LEFT JOIN municipalities m ON b.municipality_id = m.municipality_id ";
+            "LEFT JOIN municipalities m ON b.municipality_id = m.municipality_id " +
+            "LEFT JOIN municipalities mu ON u.municipality_id = mu.municipality_id ";
 
     @Override
     public User findById(int userId) {
@@ -83,26 +86,50 @@ public class UserDAOImpl implements UserDAO {
 
     @Override
     public List<User> findByRole(String roleCode) {
+        return findFiltered(roleCode, null, null);
+    }
+
+    @Override
+    public List<User> findFiltered(String roleCode, Integer municipalityId, Integer barangayId) {
         List<User> list = new ArrayList<>();
-        String sql = SELECT_BASE + "WHERE r.role_code = ? ORDER BY u.full_name ASC";
+        StringBuilder sql = new StringBuilder(SELECT_BASE).append("WHERE 1=1 ");
+        List<Object> params = new ArrayList<>();
+
+        if (roleCode != null && !roleCode.isBlank() && !"ALL".equalsIgnoreCase(roleCode)) {
+            sql.append("AND r.role_code = ? ");
+            params.add(roleCode);
+        }
+        if (municipalityId != null && municipalityId > 0) {
+            sql.append("AND (u.municipality_id = ? OR b.municipality_id = ?) ");
+            params.add(municipalityId);
+            params.add(municipalityId);
+        }
+        if (barangayId != null && barangayId > 0) {
+            sql.append("AND u.barangay_id = ? ");
+            params.add(barangayId);
+        }
+        sql.append("ORDER BY u.created_at DESC");
+
         try (Connection conn = ConnectionFactory.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, roleCode);
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     list.add(mapRow(rs, false));
                 }
             }
         } catch (SQLException e) {
-            System.err.println("[UserDAO] findByRole error: " + e.getMessage());
+            System.err.println("[UserDAO] findFiltered error: " + e.getMessage());
         }
         return list;
     }
 
     @Override
     public int create(User user) {
-        String sql = "INSERT INTO users (username, password_hash, salt, email, full_name, phone, role_id, barangay_id, status) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO users (username, password_hash, salt, email, full_name, phone, role_id, barangay_id, municipality_id, status) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = ConnectionFactory.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, user.getUsername());
@@ -117,7 +144,12 @@ public class UserDAOImpl implements UserDAO {
             } else {
                 ps.setNull(8, Types.INTEGER);
             }
-            ps.setString(9, user.getStatus() != null ? user.getStatus() : "ACTIVE");
+            if (user.getMunicipalityId() != null && user.getMunicipalityId() > 0) {
+                ps.setInt(9, user.getMunicipalityId());
+            } else {
+                ps.setNull(9, Types.INTEGER);
+            }
+            ps.setString(10, user.getStatus() != null ? user.getStatus() : "ACTIVE");
 
             int affected = ps.executeUpdate();
             if (affected > 0) {
@@ -133,7 +165,7 @@ public class UserDAOImpl implements UserDAO {
 
     @Override
     public boolean update(User user) {
-        String sql = "UPDATE users SET full_name = ?, phone = ?, role_id = ?, barangay_id = ?, status = ? WHERE user_id = ?";
+        String sql = "UPDATE users SET full_name = ?, phone = ?, role_id = ?, barangay_id = ?, municipality_id = ?, status = ? WHERE user_id = ?";
         try (Connection conn = ConnectionFactory.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, user.getFullName());
@@ -144,8 +176,13 @@ public class UserDAOImpl implements UserDAO {
             } else {
                 ps.setNull(4, Types.INTEGER);
             }
-            ps.setString(5, user.getStatus());
-            ps.setInt(6, user.getUserId());
+            if (user.getMunicipalityId() != null && user.getMunicipalityId() > 0) {
+                ps.setInt(5, user.getMunicipalityId());
+            } else {
+                ps.setNull(5, Types.INTEGER);
+            }
+            ps.setString(6, user.getStatus());
+            ps.setInt(7, user.getUserId());
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             System.err.println("[UserDAO] update error: " + e.getMessage());
@@ -232,6 +269,8 @@ public class UserDAOImpl implements UserDAO {
         u.setRoleName(rs.getString("role_name"));
         int brgyId = rs.getInt("barangay_id");
         if (!rs.wasNull()) u.setBarangayId(brgyId);
+        int munId = rs.getInt("municipality_id");
+        if (!rs.wasNull()) u.setMunicipalityId(munId);
         u.setBarangayName(rs.getString("barangay_name"));
         u.setMunicipalityName(rs.getString("municipality_name"));
         u.setStatus(rs.getString("status"));

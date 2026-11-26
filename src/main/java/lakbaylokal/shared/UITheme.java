@@ -81,7 +81,7 @@ public class UITheme {
             // Check if FlatLaf is on classpath reflectively
             Class<?> flatLaf = Class.forName("com.formdev.flatlaf.FlatLightLaf");
             UIManager.setLookAndFeel((LookAndFeel) flatLaf.getDeclaredConstructor().newInstance());
-        } catch (Throwable ignored) {
+        } catch (ReflectiveOperationException | UnsupportedLookAndFeelException ignored) {
             // Fallback to Nimbus or System
             try {
                 for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
@@ -90,10 +90,10 @@ public class UITheme {
                         break;
                     }
                 }
-            } catch (Exception ex) {
+            } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | UnsupportedLookAndFeelException ex) {
                 try {
                     UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-                } catch (Exception ignored2) {}
+                } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | UnsupportedLookAndFeelException ignored2) {}
             }
         }
 

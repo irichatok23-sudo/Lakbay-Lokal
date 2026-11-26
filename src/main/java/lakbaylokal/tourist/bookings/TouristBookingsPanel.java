@@ -112,7 +112,7 @@ public class TouristBookingsPanel extends JPanel {
         loadData();
     }
 
-    public void loadData() {
+    public final void loadData() {
         User user = SessionManager.getCurrentUser();
         if (user != null) {
             TouristProfile tp = bookingService.getTouristProfileByUserId(user.getUserId());
@@ -245,9 +245,13 @@ public class TouristBookingsPanel extends JPanel {
 
         if (confirm == JOptionPane.YES_OPTION) {
             boolean ok = bookingService.updateBookingStatus(b.getBookingId(), "CANCELLED");
-            b.setStatus("CANCELLED");
-            loadData();
-            JOptionPane.showMessageDialog(this, "Booking " + b.getBookingReference() + " has been cancelled.", "Cancelled", JOptionPane.INFORMATION_MESSAGE);
+            if (ok) {
+                b.setStatus("CANCELLED");
+                loadData();
+                JOptionPane.showMessageDialog(this, "Booking " + b.getBookingReference() + " has been cancelled.", "Cancelled", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this, "Failed to cancel booking. Check database connection.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
 
@@ -304,5 +308,9 @@ public class TouristBookingsPanel extends JPanel {
         sb.append("Hotline: Biliran Provincial Tourism Office • tourism@biliran.gov.ph\n");
 
         return sb.toString();
+    }
+
+    public TouristDashboard getParentDashboard() {
+        return parentDashboard;
     }
 }

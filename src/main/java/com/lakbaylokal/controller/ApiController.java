@@ -1,7 +1,7 @@
 package com.lakbaylokal.controller;
 
 import com.lakbaylokal.database.BackupRestoreService;
-import com.lakbaylokal.database.DatabaseInitializer;
+import com.lakbaylokal.database.ConnectionFactory;
 import com.lakbaylokal.model.*;
 import com.lakbaylokal.service.*;
 import com.lakbaylokal.util.DateUtil;
@@ -10,7 +10,13 @@ import com.lakbaylokal.util.SessionManager;
 
 import java.io.File;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
+import java.sql.Connection;
 import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.*;
 
 /**
@@ -41,6 +47,12 @@ public class ApiController {
             if ("/api/auth/register".equals(path) && "POST".equalsIgnoreCase(method)) {
                 return handleRegister(body, clientIp);
             }
+            if ("/api/auth/forgot-password".equals(path) && "POST".equalsIgnoreCase(method)) {
+                return handleForgotPassword(body, clientIp);
+            }
+            if ("/api/auth/register-stakeholder".equals(path) && "POST".equalsIgnoreCase(method)) {
+                return handleRegisterStakeholder(body, clientIp);
+            }
             if ("/api/auth/logout".equals(path)) {
                 SessionManager.invalidate(authToken);
                 return success("Logged out successfully.");
@@ -48,7 +60,8 @@ public class ApiController {
 
             // Public / General catalogs
             if ("/api/destinations".equals(path) && "GET".equalsIgnoreCase(method)) {
-                return handleGetDestinations(queryParams);
+                User maybeUser = SessionManager.getUser(authToken);
+                return handleGetDestinations(queryParams, maybeUser);
             }
             if (path.startsWith("/api/destinations/") && "GET".equalsIgnoreCase(method)) {
                 int id = Integer.parseInt(path.substring("/api/destinations/".length()));
@@ -67,12 +80,57 @@ public class ApiController {
             if ("/api/barangays".equals(path) && "GET".equalsIgnoreCase(method)) {
                 return JsonUtil.toJson(destinationService.getBarangays());
             }
+            if ("/api/municipalities".equals(path) && "GET".equalsIgnoreCase(method)) {
+                return handleGetMunicipalities();
+            }
             if ("/api/roles".equals(path) && "GET".equalsIgnoreCase(method)) {
                 return JsonUtil.toJson(userService.getAllRoles());
             }
             if ("/api/stakeholders/services".equals(path) && "GET".equalsIgnoreCase(method)) {
                 String cat = queryParams.get("category");
+                boolean includeUnavailable = "true".equalsIgnoreCase(queryParams.get("all")) || "false".equalsIgnoreCase(queryParams.get("availableOnly"));
+                if (includeUnavailable) {
+                    return JsonUtil.toJson(stakeholderService.getAllServices(cat, false));
+                }
                 return JsonUtil.toJson(stakeholderService.getAllAvailableServices(cat));
+            }
+            if ("/api/stakeholders".equals(path) && "GET".equalsIgnoreCase(method)) {
+                User maybeUser = SessionManager.getUser(authToken);
+                return handleGetStakeholders(queryParams, maybeUser);
+            }
+            if ("/api/reviews".equals(path) && "GET".equalsIgnoreCase(method)) {
+                return handleGetReviews(queryParams);
+            }
+            if ("/api/settings".equals(path) && "GET".equalsIgnoreCase(method)) {
+                return handleGetSettings();
+            }
+            if ("/api/reports/kpis".equals(path) && "GET".equalsIgnoreCase(method)) {
+                User maybeUser = SessionManager.getUser(authToken);
+                if (isLguOfficer(maybeUser) && maybeUser.getMunicipalityId() != null) {
+                    return JsonUtil.toJson(reportService.getOverviewKPIs(maybeUser.getMunicipalityId()));
+                }
+                return JsonUtil.toJson(reportService.getOverviewKPIs());
+            }
+            if ("/api/reports/footfall".equals(path) && "GET".equalsIgnoreCase(method)) {
+                User maybeUser = SessionManager.getUser(authToken);
+                if (isLguOfficer(maybeUser) && maybeUser.getMunicipalityId() != null) {
+                    return JsonUtil.toJson(reportService.getDestinationFootfallSummaries(maybeUser.getMunicipalityId()));
+                }
+                return JsonUtil.toJson(reportService.getDestinationFootfallSummaries());
+            }
+            if ("/api/reports/stakeholders".equals(path) && "GET".equalsIgnoreCase(method)) {
+                User maybeUser = SessionManager.getUser(authToken);
+                if (isLguOfficer(maybeUser) && maybeUser.getMunicipalityId() != null) {
+                    return JsonUtil.toJson(reportService.getStakeholderSummaries(maybeUser.getMunicipalityId()));
+                }
+                return JsonUtil.toJson(reportService.getStakeholderSummaries());
+            }
+            if ("/api/reports/barangays".equals(path) && "GET".equalsIgnoreCase(method)) {
+                User maybeUser = SessionManager.getUser(authToken);
+                if (isLguOfficer(maybeUser) && maybeUser.getMunicipalityId() != null) {
+                    return JsonUtil.toJson(reportService.getBarangaySummaries(maybeUser.getMunicipalityId()));
+                }
+                return JsonUtil.toJson(reportService.getBarangaySummaries());
             }
 
             // Authenticated endpoints check
@@ -86,25 +144,72 @@ public class ApiController {
                 return handleGetMe(currentUser);
             }
 
-            // Destinations Management
+            // Self-service profile update (all authenticated users)
+            if ("/api/auth/me".equals(path) && "POST".equalsIgnoreCase(method)) {
+                return handleUpdateMe(body, currentUser, clientIp);
+            }
+
+            // Destinations Management (Officials & Admin)
             if ("/api/destinations".equals(path) && "POST".equalsIgnoreCase(method)) {
+                if (!isBarangayOrHigher(currentUser)) return error("Access denied. Authorized officials only.", 403);
                 return handleSaveDestination(body, currentUser, clientIp);
             }
+            if ("/api/destinations/upload".equals(path) && "POST".equalsIgnoreCase(method)) {
+                if (!isBarangayOrHigher(currentUser)) return error("Access denied. Authorized officials only.", 403);
+                return handleUploadDestinationPhoto(body, currentUser, clientIp);
+            }
             if ("/api/destinations/validate".equals(path) && "POST".equalsIgnoreCase(method)) {
+                if (!isBarangayOrHigher(currentUser)) return error("Access denied. Authorized officials only.", 403);
                 return handleValidateDestination(body, currentUser, clientIp);
             }
             if ("/api/destinations/delete".equals(path) && "POST".equalsIgnoreCase(method)) {
+                if (!isTourismOffice(currentUser)) return error("Access denied. Tourism Office or Admin only.", 403);
                 return handleDeleteDestination(body, currentUser, clientIp);
             }
 
-            // Stakeholders Management
+            // Barangay Records Management (Barangay Officials for own barangay, LGU, Tourism Office, Admin)
+            if ("/api/barangays".equals(path) && "POST".equalsIgnoreCase(method)) {
+                if (!isBarangayOrHigher(currentUser)) return error("Access denied. Authorized officials only.", 403);
+                return handleUpdateBarangayRecord(body, currentUser, clientIp);
+            }
+            if (("/api/barangays/delete".equals(path) && "POST".equalsIgnoreCase(method))
+                    || ("/api/barangays".equals(path) && "DELETE".equalsIgnoreCase(method))) {
+                if (!isBarangayOrHigher(currentUser)) return error("Access denied. Authorized officials only.", 403);
+                return handleDeleteBarangay(body, currentUser, clientIp);
+            }
+
+            // Stakeholders Management (Stakeholders, Barangay Officials, Tourism Office, Admin)
             if ("/api/stakeholders".equals(path) && "GET".equalsIgnoreCase(method)) {
-                return handleGetStakeholders(queryParams);
+                return handleGetStakeholders(queryParams, currentUser);
+            }
+            if ("/api/stakeholders/me".equals(path) && "GET".equalsIgnoreCase(method)) {
+                StakeholderProfile sp = stakeholderService.getProfileByUserId(currentUser.getUserId());
+                return sp != null ? JsonUtil.toJson(sp) : error("Stakeholder profile not found.", 404);
+            }
+            if ("/api/stakeholders/my-verification".equals(path) && "GET".equalsIgnoreCase(method)) {
+                if (!isStakeholder(currentUser)) return error("Access denied. Stakeholders only.", 403);
+                return handleGetMyVerification(currentUser);
+            }
+            if ("/api/stakeholders/resubmit".equals(path) && "POST".equalsIgnoreCase(method)) {
+                if (!isStakeholder(currentUser)) return error("Access denied. Stakeholders only.", 403);
+                return handleStakeholderResubmit(body, currentUser, clientIp);
+            }
+            if ("/api/stakeholders".equals(path) && "POST".equalsIgnoreCase(method)) {
+                if (!isStakeholder(currentUser) && !isBarangayOrHigher(currentUser)) {
+                    return error("Access denied. Stakeholders or authorized officials only.", 403);
+                }
+                return handleSaveStakeholderProfile(body, currentUser, clientIp);
             }
             if ("/api/stakeholders/services".equals(path) && "POST".equalsIgnoreCase(method)) {
+                if (!isStakeholder(currentUser) && !isTourismOffice(currentUser) && !isAdmin(currentUser)) {
+                    return error("Access denied. Stakeholders or Tourism Office/Admin only.", 403);
+                }
                 return handleSaveStakeholderService(body, currentUser, clientIp);
             }
             if ("/api/stakeholders/services/delete".equals(path) && "POST".equalsIgnoreCase(method)) {
+                if (!isStakeholder(currentUser) && !isTourismOffice(currentUser) && !isAdmin(currentUser)) {
+                    return error("Access denied. Stakeholders or Tourism Office/Admin only.", 403);
+                }
                 return handleDeleteStakeholderService(body, currentUser, clientIp);
             }
 
@@ -116,9 +221,18 @@ public class ApiController {
                 return handleCreateBooking(body, currentUser, clientIp);
             }
             if ("/api/bookings/status".equals(path) && "POST".equalsIgnoreCase(method)) {
+                if ("TOURISM_OFFICE".equalsIgnoreCase(currentUser.getRoleCode())) {
+                    return error("Access denied: Tourism Office has read-only monitoring access. Bookings can only be confirmed or cancelled by the managing Tourism Stakeholder.", 403);
+                }
+                if (!isStakeholder(currentUser) && !isTourist(currentUser) && !isAdmin(currentUser)) {
+                    return error("Access denied. Booking updates restricted to authorized stakeholders.", 403);
+                }
                 return handleUpdateBookingStatus(body, currentUser, clientIp);
             }
             if ("/api/bookings/item-status".equals(path) && "POST".equalsIgnoreCase(method)) {
+                if ("TOURISM_OFFICE".equalsIgnoreCase(currentUser.getRoleCode())) {
+                    return error("Access denied: Tourism Office has read-only monitoring access. Service items can only be updated by the assigned Tourism Stakeholder.", 403);
+                }
                 return handleUpdateBookingItemStatus(body, currentUser, clientIp);
             }
 
@@ -130,59 +244,70 @@ public class ApiController {
                 return handleCreateReview(body, currentUser, clientIp);
             }
 
-            // Verifications (Barangay Officials, Admin)
+            // Verifications (Barangay Officials, Tourism Office, Admin)
             if ("/api/verifications".equals(path) && "GET".equalsIgnoreCase(method)) {
+                if (!isBarangayOrHigher(currentUser)) return error("Access denied. Authorized officials only.", 403);
                 return handleGetVerifications(queryParams, currentUser);
             }
             if ("/api/verifications".equals(path) && "POST".equalsIgnoreCase(method)) {
+                if (!"BARANGAY_OFFICIAL".equalsIgnoreCase(currentUser.getRoleCode())) {
+                    return error("Access denied: Sole authority to approve, reject, or request corrections for stakeholder registrations rests with the Barangay Official.", 403);
+                }
                 return handleProcessVerification(body, currentUser, clientIp);
             }
 
-            // Announcements (Tourism Office, Admin)
+            // Announcements (Tourism Office, LGU, Admin)
             if ("/api/announcements".equals(path) && "POST".equalsIgnoreCase(method)) {
+                if (!isLguOrHigher(currentUser)) return error("Access denied. Tourism Office, LGU, or Admin only.", 403);
                 return handleSaveAnnouncement(body, currentUser, clientIp);
             }
             if ("/api/announcements/delete".equals(path) && "POST".equalsIgnoreCase(method)) {
+                if (!isLguOrHigher(currentUser)) return error("Access denied. Tourism Office, LGU, or Admin only.", 403);
                 return handleDeleteAnnouncement(body, currentUser, clientIp);
             }
 
             // Packages (Tourism Office, Admin)
             if ("/api/packages".equals(path) && "POST".equalsIgnoreCase(method)) {
+                if (!isTourismOffice(currentUser)) return error("Access denied. Tourism Office or Admin only.", 403);
                 return handleSavePackage(body, currentUser, clientIp);
             }
             if ("/api/packages/delete".equals(path) && "POST".equalsIgnoreCase(method)) {
+                if (!isTourismOffice(currentUser)) return error("Access denied. Tourism Office or Admin only.", 403);
                 return handleDeletePackage(body, currentUser, clientIp);
             }
 
             // Reports & Monitoring
-            if ("/api/reports/kpis".equals(path) && "GET".equalsIgnoreCase(method)) {
-                return JsonUtil.toJson(reportService.getOverviewKPIs());
-            }
-            if ("/api/reports/footfall".equals(path) && "GET".equalsIgnoreCase(method)) {
-                return JsonUtil.toJson(reportService.getDestinationFootfallSummaries());
-            }
-            if ("/api/reports/stakeholders".equals(path) && "GET".equalsIgnoreCase(method)) {
-                return JsonUtil.toJson(reportService.getStakeholderSummaries());
-            }
-            if ("/api/reports/barangays".equals(path) && "GET".equalsIgnoreCase(method)) {
-                return JsonUtil.toJson(reportService.getBarangaySummaries());
-            }
             if ("/api/reports/arrival-logs".equals(path) && "GET".equalsIgnoreCase(method)) {
-                Integer destId = queryParams.containsKey("destinationId") ? Integer.parseInt(queryParams.get("destinationId")) : null;
+                Integer destId = queryParams.containsKey("destinationId") ? Integer.valueOf(queryParams.get("destinationId")) : null;
                 return JsonUtil.toJson(reportService.getArrivalLogs(destId, queryParams.get("startDate"), queryParams.get("endDate")));
             }
             if ("/api/reports/arrival".equals(path) && "POST".equalsIgnoreCase(method)) {
+                if (!isBarangayOrHigher(currentUser)) return error("Access denied. Authorized officials only.", 403);
                 return handleRecordArrival(body, currentUser, clientIp);
             }
 
-            // User Management (Admin only)
-            if ("/api/admin/users".equals(path) && "GET".equalsIgnoreCase(method)) {
+            // System Settings (Admin only for write)
+            if ("/api/settings".equals(path) && "POST".equalsIgnoreCase(method)) {
                 if (!isAdmin(currentUser)) return error("Admin access required.", 403);
-                return JsonUtil.toJson(userService.getAllUsers());
+                return handleSaveSettings(body, currentUser, clientIp);
+            }
+
+            // User Management (Role-restricted directory; hierarchy-enforced create)
+            if ("/api/admin/users".equals(path) && "GET".equalsIgnoreCase(method)) {
+                if (!isAdmin(currentUser) && !isTourismOffice(currentUser) && !isLguOfficer(currentUser)) {
+                    return error("Access denied. Authorized officials only.", 403);
+                }
+                return handleGetUsers(queryParams, currentUser);
             }
             if ("/api/admin/users".equals(path) && "POST".equalsIgnoreCase(method)) {
-                if (!isAdmin(currentUser)) return error("Admin access required.", 403);
+                if (!isAdmin(currentUser) && !isTourismOffice(currentUser) && !isLguOfficer(currentUser)) {
+                    return error("Access denied. Authorized officials only.", 403);
+                }
                 return handleCreateUser(body, currentUser, clientIp);
+            }
+            if ("/api/admin/users/update".equals(path) && "POST".equalsIgnoreCase(method)) {
+                if (!isAdmin(currentUser)) return error("Admin access required.", 403);
+                return handleUpdateUser(body, currentUser, clientIp);
             }
             if ("/api/admin/users/status".equals(path) && "POST".equalsIgnoreCase(method)) {
                 if (!isAdmin(currentUser)) return error("Admin access required.", 403);
@@ -204,7 +329,7 @@ public class ApiController {
             if ("/api/admin/database/backup".equals(path) && "POST".equalsIgnoreCase(method)) {
                 if (!isAdmin(currentUser)) return error("Admin access required.", 403);
                 File file = BackupRestoreService.createBackup();
-                auditService.log(currentUser.getUserId(), currentUser.getUsername(), "DATABASE_BACKUP", "DATABASE", 1, "Backup created: " + file.getName());
+                auditService.log(currentUser.getUserId(), currentUser.getUsername(), "DATABASE_BACKUP", "DATABASE", 1, clientIp, "Backup created: " + file.getName());
                 Map<String, Object> resp = new HashMap<>();
                 resp.put("success", true);
                 resp.put("message", "Backup file generated: " + file.getName());
@@ -215,7 +340,7 @@ public class ApiController {
             return error("Endpoint not found: " + path, 404);
 
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("[ApiController] Request processing error: " + e.getMessage());
             return error("Internal Server Error: " + e.getMessage(), 500);
         }
     }
@@ -229,7 +354,7 @@ public class ApiController {
         if (Boolean.TRUE.equals(res.get("success"))) {
             @SuppressWarnings("unchecked")
             Map<String, Object> u = (Map<String, Object>) res.get("user");
-            auditService.log((Integer) u.get("userId"), (String) u.get("username"), "LOGIN_SUCCESS", "AUTH", (Integer) u.get("userId"), "User logged in from " + clientIp);
+            auditService.log((Integer) u.get("userId"), (String) u.get("username"), "LOGIN_SUCCESS", "AUTH", (Integer) u.get("userId"), clientIp, "User logged in");
         }
         return JsonUtil.toJson(res);
     }
@@ -245,7 +370,21 @@ public class ApiController {
 
         Map<String, Object> res = authService.registerTourist(username, password, email, fullName, phone, originCity);
         if (Boolean.TRUE.equals(res.get("success"))) {
-            auditService.log(null, username, "REGISTER_TOURIST", "USERS", null, "New tourist registered: " + fullName);
+            auditService.log(null, username, "REGISTER_TOURIST", "USERS", null, clientIp, "New tourist registered: " + fullName);
+        }
+        return JsonUtil.toJson(res);
+    }
+
+    private String handleForgotPassword(String body, String clientIp) {
+        Map<String, Object> data = JsonUtil.parseJsonObject(body);
+        String identifier = (String) data.get("usernameOrEmail");
+        if (identifier == null) identifier = (String) data.get("identifier");
+        if (identifier == null) identifier = (String) data.get("username");
+        if (identifier == null) identifier = (String) data.get("email");
+        String newPassword = (String) data.get("newPassword");
+        Map<String, Object> res = authService.forgotPassword(identifier, newPassword);
+        if (Boolean.TRUE.equals(res.get("success")) && newPassword != null && !newPassword.isBlank()) {
+            auditService.log(null, identifier, "PASSWORD_RESET_SELF", "AUTH", null, clientIp, "Password reset via self-recovery");
         }
         return JsonUtil.toJson(res);
     }
@@ -262,13 +401,14 @@ public class ApiController {
         map.put("roleName", user.getRoleName());
         map.put("barangayId", user.getBarangayId());
         map.put("barangayName", user.getBarangayName());
+        map.put("municipalityId", user.getMunicipalityId());
         map.put("municipalityName", user.getMunicipalityName());
         map.put("status", user.getStatus());
 
-        if ("TOURIST".equalsIgnoreCase(user.getRoleCode())) {
+        if (isTourist(user)) {
             TouristProfile tp = bookingService.getTouristProfileByUserId(user.getUserId());
             if (tp != null) map.put("touristProfileId", tp.getProfileId());
-        } else if ("STAKEHOLDER".equalsIgnoreCase(user.getRoleCode())) {
+        } else if (isStakeholder(user)) {
             StakeholderProfile sp = stakeholderService.getProfileByUserId(user.getUserId());
             if (sp != null) {
                 map.put("stakeholderProfileId", sp.getProfileId());
@@ -280,49 +420,189 @@ public class ApiController {
         return JsonUtil.toJson(map);
     }
 
-    private String handleGetDestinations(Map<String, String> q) {
+    private String handleUpdateMe(String body, User currentUser, String clientIp) {
+        Map<String, Object> data = JsonUtil.parseJsonObject(body);
+        String fullName = (String) data.getOrDefault("fullName", currentUser.getFullName());
+        String email = (String) data.getOrDefault("email", currentUser.getEmail());
+        String phone = (String) data.getOrDefault("phone", currentUser.getPhone());
+        String currentPassword = (String) data.get("currentPassword");
+        String newPassword = (String) data.get("newPassword");
+
+        // Validate required fields
+        if (fullName == null || fullName.isBlank()) {
+            return error("Full name is required.", 400);
+        }
+
+        // Update profile fields
+        currentUser.setFullName(fullName.trim());
+        currentUser.setEmail(email != null ? email.trim() : "");
+        currentUser.setPhone(phone != null ? phone.trim() : "");
+        boolean profileUpdated = userService.updateUser(currentUser);
+
+        // Handle password change if requested
+        if (newPassword != null && !newPassword.isBlank() && newPassword.length() >= 6) {
+            if (currentPassword == null || currentPassword.isBlank()) {
+                return error("Current password is required to set a new password.", 400);
+            }
+            // Verify current password
+            User freshUser = userService.getUserById(currentUser.getUserId());
+            boolean verified = freshUser != null &&
+                com.lakbaylokal.util.PasswordUtil.verifyPassword(currentPassword, freshUser.getSalt(), freshUser.getPasswordHash());
+            if (!verified) {
+                return error("Current password is incorrect.", 400);
+            }
+            userService.resetPassword(currentUser.getUserId(), newPassword);
+        }
+
+        if (profileUpdated) {
+            auditService.log(currentUser.getUserId(), currentUser.getUsername(),
+                "PROFILE_UPDATE", "USERS", currentUser.getUserId(), clientIp, "Self-service profile update");
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("success", true);
+            resp.put("message", "Profile updated successfully.");
+            return JsonUtil.toJson(resp);
+        } else {
+            return error("Profile update failed. Please try again.", 500);
+        }
+    }
+
+    private String handleGetDestinations(Map<String, String> q, User user) {
         String cat = q.get("category");
-        Integer brgy = q.containsKey("barangayId") ? Integer.parseInt(q.get("barangayId")) : null;
+        Integer brgy = q.containsKey("barangayId") && !q.get("barangayId").isBlank() && !"ALL".equalsIgnoreCase(q.get("barangayId"))
+                ? Integer.valueOf(q.get("barangayId"))
+                : null;
+        Integer muni = q.containsKey("municipalityId") && !q.get("municipalityId").isBlank() && !"ALL".equalsIgnoreCase(q.get("municipalityId"))
+                ? Integer.valueOf(q.get("municipalityId"))
+                : null;
         String status = q.getOrDefault("status", "ACTIVE");
-        return JsonUtil.toJson(destinationService.getDestinations(cat, brgy, status));
+        if ("ALL".equalsIgnoreCase(q.get("status"))) {
+            status = null;
+        }
+
+        if (isLguOfficer(user) && user.getMunicipalityId() != null) {
+            muni = user.getMunicipalityId();
+        }
+
+        return JsonUtil.toJson(destinationService.getDestinations(cat, brgy, muni, status));
     }
 
     private String handleSaveDestination(String body, User user, String clientIp) {
         Map<String, Object> d = JsonUtil.parseJsonObject(body);
         Destination dest = new Destination();
         Object idObj = d.get("destinationId");
-        if (idObj instanceof Number) dest.setDestinationId(((Number) idObj).intValue());
+        if (idObj instanceof Number num) dest.setDestinationId(num.intValue());
 
         dest.setName((String) d.get("name"));
         dest.setCategory((String) d.get("category"));
         dest.setDescription((String) d.get("description"));
-        if (d.get("barangayId") instanceof Number) dest.setBarangayId(((Number) d.get("barangayId")).intValue());
-        if (d.get("entranceFee") instanceof Number) dest.setEntranceFee(BigDecimal.valueOf(((Number) d.get("entranceFee")).doubleValue()));
-        dest.setOperatingHours((String) d.get("operatingHours"));
+        if (d.get("barangayId") instanceof Number num) dest.setBarangayId(num.intValue());
+        if (d.get("entranceFee") instanceof Number num) dest.setEntranceFee(BigDecimal.valueOf(num.doubleValue()));
+        else dest.setEntranceFee(BigDecimal.ZERO);
+        dest.setOperatingHours((String) d.getOrDefault("operatingHours", "6:00 AM - 5:00 PM"));
         dest.setLocationCoordinates((String) d.get("locationCoordinates"));
         dest.setContactInfo((String) d.get("contactInfo"));
         dest.setImageUrl((String) d.get("imageUrl"));
         dest.setStatus((String) d.getOrDefault("status", "ACTIVE"));
 
+        if ("BARANGAY_OFFICIAL".equalsIgnoreCase(user.getRoleCode()) && user.getBarangayId() != null) {
+            if (dest.getBarangayId() > 0 && dest.getBarangayId() != user.getBarangayId()) {
+                return error("Access denied: Barangay Officials can only manage destinations in their assigned barangay.", 403);
+            }
+            dest.setBarangayId(user.getBarangayId());
+        }
+
         boolean ok;
         if (dest.getDestinationId() > 0) {
             ok = destinationService.updateDestination(dest);
-            auditService.log(user.getUserId(), user.getUsername(), "UPDATE_DESTINATION", "DESTINATIONS", dest.getDestinationId(), "Updated " + dest.getName());
+            auditService.log(user.getUserId(), user.getUsername(), "UPDATE_DESTINATION", "DESTINATIONS", dest.getDestinationId(), clientIp, "Updated " + dest.getName());
         } else {
             int newId = destinationService.createDestination(dest);
             ok = newId > 0;
             dest.setDestinationId(newId);
-            auditService.log(user.getUserId(), user.getUsername(), "CREATE_DESTINATION", "DESTINATIONS", newId, "Created " + dest.getName());
+            auditService.log(user.getUserId(), user.getUsername(), "CREATE_DESTINATION", "DESTINATIONS", newId, clientIp, "Created " + dest.getName());
         }
         return ok ? success("Destination saved successfully.") : error("Failed to save destination.", 500);
+    }
+
+    private String handleUploadDestinationPhoto(String body, User user, String clientIp) {
+        try {
+            Map<String, Object> d = JsonUtil.parseJsonObject(body);
+            String rawData = (String) d.get("data");
+            String fileName = (String) d.get("fileName");
+            if (rawData == null || rawData.isBlank()) {
+                return error("Photo image data is required.", 400);
+            }
+
+            // Extract base64 payload if data URL
+            String base64Data = rawData;
+            String extension = ".jpg";
+            if (rawData.contains(",")) {
+                String header = rawData.substring(0, rawData.indexOf(","));
+                base64Data = rawData.substring(rawData.indexOf(",") + 1);
+                if (header.contains("image/png")) extension = ".png";
+                else if (header.contains("image/webp")) extension = ".webp";
+                else if (header.contains("image/jpeg") || header.contains("image/jpg")) extension = ".jpg";
+            } else if (fileName != null && fileName.contains(".")) {
+                String ext = fileName.substring(fileName.lastIndexOf(".")).toLowerCase();
+                if (ext.equals(".png") || ext.equals(".jpg") || ext.equals(".jpeg") || ext.equals(".webp")) {
+                    extension = ext;
+                }
+            }
+
+            byte[] decoded = Base64.getDecoder().decode(base64Data.trim());
+            // Enforce max 5MB size limit
+            if (decoded.length > 5 * 1024 * 1024) {
+                return error("File size exceeds 5MB limit.", 400);
+            }
+
+            String savedFileName = "dest_" + System.currentTimeMillis() + "_" + UUID.randomUUID().toString().substring(0, 8) + extension;
+
+            // Directories to write to
+            String relativePath = "uploads/destinations/" + savedFileName;
+            File[] targetDirs = new File[] {
+                new File("src/main/resources/web/uploads/destinations"),
+                new File("bin/web/uploads/destinations"),
+                new File("uploads/destinations")
+            };
+
+            for (File dir : targetDirs) {
+                if (!dir.exists()) {
+                    dir.mkdirs();
+                }
+                File targetFile = new File(dir, savedFileName);
+                Files.write(targetFile.toPath(), decoded, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            }
+
+            auditService.log(user.getUserId(), user.getUsername(), "UPLOAD_DESTINATION_PHOTO", "DESTINATIONS", 0, clientIp, "Uploaded destination photo: " + savedFileName);
+
+            Map<String, Object> res = new HashMap<>();
+            res.put("success", true);
+            res.put("url", relativePath);
+            res.put("fileName", savedFileName);
+            res.put("message", "Destination photo uploaded successfully.");
+            return JsonUtil.toJson(res);
+        } catch (IllegalArgumentException e) {
+            return error("Invalid base64 photo data.", 400);
+        } catch (Exception e) {
+            return error("Failed uploading photo: " + e.getMessage(), 500);
+        }
     }
 
     private String handleValidateDestination(String body, User user, String clientIp) {
         Map<String, Object> d = JsonUtil.parseJsonObject(body);
         int destId = ((Number) d.get("destinationId")).intValue();
+        Destination existing = destinationService.getDestinationById(destId);
+        if (existing == null) return error("Destination not found.", 404);
+
+        if ("BARANGAY_OFFICIAL".equalsIgnoreCase(user.getRoleCode()) && user.getBarangayId() != null) {
+            if (existing.getBarangayId() != user.getBarangayId()) {
+                return error("Access denied: You can only validate destinations within your authorized barangay jurisdiction.", 403);
+            }
+        }
+
         boolean ok = destinationService.validateDestination(destId, user.getUserId());
         if (ok) {
-            auditService.log(user.getUserId(), user.getUsername(), "VALIDATE_DESTINATION", "DESTINATIONS", destId, "Validated by " + user.getFullName());
+            auditService.log(user.getUserId(), user.getUsername(), "VALIDATE_DESTINATION", "DESTINATIONS", destId, clientIp, "Validated by " + user.getFullName());
             return success("Destination validated successfully.");
         }
         return error("Validation failed.", 500);
@@ -333,7 +613,7 @@ public class ApiController {
         int destId = ((Number) d.get("destinationId")).intValue();
         boolean ok = destinationService.deleteDestination(destId);
         if (ok) {
-            auditService.log(user.getUserId(), user.getUsername(), "DELETE_DESTINATION", "DESTINATIONS", destId, "Deleted destination ID: " + destId);
+            auditService.log(user.getUserId(), user.getUsername(), "DELETE_DESTINATION", "DESTINATIONS", destId, clientIp, "Deleted destination ID: " + destId);
             return success("Destination deleted.");
         }
         return error("Delete failed.", 500);
@@ -348,14 +628,14 @@ public class ApiController {
     private String handleSavePackage(String body, User user, String clientIp) {
         Map<String, Object> d = JsonUtil.parseJsonObject(body);
         TourismPackage pkg = new TourismPackage();
-        if (d.get("packageId") instanceof Number) pkg.setPackageId(((Number) d.get("packageId")).intValue());
+        if (d.get("packageId") instanceof Number num) pkg.setPackageId(num.intValue());
         pkg.setName((String) d.get("name"));
         pkg.setDescription((String) d.get("description"));
         pkg.setPackageType((String) d.getOrDefault("packageType", "PRE_DESIGNED"));
-        if (d.get("pricePerPax") instanceof Number) pkg.setPricePerPax(BigDecimal.valueOf(((Number) d.get("pricePerPax")).doubleValue()));
-        if (d.get("durationDays") instanceof Number) pkg.setDurationDays(((Number) d.get("durationDays")).intValue());
-        if (d.get("minPax") instanceof Number) pkg.setMinPax(((Number) d.get("minPax")).intValue());
-        if (d.get("maxPax") instanceof Number) pkg.setMaxPax(((Number) d.get("maxPax")).intValue());
+        if (d.get("pricePerPax") instanceof Number num) pkg.setPricePerPax(BigDecimal.valueOf(num.doubleValue()));
+        if (d.get("durationDays") instanceof Number num) pkg.setDurationDays(num.intValue());
+        if (d.get("minPax") instanceof Number num) pkg.setMinPax(num.intValue());
+        if (d.get("maxPax") instanceof Number num) pkg.setMaxPax(num.intValue());
         pkg.setInclusions((String) d.get("inclusions"));
         pkg.setExclusions((String) d.get("exclusions"));
         pkg.setStatus((String) d.getOrDefault("status", "ACTIVE"));
@@ -363,26 +643,26 @@ public class ApiController {
         pkg.setCreatedBy(user.getUserId());
 
         List<Integer> destIds = new ArrayList<>();
-        if (d.get("destinationIds") instanceof List<?>) {
-            for (Object o : (List<?>) d.get("destinationIds")) {
-                if (o instanceof Number) destIds.add(((Number) o).intValue());
+        if (d.get("destinationIds") instanceof List<?> list) {
+            for (Object o : list) {
+                if (o instanceof Number num) destIds.add(num.intValue());
             }
         }
         List<Integer> svcIds = new ArrayList<>();
-        if (d.get("serviceIds") instanceof List<?>) {
-            for (Object o : (List<?>) d.get("serviceIds")) {
-                if (o instanceof Number) svcIds.add(((Number) o).intValue());
+        if (d.get("serviceIds") instanceof List<?> list) {
+            for (Object o : list) {
+                if (o instanceof Number num) svcIds.add(num.intValue());
             }
         }
 
         boolean ok;
         if (pkg.getPackageId() > 0) {
             ok = packageService.updatePackage(pkg, destIds, svcIds);
-            auditService.log(user.getUserId(), user.getUsername(), "UPDATE_PACKAGE", "PACKAGES", pkg.getPackageId(), "Updated " + pkg.getName());
+            auditService.log(user.getUserId(), user.getUsername(), "UPDATE_PACKAGE", "PACKAGES", pkg.getPackageId(), clientIp, "Updated " + pkg.getName());
         } else {
             int newId = packageService.createPackage(pkg, destIds, svcIds);
             ok = newId > 0;
-            auditService.log(user.getUserId(), user.getUsername(), "CREATE_PACKAGE", "PACKAGES", newId, "Created " + pkg.getName());
+            auditService.log(user.getUserId(), user.getUsername(), "CREATE_PACKAGE", "PACKAGES", newId, clientIp, "Created " + pkg.getName());
         }
         return ok ? success("Tourism package saved.") : error("Failed to save package.", 500);
     }
@@ -392,45 +672,260 @@ public class ApiController {
         int pkgId = ((Number) d.get("packageId")).intValue();
         boolean ok = packageService.deletePackage(pkgId);
         if (ok) {
-            auditService.log(user.getUserId(), user.getUsername(), "DELETE_PACKAGE", "PACKAGES", pkgId, "Deleted package ID: " + pkgId);
+            auditService.log(user.getUserId(), user.getUsername(), "DELETE_PACKAGE", "PACKAGES", pkgId, clientIp, "Deleted package ID: " + pkgId);
             return success("Package deleted.");
         }
         return error("Failed to delete package.", 500);
     }
 
-    private String handleGetStakeholders(Map<String, String> q) {
+    private String handleGetStakeholders(Map<String, String> q, User currentUser) {
         String cat = q.get("category");
-        Integer brgy = q.containsKey("barangayId") ? Integer.parseInt(q.get("barangayId")) : null;
+        Integer brgy = q.containsKey("barangayId") && !q.get("barangayId").isBlank() && !"ALL".equalsIgnoreCase(q.get("barangayId"))
+                ? Integer.valueOf(q.get("barangayId"))
+                : null;
+        Integer muni = q.containsKey("municipalityId") && !q.get("municipalityId").isBlank() && !"ALL".equalsIgnoreCase(q.get("municipalityId"))
+                ? Integer.valueOf(q.get("municipalityId"))
+                : null;
         String status = q.get("verificationStatus");
-        return JsonUtil.toJson(stakeholderService.getStakeholders(cat, brgy, status));
+        if ("ALL".equalsIgnoreCase(status)) {
+            status = null;
+        }
+
+        // Enforce Barangay jurisdiction filtering when Barangay Official requests verification queue or jurisdiction-scoped list
+        if (currentUser != null && "BARANGAY_OFFICIAL".equalsIgnoreCase(currentUser.getRoleCode()) && currentUser.getBarangayId() != null) {
+            if ("PENDING".equalsIgnoreCase(status) || "true".equalsIgnoreCase(q.get("jurisdictionOnly"))) {
+                brgy = currentUser.getBarangayId();
+            }
+        } else if (currentUser != null && "LGU_OFFICER".equalsIgnoreCase(currentUser.getRoleCode()) && currentUser.getMunicipalityId() != null) {
+            // Enforce Municipality jurisdiction filtering for LGU Officers
+            muni = currentUser.getMunicipalityId();
+        }
+        return JsonUtil.toJson(stakeholderService.getStakeholders(cat, brgy, muni, status));
+    }
+
+    private String handleUpdateBarangayRecord(String body, User user, String clientIp) {
+        Map<String, Object> d = JsonUtil.parseJsonObject(body);
+        if (!(d.get("barangayId") instanceof Number num)) {
+            return error("barangayId is required.", 400);
+        }
+        int brgyId = num.intValue();
+        if ("BARANGAY_OFFICIAL".equalsIgnoreCase(user.getRoleCode()) && user.getBarangayId() != null) {
+            if (brgyId != user.getBarangayId()) {
+                return error("Access denied: Barangay Officials can only update their assigned barangay record.", 403);
+            }
+        }
+        if ("LGU_OFFICER".equalsIgnoreCase(user.getRoleCode()) && user.getMunicipalityId() != null) {
+            Barangay targetBrgy = destinationService.getBarangays().stream()
+                    .filter(b -> b.getBarangayId() == brgyId)
+                    .findFirst().orElse(null);
+            if (targetBrgy == null || targetBrgy.getMunicipalityId() != user.getMunicipalityId().intValue()) {
+                return error("Access denied: LGU Officers can only update barangay records within their assigned municipality.", 403);
+            }
+        }
+        String contactPerson = (String) d.get("contactPerson");
+        String contactNumber = (String) d.get("contactNumber");
+        boolean ok = destinationService.updateBarangayContact(brgyId, contactPerson, contactNumber);
+        if (ok) {
+            auditService.log(user.getUserId(), user.getUsername(), "UPDATE_BARANGAY", "BARANGAYS", brgyId, clientIp, "Updated focal contact: " + contactPerson);
+            return success("Barangay tourism record updated successfully.");
+        }
+        return error("Failed to update barangay record.", 500);
+    }
+
+    private String handleDeleteBarangay(String body, User user, String clientIp) {
+        Map<String, Object> d = JsonUtil.parseJsonObject(body);
+        if (!(d.get("barangayId") instanceof Number num)) {
+            return error("barangayId is required.", 400);
+        }
+        int brgyId = num.intValue();
+        if ("BARANGAY_OFFICIAL".equalsIgnoreCase(user.getRoleCode()) && user.getBarangayId() != null) {
+            if (brgyId != user.getBarangayId()) {
+                return error("Access denied: Barangay Officials can only delete their assigned barangay record.", 403);
+            }
+        }
+        if ("LGU_OFFICER".equalsIgnoreCase(user.getRoleCode()) && user.getMunicipalityId() != null) {
+            Barangay targetBrgy = destinationService.getBarangays().stream()
+                    .filter(b -> b.getBarangayId() == brgyId)
+                    .findFirst().orElse(null);
+            if (targetBrgy == null || targetBrgy.getMunicipalityId() != user.getMunicipalityId().intValue()) {
+                return error("Access denied: LGU Officers can only delete barangay records within their assigned municipality.", 403);
+            }
+        }
+        boolean ok = destinationService.deleteBarangay(brgyId);
+        if (ok) {
+            auditService.log(user.getUserId(), user.getUsername(), "DELETE_BARANGAY", "BARANGAYS", brgyId, clientIp, "Deleted barangay ID: " + brgyId);
+            return success("Barangay record deleted successfully.");
+        }
+        return error("Failed to delete barangay record.", 500);
+    }
+
+    private String handleSaveStakeholderProfile(String body, User user, String clientIp) {
+        Map<String, Object> d = JsonUtil.parseJsonObject(body);
+        if (isStakeholder(user)) {
+            StakeholderProfile sp = stakeholderService.getProfileByUserId(user.getUserId());
+            if (sp == null) {
+                sp = new StakeholderProfile();
+                sp.setUserId(user.getUserId());
+                sp.setBarangayId(d.get("barangayId") instanceof Number n ? n.intValue() : (user.getBarangayId() != null ? user.getBarangayId() : 1));
+                sp.setBusinessName((String) d.get("businessName"));
+                sp.setCategory((String) d.getOrDefault("category", "TOUR_GUIDE"));
+                sp.setAccreditationNo((String) d.get("accreditationNo"));
+                sp.setContactNumber((String) d.get("contactNumber"));
+                sp.setYearsExperience(d.get("yearsExperience") instanceof Number n ? n.intValue() : 1);
+                sp.setVerificationStatus("PENDING");
+                int newId = stakeholderService.registerStakeholder(sp);
+                if (newId > 0) {
+                    auditService.log(user.getUserId(), user.getUsername(), "CREATE_STAKEHOLDER_PROFILE", "STAKEHOLDER_PROFILES", newId, clientIp, "Created profile: " + sp.getBusinessName());
+                    return success("Stakeholder profile created.");
+                }
+                return error("Failed to create stakeholder profile.", 500);
+            } else {
+                if (d.get("barangayId") instanceof Number n) sp.setBarangayId(n.intValue());
+                if (d.get("businessName") != null) sp.setBusinessName((String) d.get("businessName"));
+                if (d.get("category") != null) sp.setCategory((String) d.get("category"));
+                if (d.get("accreditationNo") != null) sp.setAccreditationNo((String) d.get("accreditationNo"));
+                if (d.get("contactNumber") != null) sp.setContactNumber((String) d.get("contactNumber"));
+                if (d.get("yearsExperience") instanceof Number n) sp.setYearsExperience(n.intValue());
+                boolean ok = stakeholderService.updateProfile(sp);
+                if (ok) {
+                    auditService.log(user.getUserId(), user.getUsername(), "UPDATE_STAKEHOLDER_PROFILE", "STAKEHOLDER_PROFILES", sp.getProfileId(), clientIp, "Updated profile: " + sp.getBusinessName());
+                    return success("Stakeholder profile updated successfully.");
+                }
+                return error("Failed to update stakeholder profile.", 500);
+            }
+        }
+
+        // Barangay Official, LGU, Tourism Office, or Admin registering or updating a stakeholder
+        int profileId = d.get("profileId") instanceof Number n ? n.intValue() : 0;
+        int brgyId = d.get("barangayId") instanceof Number n ? n.intValue() : (user.getBarangayId() != null ? user.getBarangayId() : 1);
+        if ("BARANGAY_OFFICIAL".equalsIgnoreCase(user.getRoleCode()) && user.getBarangayId() != null) {
+            if (brgyId != user.getBarangayId()) {
+                return error("Access denied: Barangay Officials can only register stakeholders within their assigned barangay.", 403);
+            }
+            brgyId = user.getBarangayId();
+        }
+
+        if (profileId > 0) {
+            StakeholderProfile existing = stakeholderService.getProfileById(profileId);
+            if (existing == null) return error("Stakeholder profile not found.", 404);
+            if ("BARANGAY_OFFICIAL".equalsIgnoreCase(user.getRoleCode()) && user.getBarangayId() != null && existing.getBarangayId() != user.getBarangayId()) {
+                return error("Access denied: Stakeholder belongs to another barangay jurisdiction.", 403);
+            }
+            existing.setBarangayId(brgyId);
+            if (d.get("businessName") != null) existing.setBusinessName((String) d.get("businessName"));
+            if (d.get("category") != null) existing.setCategory((String) d.get("category"));
+            if (d.get("accreditationNo") != null) existing.setAccreditationNo((String) d.get("accreditationNo"));
+            if (d.get("contactNumber") != null) existing.setContactNumber((String) d.get("contactNumber"));
+            if (d.get("yearsExperience") instanceof Number n) existing.setYearsExperience(n.intValue());
+            boolean ok = stakeholderService.updateProfile(existing);
+            if (ok) {
+                auditService.log(user.getUserId(), user.getUsername(), "UPDATE_STAKEHOLDER_PROFILE", "STAKEHOLDER_PROFILES", profileId, clientIp, "Updated stakeholder: " + existing.getBusinessName());
+                return success("Stakeholder profile updated.");
+            }
+            return error("Failed to update stakeholder profile.", 500);
+        }
+
+        // Creating a new stakeholder (and user account if needed)
+        int targetUserId = d.get("userId") instanceof Number n ? n.intValue() : 0;
+        if (targetUserId <= 0) {
+            String uname = (String) d.get("username");
+            String email = (String) d.get("email");
+            String fullName = (String) d.get("ownerName");
+            if (fullName == null) fullName = (String) d.get("fullName");
+            String phone = (String) d.get("contactNumber");
+            String rawPass = (String) d.getOrDefault("password", "password123");
+            if (uname == null || uname.isBlank() || email == null || email.isBlank() || fullName == null || fullName.isBlank()) {
+                return error("Owner full name, username, and email are required to register a new stakeholder.", 400);
+            }
+            User newStkUser = new User();
+            newStkUser.setUsername(uname.trim());
+            newStkUser.setEmail(email.trim());
+            newStkUser.setFullName(fullName.trim());
+            newStkUser.setPhone(phone);
+            newStkUser.setRoleId(5); // STAKEHOLDER
+            newStkUser.setBarangayId(brgyId);
+            newStkUser.setStatus("ACTIVE");
+            targetUserId = userService.createUser(newStkUser, rawPass);
+            if (targetUserId <= 0) {
+                return error("Could not create user account for stakeholder (username or email may already exist).", 400);
+            }
+        }
+
+        StakeholderProfile sp = new StakeholderProfile();
+        sp.setUserId(targetUserId);
+        sp.setBarangayId(brgyId);
+        sp.setBusinessName((String) d.get("businessName"));
+        sp.setCategory((String) d.getOrDefault("category", "TOUR_GUIDE"));
+        sp.setAccreditationNo((String) d.get("accreditationNo"));
+        sp.setContactNumber((String) d.get("contactNumber"));
+        sp.setYearsExperience(d.get("yearsExperience") instanceof Number n ? n.intValue() : 1);
+        sp.setVerificationStatus("BARANGAY_OFFICIAL".equalsIgnoreCase(user.getRoleCode()) || isTourismOffice(user) || isAdmin(user)
+                ? (String) d.getOrDefault("verificationStatus", "PENDING")
+                : "PENDING");
+
+        int newProfId = stakeholderService.registerStakeholder(sp);
+        if (newProfId > 0) {
+            auditService.log(user.getUserId(), user.getUsername(), "REGISTER_STAKEHOLDER", "STAKEHOLDER_PROFILES", newProfId, clientIp, "Registered stakeholder: " + sp.getBusinessName());
+            Map<String, Object> res = new HashMap<>();
+            res.put("success", true);
+            res.put("profileId", newProfId);
+            res.put("userId", targetUserId);
+            res.put("message", "Community stakeholder registered successfully.");
+            return JsonUtil.toJson(res);
+        }
+        return error("Failed to register stakeholder profile.", 500);
     }
 
     private String handleSaveStakeholderService(String body, User user, String clientIp) {
         Map<String, Object> d = JsonUtil.parseJsonObject(body);
         TourismService svc = new TourismService();
-        if (d.get("serviceId") instanceof Number) svc.setServiceId(((Number) d.get("serviceId")).intValue());
-        if (d.get("stakeholderId") instanceof Number) {
-            svc.setStakeholderId(((Number) d.get("stakeholderId")).intValue());
-        } else {
+        if (d.get("serviceId") instanceof Number num) svc.setServiceId(num.intValue());
+
+        if (isStakeholder(user)) {
             StakeholderProfile sp = stakeholderService.getProfileByUserId(user.getUserId());
-            if (sp != null) svc.setStakeholderId(sp.getProfileId());
+            if (sp == null) return error("Stakeholder profile not found for user.", 400);
+            svc.setStakeholderId(sp.getProfileId());
+            if (svc.getServiceId() > 0) {
+                TourismService existing = stakeholderService.getServiceById(svc.getServiceId());
+                if (existing != null && existing.getStakeholderId() != sp.getProfileId()) {
+                    return error("Access denied: You cannot edit another stakeholder's service.", 403);
+                }
+            }
+        } else if (isAdmin(user) || isTourismOffice(user)) {
+            if (d.get("stakeholderId") instanceof Number num) {
+                svc.setStakeholderId(num.intValue());
+            } else if (svc.getServiceId() > 0) {
+                TourismService existing = stakeholderService.getServiceById(svc.getServiceId());
+                if (existing != null) svc.setStakeholderId(existing.getStakeholderId());
+                else return error("Service not found.", 404);
+            } else {
+                StakeholderProfile sp = stakeholderService.getProfileByUserId(user.getUserId());
+                if (sp != null) svc.setStakeholderId(sp.getProfileId());
+                else return error("stakeholderId required.", 400);
+            }
+        } else {
+            return error("Unauthorized.", 403);
         }
+
         svc.setServiceName((String) d.get("serviceName"));
         svc.setServiceCategory((String) d.get("serviceCategory"));
         svc.setDescription((String) d.get("description"));
-        if (d.get("basePrice") instanceof Number) svc.setBasePrice(BigDecimal.valueOf(((Number) d.get("basePrice")).doubleValue()));
-        svc.setPricingUnit((String) d.getOrDefault("pricingUnit", "PER_PERSON"));
-        if (d.get("maxCapacity") instanceof Number) svc.setMaxCapacity(((Number) d.get("maxCapacity")).intValue());
-        svc.setAvailable(Boolean.TRUE.equals(d.getOrDefault("isAvailable", true)));
+        if (d.get("basePrice") instanceof Number num) svc.setBasePrice(BigDecimal.valueOf(num.doubleValue()));
+        String rawUnit = (String) d.getOrDefault("pricingUnit", "PER_PERSON");
+        if ("PER_DAY".equalsIgnoreCase(rawUnit)) rawUnit = "PER_TRIP";
+        svc.setPricingUnit(rawUnit);
+        if (d.get("maxCapacity") instanceof Number num) svc.setMaxCapacity(num.intValue());
+        Object availObj = d.containsKey("available") ? d.get("available") : d.getOrDefault("isAvailable", true);
+        svc.setAvailable(Boolean.TRUE.equals(availObj));
 
         boolean ok;
         if (svc.getServiceId() > 0) {
             ok = stakeholderService.updateService(svc);
-            auditService.log(user.getUserId(), user.getUsername(), "UPDATE_SERVICE", "SERVICES", svc.getServiceId(), "Updated " + svc.getServiceName());
+            auditService.log(user.getUserId(), user.getUsername(), "UPDATE_SERVICE", "SERVICES", svc.getServiceId(), clientIp, "Updated " + svc.getServiceName());
         } else {
             int newId = stakeholderService.createService(svc);
             ok = newId > 0;
-            auditService.log(user.getUserId(), user.getUsername(), "CREATE_SERVICE", "SERVICES", newId, "Created " + svc.getServiceName());
+            auditService.log(user.getUserId(), user.getUsername(), "CREATE_SERVICE", "SERVICES", newId, clientIp, "Created " + svc.getServiceName());
         }
         return ok ? success("Service listing saved.") : error("Failed to save service.", 500);
     }
@@ -438,9 +933,21 @@ public class ApiController {
     private String handleDeleteStakeholderService(String body, User user, String clientIp) {
         Map<String, Object> d = JsonUtil.parseJsonObject(body);
         int svcId = ((Number) d.get("serviceId")).intValue();
+
+        if (isStakeholder(user)) {
+            StakeholderProfile sp = stakeholderService.getProfileByUserId(user.getUserId());
+            if (sp == null) return error("Stakeholder profile not found.", 400);
+            TourismService existing = stakeholderService.getServiceById(svcId);
+            if (existing != null && existing.getStakeholderId() != sp.getProfileId()) {
+                return error("Access denied: You cannot delete another stakeholder's service.", 403);
+            }
+        } else if (!isAdmin(user) && !isTourismOffice(user)) {
+            return error("Unauthorized.", 403);
+        }
+
         boolean ok = stakeholderService.deleteService(svcId);
         if (ok) {
-            auditService.log(user.getUserId(), user.getUsername(), "DELETE_SERVICE", "SERVICES", svcId, "Deleted service ID: " + svcId);
+            auditService.log(user.getUserId(), user.getUsername(), "DELETE_SERVICE", "SERVICES", svcId, clientIp, "Deleted service ID: " + svcId);
             return success("Service deleted.");
         }
         return error("Failed to delete service.", 500);
@@ -473,29 +980,28 @@ public class ApiController {
         }
         b.setTouristId(tp.getProfileId());
 
-        if (d.get("packageId") instanceof Number) {
-            b.setPackageId(((Number) d.get("packageId")).intValue());
+        if (d.get("packageId") instanceof Number num) {
+            b.setPackageId(num.intValue());
         }
         b.setTravelDateStart(Date.valueOf((String) d.get("travelDateStart")));
         b.setTravelDateEnd(Date.valueOf((String) d.get("travelDateEnd")));
         Object paxObj = d.get("numberOfPax");
-        int pax = (paxObj instanceof Number) ? ((Number) paxObj).intValue() : 1;
+        int pax = (paxObj instanceof Number num) ? num.intValue() : 1;
         b.setNumberOfPax(pax);
         b.setTotalAmount(BigDecimal.valueOf(((Number) d.get("totalAmount")).doubleValue()));
         b.setStatus("PENDING");
         b.setCustomNotes((String) d.get("customNotes"));
 
         List<BookingItem> items = new ArrayList<>();
-        if (d.get("items") instanceof List<?>) {
-            for (Object obj : (List<?>) d.get("items")) {
-                if (obj instanceof Map<?, ?>) {
-                    Map<?, ?> m = (Map<?, ?>) obj;
+        if (d.get("items") instanceof List<?> list) {
+            for (Object obj : list) {
+                if (obj instanceof Map<?, ?> m) {
                     BookingItem item = new BookingItem();
                     item.setServiceId(((Number) m.get("serviceId")).intValue());
                     item.setStakeholderId(((Number) m.get("stakeholderId")).intValue());
                     item.setUnitPrice(BigDecimal.valueOf(((Number) m.get("unitPrice")).doubleValue()));
                     Object qObj = m.get("quantity");
-                    int qty = (qObj instanceof Number) ? ((Number) qObj).intValue() : 1;
+                    int qty = (qObj instanceof Number num) ? num.intValue() : 1;
                     item.setQuantity(qty);
                     item.setSubtotal(BigDecimal.valueOf(((Number) m.get("subtotal")).doubleValue()));
                     item.setStatus("PENDING");
@@ -504,13 +1010,35 @@ public class ApiController {
             }
         }
 
+        // Automatically assign linked package services when a Tourist books a pre-designed package
+        if (items.isEmpty() && b.getPackageId() != null && b.getPackageId() > 0) {
+            TourismPackage pkg = packageService.getPackageById(b.getPackageId());
+            if (pkg != null && pkg.getServices() != null) {
+                for (TourismService svc : pkg.getServices()) {
+                    if (svc.getStakeholderId() > 0) {
+                        BookingItem item = new BookingItem();
+                        item.setServiceId(svc.getServiceId());
+                        item.setStakeholderId(svc.getStakeholderId());
+                        BigDecimal unitPrice = svc.getBasePrice() != null ? svc.getBasePrice() : BigDecimal.ZERO;
+                        int qty = "PER_PERSON".equalsIgnoreCase(svc.getPricingUnit()) ? pax : 1;
+                        item.setUnitPrice(unitPrice);
+                        item.setQuantity(qty);
+                        item.setSubtotal(unitPrice.multiply(BigDecimal.valueOf(qty)));
+                        item.setStatus("PENDING");
+                        items.add(item);
+                    }
+                }
+            }
+        }
+
         int newId = bookingService.createBooking(b, items);
         if (newId > 0) {
-            auditService.log(user.getUserId(), user.getUsername(), "CREATE_BOOKING", "BOOKINGS", newId, "New booking created: " + b.getBookingReference());
+            auditService.log(user.getUserId(), user.getUsername(), "CREATE_BOOKING", "BOOKINGS", newId, clientIp, "New booking created: " + b.getBookingReference());
             Map<String, Object> res = new HashMap<>();
             res.put("success", true);
             res.put("bookingId", newId);
             res.put("reference", b.getBookingReference());
+            res.put("assignedServiceItems", items.size());
             res.put("message", "Booking submitted successfully! Reference: " + b.getBookingReference());
             return JsonUtil.toJson(res);
         }
@@ -518,13 +1046,48 @@ public class ApiController {
     }
 
     private String handleUpdateBookingStatus(String body, User user, String clientIp) {
+        if ("TOURISM_OFFICE".equalsIgnoreCase(user.getRoleCode())) {
+            return error("Access denied: Tourism Office has read-only monitoring access. Bookings can only be confirmed or cancelled by the managing Tourism Stakeholder.", 403);
+        }
         Map<String, Object> d = JsonUtil.parseJsonObject(body);
         int bookingId = ((Number) d.get("bookingId")).intValue();
         String status = (String) d.get("status");
 
+        Booking existing = bookingService.getBookingById(bookingId);
+        if (existing == null) return error("Booking not found.", 404);
+
+        if (isTourist(user)) {
+            TouristProfile tp = bookingService.getTouristProfileByUserId(user.getUserId());
+            if (tp == null || existing.getTouristId() != tp.getProfileId()) {
+                return error("Access denied: You can only manage your own bookings.", 403);
+            }
+            if (!"CANCELLED".equalsIgnoreCase(status)) {
+                return error("Access denied: Tourists may only cancel pending bookings.", 403);
+            }
+        } else if (isStakeholder(user)) {
+            StakeholderProfile sp = stakeholderService.getProfileByUserId(user.getUserId());
+            if (sp == null) return error("Stakeholder profile not found.", 400);
+            boolean assignedToStakeholder = false;
+            if (existing.getItems() != null) {
+                for (BookingItem item : existing.getItems()) {
+                    if (item.getStakeholderId() == sp.getProfileId()) {
+                        assignedToStakeholder = true;
+                        String itemStatus = "CONFIRMED".equalsIgnoreCase(status) ? "ACCEPTED" : status;
+                        if ("PENDING".equalsIgnoreCase(itemStatus) || "ACCEPTED".equalsIgnoreCase(itemStatus)
+                                || "REJECTED".equalsIgnoreCase(itemStatus) || "COMPLETED".equalsIgnoreCase(itemStatus)) {
+                            bookingService.updateItemStatus(item.getItemId(), itemStatus);
+                        }
+                    }
+                }
+            }
+            if (!assignedToStakeholder) {
+                return error("Access denied: You can only manage bookings assigned to your services.", 403);
+            }
+        }
+
         boolean ok = bookingService.updateBookingStatus(bookingId, status);
         if (ok) {
-            auditService.log(user.getUserId(), user.getUsername(), "UPDATE_BOOKING_STATUS", "BOOKINGS", bookingId, "Booking status set to " + status);
+            auditService.log(user.getUserId(), user.getUsername(), "UPDATE_BOOKING_STATUS", "BOOKINGS", bookingId, clientIp, "Booking status set to " + status);
             return success("Booking updated to " + status);
         }
         return error("Failed to update status.", 500);
@@ -532,12 +1095,56 @@ public class ApiController {
 
     private String handleUpdateBookingItemStatus(String body, User user, String clientIp) {
         Map<String, Object> d = JsonUtil.parseJsonObject(body);
-        int itemId = ((Number) d.get("itemId")).intValue();
+        if (!(d.get("itemId") instanceof Number num)) {
+            return error("itemId is required.", 400);
+        }
+        int itemId = num.intValue();
         String status = (String) d.get("status");
+        if (status == null || status.isBlank()) {
+            return error("status is required.", 400);
+        }
+        if ("CONFIRMED".equalsIgnoreCase(status)) status = "ACCEPTED";
+
+        BookingItem item = bookingService.getBookingItemById(itemId);
+        if (item == null) {
+            return error("Service item not found.", 404);
+        }
+
+        if (isStakeholder(user)) {
+            StakeholderProfile sp = stakeholderService.getProfileByUserId(user.getUserId());
+            if (sp == null || item.getStakeholderId() != sp.getProfileId()) {
+                return error("Access denied: You can only update service items assigned to your business.", 403);
+            }
+        } else if ("TOURISM_OFFICE".equalsIgnoreCase(user.getRoleCode())) {
+            return error("Access denied: Tourism Office has read-only monitoring access. Service items can only be updated by the assigned Tourism Stakeholder.", 403);
+        } else if (!isAdmin(user)) {
+            return error("Access denied.", 403);
+        }
 
         boolean ok = bookingService.updateItemStatus(itemId, status);
         if (ok) {
-            auditService.log(user.getUserId(), user.getUsername(), "UPDATE_ITEM_STATUS", "BOOKING_ITEMS", itemId, "Item status set to " + status);
+            // Check parent booking items and synchronize overall booking status if appropriate
+            Booking parentBooking = bookingService.getBookingById(item.getBookingId());
+            if (parentBooking != null && parentBooking.getItems() != null && !parentBooking.getItems().isEmpty()) {
+                boolean allAccepted = true;
+                boolean allRejected = true;
+                for (BookingItem bi : parentBooking.getItems()) {
+                    String s = (bi.getItemId() == itemId) ? status : bi.getStatus();
+                    if (!"ACCEPTED".equalsIgnoreCase(s) && !"COMPLETED".equalsIgnoreCase(s)) {
+                        allAccepted = false;
+                    }
+                    if (!"REJECTED".equalsIgnoreCase(s)) {
+                        allRejected = false;
+                    }
+                }
+                if (allAccepted && "PENDING".equalsIgnoreCase(parentBooking.getStatus())) {
+                    bookingService.updateBookingStatus(parentBooking.getBookingId(), "CONFIRMED");
+                } else if (allRejected && "PENDING".equalsIgnoreCase(parentBooking.getStatus())) {
+                    bookingService.updateBookingStatus(parentBooking.getBookingId(), "REJECTED");
+                }
+            }
+
+            auditService.log(user.getUserId(), user.getUsername(), "UPDATE_ITEM_STATUS", "BOOKING_ITEMS", itemId, clientIp, "Service item " + itemId + " set to " + status);
             return success("Service item updated to " + status);
         }
         return error("Failed to update item status.", 500);
@@ -558,39 +1165,116 @@ public class ApiController {
         TouristProfile tp = bookingService.getTouristProfileByUserId(user.getUserId());
         if (tp == null) return error("Only tourists can submit reviews.", 400);
 
+        int bookingId = ((Number) d.get("bookingId")).intValue();
+        Booking existingBooking = bookingService.getBookingById(bookingId);
+        if (existingBooking == null || existingBooking.getTouristId() != tp.getProfileId()) {
+            return error("Access denied: You can only submit reviews for your own bookings.", 403);
+        }
+        if (!"COMPLETED".equalsIgnoreCase(existingBooking.getStatus())) {
+            return error("Reviews can only be submitted for completed bookings.", 400);
+        }
+
+        String targetType = (String) d.get("targetType");
+        if (targetType == null || targetType.isBlank()) {
+            return error("targetType is required.", 400);
+        }
+        int targetId = ((Number) d.get("targetId")).intValue();
+
+        // Enforce proper review target attribution and prevent arbitrary / dummy package assignment
+        if (existingBooking.getPackageId() != null && existingBooking.getPackageId() > 0) {
+            if ("PACKAGE".equalsIgnoreCase(targetType) && targetId != existingBooking.getPackageId().intValue()) {
+                return error("Invalid review target: Package ID does not match this booking.", 400);
+            }
+        } else {
+            // Custom itinerary: packageId is null. Reject PACKAGE target!
+            if ("PACKAGE".equalsIgnoreCase(targetType)) {
+                return error("Invalid review target: Custom itinerary bookings cannot be reviewed as a package.", 400);
+            }
+            if ("STAKEHOLDER".equalsIgnoreCase(targetType)) {
+                boolean matchesItem = false;
+                if (existingBooking.getItems() != null) {
+                    for (BookingItem bi : existingBooking.getItems()) {
+                        if (bi.getStakeholderId() == targetId) {
+                            matchesItem = true;
+                            break;
+                        }
+                    }
+                }
+                if (!matchesItem) {
+                    return error("Invalid review target: Stakeholder was not part of this custom itinerary booking.", 400);
+                }
+            }
+        }
+
         Review r = new Review();
-        r.setBookingId(((Number) d.get("bookingId")).intValue());
+        r.setBookingId(bookingId);
         r.setTouristId(tp.getProfileId());
-        r.setTargetType((String) d.get("targetType"));
-        r.setTargetId(((Number) d.get("targetId")).intValue());
+        r.setTargetType(targetType);
+        r.setTargetId(targetId);
         r.setRating(((Number) d.get("rating")).intValue());
         r.setComment((String) d.get("comment"));
 
         int id = reviewService.addReview(r);
         if (id > 0) {
-            auditService.log(user.getUserId(), user.getUsername(), "CREATE_REVIEW", "REVIEWS", id, "Rating: " + r.getRating() + " stars");
+            auditService.log(user.getUserId(), user.getUsername(), "CREATE_REVIEW", "REVIEWS", id, clientIp, "Target: " + targetType + " #" + targetId + " | Rating: " + r.getRating() + " stars");
             return success("Review submitted! Thank you for supporting local community tourism.");
         }
         return error("Failed to submit review.", 500);
     }
 
     private String handleGetVerifications(Map<String, String> q, User user) {
-        Integer brgy = q.containsKey("barangayId") ? Integer.parseInt(q.get("barangayId")) : user.getBarangayId();
+        Integer brgy = null;
+        Integer muni = null;
         String status = q.get("status");
-        return JsonUtil.toJson(verificationService.getVerifications(brgy, status));
+
+        if ("BARANGAY_OFFICIAL".equalsIgnoreCase(user.getRoleCode())) {
+            brgy = user.getBarangayId();
+        } else if ("LGU_OFFICER".equalsIgnoreCase(user.getRoleCode())) {
+            muni = user.getMunicipalityId();
+            if (q.containsKey("barangayId") && !q.get("barangayId").isBlank() && !"ALL".equalsIgnoreCase(q.get("barangayId"))) {
+                brgy = Integer.valueOf(q.get("barangayId"));
+            }
+        } else if (isAdmin(user) || isTourismOffice(user)) {
+            if (q.containsKey("barangayId") && !q.get("barangayId").isBlank() && !"ALL".equalsIgnoreCase(q.get("barangayId"))) {
+                brgy = Integer.valueOf(q.get("barangayId"));
+            }
+            if (q.containsKey("municipalityId") && !q.get("municipalityId").isBlank() && !"ALL".equalsIgnoreCase(q.get("municipalityId"))) {
+                muni = Integer.valueOf(q.get("municipalityId"));
+            }
+        }
+        return JsonUtil.toJson(verificationService.getVerifications(brgy, muni, status));
     }
 
     private String handleProcessVerification(String body, User user, String clientIp) {
+        if (!"BARANGAY_OFFICIAL".equalsIgnoreCase(user.getRoleCode())) {
+            return error("Access denied: Sole authority to approve, reject, or request corrections for stakeholder registrations rests with the Barangay Official.", 403);
+        }
+        if (user.getBarangayId() == null) {
+            return error("Access denied: Barangay Official account is not assigned to a barangay jurisdiction.", 403);
+        }
+
         Map<String, Object> d = JsonUtil.parseJsonObject(body);
-        int stkId = ((Number) d.get("stakeholderId")).intValue();
-        int brgyId = ((Number) d.getOrDefault("barangayId", user.getBarangayId() != null ? user.getBarangayId() : 1)).intValue();
+        if (!(d.get("stakeholderId") instanceof Number num)) {
+            return error("stakeholderId is required.", 400);
+        }
+        int stkId = num.intValue();
+        int brgyId = user.getBarangayId();
         String status = (String) d.get("status");
         String reqs = (String) d.get("requirementsSubmitted");
         String remarks = (String) d.get("remarks");
 
+        // Enforce Barangay jurisdiction boundary
+        StakeholderProfile sp = stakeholderService.getProfileById(stkId);
+        if (sp == null) {
+            return error("Stakeholder profile not found.", 404);
+        }
+        if (sp.getBarangayId() != brgyId) {
+            return error("Access denied: You can only verify stakeholders within your authorized barangay jurisdiction.", 403);
+        }
+
         boolean ok = verificationService.processVerification(stkId, brgyId, user.getUserId(), status, reqs, remarks);
         if (ok) {
-            auditService.log(user.getUserId(), user.getUsername(), "VERIFY_STAKEHOLDER", "STAKEHOLDER_PROFILES", stkId, "Decision: " + status + " | " + remarks);
+            auditService.log(user.getUserId(), user.getUsername(), "VERIFY_STAKEHOLDER", "STAKEHOLDER_PROFILES", stkId, clientIp, "Decision: " + status + " | " + remarks);
             return success("Stakeholder verification processed successfully.");
         }
         return error("Verification processing failed.", 500);
@@ -598,7 +1282,7 @@ public class ApiController {
 
     private String handleGetAnnouncements(Map<String, String> q) {
         String cat = q.get("category");
-        Integer brgy = q.containsKey("barangayId") ? Integer.parseInt(q.get("barangayId")) : null;
+        Integer brgy = q.containsKey("barangayId") ? Integer.valueOf(q.get("barangayId")) : null;
         String status = q.getOrDefault("status", "PUBLISHED");
         return JsonUtil.toJson(announcementService.getAnnouncements(cat, brgy, status));
     }
@@ -606,26 +1290,45 @@ public class ApiController {
     private String handleSaveAnnouncement(String body, User user, String clientIp) {
         Map<String, Object> d = JsonUtil.parseJsonObject(body);
         Announcement a = new Announcement();
-        if (d.get("announcementId") instanceof Number) a.setAnnouncementId(((Number) d.get("announcementId")).intValue());
+        if (d.get("announcementId") instanceof Number num) a.setAnnouncementId(num.intValue());
         a.setTitle((String) d.get("title"));
         a.setContent((String) d.get("content"));
-        a.setCategory((String) d.get("category"));
-        if (d.get("targetBarangayId") instanceof Number) a.setTargetBarangayId(((Number) d.get("targetBarangayId")).intValue());
+
+        String rawCat = (String) d.get("category");
+        if (rawCat == null || rawCat.isBlank()) rawCat = (String) d.get("type");
+        a.setCategory(normalizeAnnouncementCategory(rawCat));
+
+        if (d.get("targetBarangayId") instanceof Number num && num.intValue() > 0) {
+            a.setTargetBarangayId(num.intValue());
+        }
         a.setPublishedBy(user.getUserId());
         a.setPublishDate(Date.valueOf((String) d.getOrDefault("publishDate", DateUtil.nowDate())));
-        if (d.get("expiryDate") != null) a.setExpiryDate(Date.valueOf((String) d.get("expiryDate")));
+        if (d.get("expiryDate") instanceof String exp && !exp.isBlank()) {
+            a.setExpiryDate(Date.valueOf(exp));
+        }
         a.setStatus((String) d.getOrDefault("status", "PUBLISHED"));
 
         boolean ok;
         if (a.getAnnouncementId() > 0) {
             ok = announcementService.updateAnnouncement(a);
-            auditService.log(user.getUserId(), user.getUsername(), "UPDATE_ANNOUNCEMENT", "ANNOUNCEMENTS", a.getAnnouncementId(), "Updated: " + a.getTitle());
+            auditService.log(user.getUserId(), user.getUsername(), "UPDATE_ANNOUNCEMENT", "ANNOUNCEMENTS", a.getAnnouncementId(), clientIp, "Updated: " + a.getTitle());
         } else {
             int newId = announcementService.createAnnouncement(a);
             ok = newId > 0;
-            auditService.log(user.getUserId(), user.getUsername(), "CREATE_ANNOUNCEMENT", "ANNOUNCEMENTS", newId, "Created: " + a.getTitle());
+            auditService.log(user.getUserId(), user.getUsername(), "CREATE_ANNOUNCEMENT", "ANNOUNCEMENTS", newId, clientIp, "Created: " + a.getTitle());
         }
         return ok ? success("Announcement saved.") : error("Failed to save announcement.", 500);
+    }
+
+    private String normalizeAnnouncementCategory(String raw) {
+        if (raw == null || raw.isBlank()) return "ANNOUNCEMENT";
+        String upper = raw.trim().toUpperCase();
+        return switch (upper) {
+            case "EVENT" -> "EVENT";
+            case "FESTIVAL" -> "FESTIVAL";
+            case "TRAVEL_GUIDELINE", "WEATHER_ADVISORY", "ECO_GUIDELINE" -> "TRAVEL_GUIDELINE";
+            default -> "ANNOUNCEMENT";
+        };
     }
 
     private String handleDeleteAnnouncement(String body, User user, String clientIp) {
@@ -633,7 +1336,7 @@ public class ApiController {
         int aId = ((Number) d.get("announcementId")).intValue();
         boolean ok = announcementService.deleteAnnouncement(aId);
         if (ok) {
-            auditService.log(user.getUserId(), user.getUsername(), "DELETE_ANNOUNCEMENT", "ANNOUNCEMENTS", aId, "Deleted announcement ID: " + aId);
+            auditService.log(user.getUserId(), user.getUsername(), "DELETE_ANNOUNCEMENT", "ANNOUNCEMENTS", aId, clientIp, "Deleted announcement ID: " + aId);
             return success("Announcement deleted.");
         }
         return error("Delete failed.", 500);
@@ -643,6 +1346,14 @@ public class ApiController {
         Map<String, Object> d = JsonUtil.parseJsonObject(body);
         ArrivalRecord ar = new ArrivalRecord();
         ar.setDestinationId(((Number) d.get("destinationId")).intValue());
+
+        if ("BARANGAY_OFFICIAL".equalsIgnoreCase(user.getRoleCode()) && user.getBarangayId() != null) {
+            Destination targetDest = destinationService.getDestinationById(ar.getDestinationId());
+            if (targetDest == null || targetDest.getBarangayId() != user.getBarangayId().intValue()) {
+                return error("Access denied: You can only record arrival logs for destinations within your authorized barangay.", 403);
+            }
+        }
+
         ar.setLogDate(Date.valueOf((String) d.get("logDate")));
         ar.setLocalTouristsCount(((Number) d.getOrDefault("localTouristsCount", 0)).intValue());
         ar.setDomesticTouristsCount(((Number) d.getOrDefault("domesticTouristsCount", 0)).intValue());
@@ -652,7 +1363,7 @@ public class ApiController {
 
         int id = reportService.recordArrival(ar);
         if (id > 0) {
-            auditService.log(user.getUserId(), user.getUsername(), "LOG_ARRIVAL", "ARRIVAL_LOGS", id, "Visitors recorded for destination ID: " + ar.getDestinationId());
+            auditService.log(user.getUserId(), user.getUsername(), "LOG_ARRIVAL", "ARRIVAL_LOGS", id, clientIp, "Visitors recorded for destination ID: " + ar.getDestinationId());
             return success("Tourist arrival log recorded successfully.");
         }
         return error("Failed to record arrival.", 500);
@@ -665,27 +1376,349 @@ public class ApiController {
         u.setEmail((String) d.get("email"));
         u.setFullName((String) d.get("fullName"));
         u.setPhone((String) d.get("phone"));
-        u.setRoleId(((Number) d.get("roleId")).intValue());
-        if (d.get("barangayId") instanceof Number) u.setBarangayId(((Number) d.get("barangayId")).intValue());
+
+        if (u.getUsername() == null || u.getUsername().isBlank()) return error("Username is required.", 400);
+        if (u.getEmail() == null || u.getEmail().isBlank()) return error("Email is required.", 400);
+        if (u.getFullName() == null || u.getFullName().isBlank()) return error("Full name is required.", 400);
+
+        int requestedRoleId = d.get("roleId") instanceof Number n ? n.intValue() : 0;
+        String creatorRole = admin.getRoleCode();
+
+        // ── Hierarchy enforcement ────────────────────────────────────────────────
+        // Role IDs: 1=SYSTEM_ADMIN, 2=TOURISM_OFFICE, 3=LGU_OFFICER,
+        //           4=BARANGAY_OFFICIAL, 5=STAKEHOLDER, 6=TOURIST
+        if ("SYSTEM_ADMIN".equalsIgnoreCase(creatorRole)) {
+            // Admin may create any role (full authority)
+        } else if ("TOURISM_OFFICE".equalsIgnoreCase(creatorRole)) {
+            // Tourism Office may only create LGU_OFFICER accounts (roleId=3)
+            if (requestedRoleId != 3) {
+                return error("Access denied: Tourism Office may only create LGU Officer accounts.", 403);
+            }
+        } else if ("LGU_OFFICER".equalsIgnoreCase(creatorRole)) {
+            // LGU Officer may only create BARANGAY_OFFICIAL accounts (roleId=4)
+            if (requestedRoleId != 4) {
+                return error("Access denied: LGU Officer may only create Barangay Official accounts.", 403);
+            }
+        } else {
+            return error("Access denied. Insufficient authority to create user accounts.", 403);
+        }
+        // ── End hierarchy enforcement ────────────────────────────────────────────
+
+        // ── Required government account assignments & validation ─────────────────
+        Integer requestedMuniId = d.get("municipalityId") instanceof Number num ? num.intValue() : null;
+        Integer requestedBrgyId = d.get("barangayId") instanceof Number num ? num.intValue() : null;
+
+        if (requestedRoleId == 3) { // LGU_OFFICER
+            // Municipality assignment is mandatory
+            if (requestedMuniId == null || requestedMuniId <= 0) {
+                return error("Municipality assignment is required for LGU Officer accounts.", 400);
+            }
+            u.setMunicipalityId(requestedMuniId);
+            u.setBarangayId(null);
+        } else if (requestedRoleId == 4) { // BARANGAY_OFFICIAL
+            // Barangay assignment is mandatory
+            if (requestedBrgyId == null || requestedBrgyId <= 0) {
+                return error("Barangay assignment is required for Barangay Official accounts.", 400);
+            }
+
+            Barangay targetBrgy = destinationService.getBarangays().stream()
+                    .filter(b -> b.getBarangayId() == requestedBrgyId.intValue())
+                    .findFirst().orElse(null);
+
+            if (targetBrgy == null) {
+                return error("Invalid barangay ID: barangay record not found.", 400);
+            }
+
+            if ("LGU_OFFICER".equalsIgnoreCase(creatorRole)) {
+                Integer lguMuniId = admin.getMunicipalityId();
+                if (lguMuniId == null || lguMuniId <= 0) {
+                    return error("Access denied: Creating LGU Officer has no assigned municipality.", 403);
+                }
+                if (targetBrgy.getMunicipalityId() != lguMuniId.intValue()) {
+                    return error("Access denied: Cannot create a Barangay Official outside your assigned municipality.", 403);
+                }
+                u.setMunicipalityId(lguMuniId);
+            } else {
+                // If System Admin created it, set municipality to match the barangay's municipality
+                u.setMunicipalityId(targetBrgy.getMunicipalityId());
+            }
+            u.setBarangayId(requestedBrgyId);
+        } else {
+            // For other roles (Admin, etc.)
+            if (requestedBrgyId != null && requestedBrgyId > 0) u.setBarangayId(requestedBrgyId);
+            if (requestedMuniId != null && requestedMuniId > 0) u.setMunicipalityId(requestedMuniId);
+        }
+        // ── End assignment validations ───────────────────────────────────────────
+
+        u.setRoleId(requestedRoleId);
         u.setStatus((String) d.getOrDefault("status", "ACTIVE"));
         String rawPassword = (String) d.getOrDefault("password", "password123");
 
         int id = userService.createUser(u, rawPassword);
         if (id > 0) {
-            auditService.log(admin.getUserId(), admin.getUsername(), "CREATE_USER", "USERS", id, "Created user: " + u.getUsername() + " (Role: " + u.getRoleId() + ")");
+            auditService.log(admin.getUserId(), admin.getUsername(), "CREATE_USER", "USERS", id, clientIp,
+                    "Created user: " + u.getUsername() + " (Role: " + u.getRoleId() + ") by " + creatorRole);
             return success("User created successfully with default password.");
         }
-        return error("User creation failed.", 500);
+        return error("User creation failed. Username or email may already exist.", 500);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // PHASE 2 — NEW HANDLERS
+    // ══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * POST /api/auth/register-stakeholder (PUBLIC)
+     * Independent stakeholder self-registration.
+     * Role is always STAKEHOLDER (roleId=5). Status is always PENDING.
+     */
+    private String handleRegisterStakeholder(String body, String clientIp) {
+        Map<String, Object> d = JsonUtil.parseJsonObject(body);
+
+        // Reject any attempt to override role or verification status
+        if (d.containsKey("roleId") || d.containsKey("roleCode") || d.containsKey("verificationStatus")) {
+            return error("Invalid registration request: role and verification status are assigned by the system.", 400);
+        }
+
+        String username = (String) d.get("username");
+        String password = (String) d.get("password");
+        String email    = (String) d.get("email");
+        String fullName = (String) d.get("fullName");
+        String phone    = (String) d.get("phone");
+        String businessName    = (String) d.get("businessName");
+        String category        = (String) d.getOrDefault("category", "TOUR_GUIDE");
+        String accreditationNo = (String) d.get("accreditationNo");
+        String bio             = (String) d.get("bio");
+        int yearsExp = d.get("yearsExperience") instanceof Number n ? n.intValue() : 1;
+        Integer barangayId     = d.get("barangayId") instanceof Number n ? n.intValue() : null;
+        Integer municipalityId = d.get("municipalityId") instanceof Number n ? n.intValue() : null;
+
+        // Field validation
+        if (username == null || username.isBlank()) return error("Username is required.", 400);
+        if (password == null || password.length() < 6) return error("Password must be at least 6 characters.", 400);
+        if (email == null || email.isBlank()) return error("Email address is required.", 400);
+        if (fullName == null || fullName.isBlank()) return error("Full name is required.", 400);
+        if (businessName == null || businessName.isBlank()) return error("Business or provider name is required.", 400);
+        if (barangayId == null || barangayId <= 0) return error("Assigned barangay is required.", 400);
+
+        // Delegate to AuthService.registerStakeholder() — always sets roleId=5 and status=PENDING
+        Map<String, Object> res = authService.registerStakeholder(
+                username, password, email, fullName, phone, businessName,
+                category, municipalityId, barangayId, accreditationNo, yearsExp, bio);
+
+        if (Boolean.TRUE.equals(res.get("success"))) {
+            auditService.log(null, username, "REGISTER_STAKEHOLDER_SELF", "STAKEHOLDER_PROFILES",
+                    res.get("profileId") instanceof Number n ? n.intValue() : null,
+                    clientIp, "Self-registered stakeholder: " + businessName);
+        }
+        return JsonUtil.toJson(res);
+    }
+
+    /**
+     * GET /api/municipalities (PUBLIC)
+     * Returns the list of municipalities for registration dropdowns.
+     */
+    private String handleGetMunicipalities() {
+        List<Map<String, Object>> result = new ArrayList<>();
+        String sql = "SELECT municipality_id, name, province, zip_code FROM municipalities ORDER BY name ASC";
+        try (Connection conn = ConnectionFactory.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("municipalityId", rs.getInt("municipality_id"));
+                row.put("name", rs.getString("name"));
+                row.put("province", rs.getString("province"));
+                row.put("zipCode", rs.getString("zip_code"));
+                result.add(row);
+            }
+        } catch (Exception e) {
+            System.err.println("[ApiController] handleGetMunicipalities error: " + e.getMessage());
+            return error("Failed to load municipalities.", 500);
+        }
+        return JsonUtil.toJson(result);
+    }
+
+    /**
+     * GET /api/stakeholders/my-verification (STAKEHOLDER only)
+     * Returns the authenticated stakeholder's own verification status and history.
+     * Never exposes another stakeholder's data.
+     */
+    private String handleGetMyVerification(User currentUser) {
+        StakeholderProfile sp = stakeholderService.getProfileByUserId(currentUser.getUserId());
+        if (sp == null) {
+            return error("Stakeholder profile not found for this account.", 404);
+        }
+
+        // Fetch verification history for this stakeholder only (ownership enforced by profileId)
+        List<VerificationRecord> history = verificationService.getVerificationsForStakeholder(sp.getProfileId());
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("profileId", sp.getProfileId());
+        result.put("businessName", sp.getBusinessName());
+        result.put("verificationStatus", sp.getVerificationStatus());
+        result.put("category", sp.getCategory());
+        result.put("barangayName", sp.getBarangayName());
+        result.put("municipalityName", sp.getMunicipalityName());
+
+        // Expose the latest correction remarks so the stakeholder knows what to fix
+        if (!history.isEmpty()) {
+            VerificationRecord latest = history.get(0);
+            result.put("latestDecision", latest.getStatus());
+            result.put("latestRemarks", latest.getRemarks());
+            result.put("latestRequirements", latest.getRequirementsSubmitted());
+            result.put("decisionDate", latest.getDecisionDate() != null ? latest.getDecisionDate().toString() : null);
+        }
+        result.put("history", history);
+        return JsonUtil.toJson(result);
+    }
+
+    /**
+     * POST /api/stakeholders/resubmit (STAKEHOLDER only)
+     * Resets a NEEDS_CORRECTION profile back to PENDING.
+     * Validates ownership and status before proceeding.
+     * Does NOT create a verification_records entry (official evaluation records are
+     * reserved solely for authorized Barangay Officials).
+     * Resets verification_status to PENDING and clears verified_by and verified_at.
+     */
+    private String handleStakeholderResubmit(String body, User currentUser, String clientIp) {
+        StakeholderProfile sp = stakeholderService.getProfileByUserId(currentUser.getUserId());
+        if (sp == null) {
+            return error("Stakeholder profile not found for this account.", 404);
+        }
+
+        // Only allow resubmission if the profile is currently in NEEDS_CORRECTION
+        if (!"NEEDS_CORRECTION".equalsIgnoreCase(sp.getVerificationStatus())) {
+            return error("Resubmission is only allowed when your application has NEEDS_CORRECTION status. " +
+                    "Current status: " + sp.getVerificationStatus(), 400);
+        }
+
+        Map<String, Object> d = JsonUtil.parseJsonObject(body);
+
+        // Update profile fields if the stakeholder provided corrections
+        if (d.get("businessName") instanceof String s && !s.isBlank()) sp.setBusinessName(s.trim());
+        if (d.get("accreditationNo") instanceof String s) sp.setAccreditationNo(s.trim());
+        if (d.get("contactNumber") instanceof String s) sp.setContactNumber(s.trim());
+        if (d.get("yearsExperience") instanceof Number n) sp.setYearsExperience(n.intValue());
+        if (d.get("category") instanceof String s && !s.isBlank()) sp.setCategory(s.trim());
+
+        String remarks = (String) d.getOrDefault("remarks", "Stakeholder resubmission after document correction.");
+        AuditLog auditLog = new AuditLog(currentUser.getUserId(), currentUser.getUsername(),
+                "STAKEHOLDER_RESUBMIT", "STAKEHOLDER_PROFILES", sp.getProfileId(),
+                "Resubmitted application: " + sp.getBusinessName() + " | Remarks: " + remarks);
+        if (clientIp != null && !clientIp.isBlank()) {
+            auditLog.setIpAddress(clientIp);
+        }
+
+        // Single atomic database transaction: profile update + status reset to PENDING + audit log entry
+        boolean resubmitted = stakeholderService.resubmitProfile(sp, auditLog);
+
+        if (resubmitted) {
+            Map<String, Object> res = new LinkedHashMap<>();
+            res.put("success", true);
+            res.put("message", "Your corrected application has been resubmitted and is now in the verification queue.");
+            res.put("verificationStatus", "PENDING");
+            return JsonUtil.toJson(res);
+        }
+        return error("Failed to resubmit application. Please try again.", 500);
+    }
+
+    /**
+     * GET /api/admin/users
+     * Permissions enforced server-side via currentUser identity:
+     * - SYSTEM_ADMIN: Full directory access across all platform accounts.
+     * - TOURISM_OFFICE: Can view LGU accounts across Biliran.
+     * - LGU_OFFICER: Can view Barangay Official accounts belonging only to its assigned municipality.
+     */
+    private String handleGetUsers(Map<String, String> q, User currentUser) {
+        String role = currentUser.getRoleCode();
+
+        if ("SYSTEM_ADMIN".equalsIgnoreCase(role)) {
+            String roleCode = q.get("role");
+            Integer municipalityId = q.containsKey("municipalityId") && !q.get("municipalityId").isBlank()
+                    ? Integer.valueOf(q.get("municipalityId")) : null;
+            Integer barangayId = q.containsKey("barangayId") && !q.get("barangayId").isBlank()
+                    ? Integer.valueOf(q.get("barangayId")) : null;
+
+            if ((roleCode == null || roleCode.isBlank() || "ALL".equalsIgnoreCase(roleCode))
+                    && municipalityId == null && barangayId == null) {
+                return JsonUtil.toJson(userService.getAllUsers());
+            }
+            return JsonUtil.toJson(userService.getUsersFiltered(roleCode, municipalityId, barangayId));
+        } else if ("TOURISM_OFFICE".equalsIgnoreCase(role)) {
+            // Tourism Office can view LGU accounts only; frontend role override is ignored
+            Integer municipalityId = q.containsKey("municipalityId") && !q.get("municipalityId").isBlank()
+                    ? Integer.valueOf(q.get("municipalityId")) : null;
+            return JsonUtil.toJson(userService.getUsersFiltered("LGU_OFFICER", municipalityId, null));
+        } else if ("LGU_OFFICER".equalsIgnoreCase(role)) {
+            // LGU Officer can view Barangay Official accounts belonging only to its assigned municipality
+            Integer userMuniId = currentUser.getMunicipalityId();
+            if (userMuniId == null || userMuniId <= 0) {
+                return error("Access denied: LGU Officer account has no assigned municipality.", 403);
+            }
+            Integer barangayId = null;
+            if (q.containsKey("barangayId") && !q.get("barangayId").isBlank() && !"ALL".equalsIgnoreCase(q.get("barangayId"))) {
+                int bId = Integer.parseInt(q.get("barangayId"));
+                // Server-side check: ensure barangay belongs to this LGU's municipality
+                Barangay b = destinationService.getBarangays().stream()
+                        .filter(brgy -> brgy.getBarangayId() == bId)
+                        .findFirst().orElse(null);
+                if (b != null && b.getMunicipalityId() == userMuniId.intValue()) {
+                    barangayId = bId;
+                }
+            }
+            return JsonUtil.toJson(userService.getUsersFiltered("BARANGAY_OFFICIAL", userMuniId, barangayId));
+        } else {
+            return error("Access denied. Authorized officials only.", 403);
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // END PHASE 2 — NEW HANDLERS
+    // ══════════════════════════════════════════════════════════════════════════
+
+    private String handleUpdateUser(String body, User admin, String clientIp) {
+        Map<String, Object> d = JsonUtil.parseJsonObject(body);
+        if (!(d.get("userId") instanceof Number num)) return error("userId is required.", 400);
+        int userId = num.intValue();
+        User existing = userService.getUserById(userId);
+        if (existing == null) return error("User not found.", 404);
+
+        if (d.get("fullName") != null) existing.setFullName((String) d.get("fullName"));
+        if (d.get("phone") != null) existing.setPhone((String) d.get("phone"));
+        if (d.get("roleId") instanceof Number rNum) existing.setRoleId(rNum.intValue());
+        if (d.containsKey("barangayId")) {
+            Object bObj = d.get("barangayId");
+            if (bObj instanceof Number bNum && bNum.intValue() > 0) existing.setBarangayId(bNum.intValue());
+            else existing.setBarangayId(null);
+        }
+        if (d.get("status") != null) existing.setStatus((String) d.get("status"));
+
+        boolean ok = userService.updateUser(existing);
+        if (ok) {
+            if (!"ACTIVE".equalsIgnoreCase(existing.getStatus())) {
+                SessionManager.invalidateUserSessions(userId);
+            }
+            auditService.log(admin.getUserId(), admin.getUsername(), "UPDATE_USER", "USERS", userId, clientIp, "Updated user account: " + existing.getUsername());
+            return success("User account updated successfully.");
+        }
+        return error("Failed to update user account.", 500);
     }
 
     private String handleUpdateUserStatus(String body, User admin, String clientIp) {
         Map<String, Object> d = JsonUtil.parseJsonObject(body);
         int userId = ((Number) d.get("userId")).intValue();
         String status = (String) d.get("status");
+        if ("INACTIVE".equalsIgnoreCase(status)) {
+            status = "DEACTIVATED";
+        }
 
         boolean ok = userService.updateStatus(userId, status);
         if (ok) {
-            auditService.log(admin.getUserId(), admin.getUsername(), "UPDATE_USER_STATUS", "USERS", userId, "Set status to: " + status);
+            if (!"ACTIVE".equalsIgnoreCase(status)) {
+                SessionManager.invalidateUserSessions(userId);
+            }
+            auditService.log(admin.getUserId(), admin.getUsername(), "UPDATE_USER_STATUS", "USERS", userId, clientIp, "Set status to: " + status);
             return success("User status updated to " + status);
         }
         return error("Failed to update status.", 500);
@@ -695,17 +1728,275 @@ public class ApiController {
         Map<String, Object> d = JsonUtil.parseJsonObject(body);
         int userId = ((Number) d.get("userId")).intValue();
         String newPassword = (String) d.get("newPassword");
+        if (newPassword == null || newPassword.length() < 6) {
+            return error("New password must be at least 6 characters.", 400);
+        }
 
         boolean ok = userService.resetPassword(userId, newPassword);
         if (ok) {
-            auditService.log(admin.getUserId(), admin.getUsername(), "RESET_PASSWORD", "USERS", userId, "Password reset by admin");
+            auditService.log(admin.getUserId(), admin.getUsername(), "RESET_PASSWORD", "USERS", userId, clientIp, "Password reset by admin");
             return success("Password reset successfully.");
         }
         return error("Password reset failed.", 500);
     }
 
+    private static final File SETTINGS_FILE = new File("backups/system_settings.properties");
+    private static volatile boolean settingsTableChecked = false;
+
+    private synchronized void ensureSettingsTable(Map<String, Object> seedDefaults) {
+        if (settingsTableChecked) return;
+        try (Connection conn = ConnectionFactory.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate(
+                    "CREATE TABLE IF NOT EXISTS system_settings (" +
+                    "  setting_key VARCHAR(64) PRIMARY KEY," +
+                    "  setting_value TEXT NOT NULL," +
+                    "  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" +
+                    ") ENGINE=InnoDB"
+            );
+            try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM system_settings")) {
+                if (rs.next() && rs.getInt(1) == 0 && seedDefaults != null) {
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "INSERT IGNORE INTO system_settings (setting_key, setting_value) VALUES (?, ?)")) {
+                        for (Map.Entry<String, Object> entry : seedDefaults.entrySet()) {
+                            ps.setString(1, entry.getKey());
+                            ps.setString(2, String.valueOf(entry.getValue()));
+                            ps.addBatch();
+                        }
+                        ps.executeBatch();
+                    }
+                }
+            }
+            settingsTableChecked = true;
+        } catch (Exception ignored) {
+        }
+    }
+
+    private String normalizeCurrency(String raw) {
+        if (raw == null || raw.isBlank()) return "PHP (Philippine Peso \u20B1)";
+        String trimmed = raw.trim();
+        String upper = trimmed.toUpperCase();
+        if (upper.startsWith("PHP")) return "PHP (Philippine Peso \u20B1)";
+        if (upper.startsWith("USD")) return "USD (US Dollar $)";
+        if (upper.startsWith("EUR")) return "EUR (Euro \u20AC)";
+        if (upper.startsWith("JPY")) return "JPY (Japanese Yen \u00A5)";
+        if (upper.startsWith("SGD")) return "SGD (Singapore Dollar S$)";
+        if (upper.startsWith("AUD")) return "AUD (Australian Dollar A$)";
+        return trimmed;
+    }
+
+    private Map<String, Object> loadCurrentSettingsMap() {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("appName", "Lakbay Lokal - Biliran Tourism Information System");
+        map.put("province", "Biliran Province, Region VIII, Philippines");
+        map.put("capacityThreshold", 85);
+        map.put("currency", "PHP (Philippine Peso \u20B1)");
+        map.put("broadcastMsg", "Welcome to Lakbay Lokal! Experience Sambawan Island, Tinago Falls, and community-guided circuits in Biliran Province.");
+
+        if (SETTINGS_FILE.exists()) {
+            try (java.io.InputStreamReader reader = new java.io.InputStreamReader(
+                    new java.io.FileInputStream(SETTINGS_FILE), java.nio.charset.StandardCharsets.UTF_8)) {
+                Properties props = new Properties();
+                props.load(reader);
+                if (props.getProperty("appName") != null) map.put("appName", props.getProperty("appName"));
+                if (props.getProperty("province") != null) map.put("province", props.getProperty("province"));
+                if (props.getProperty("capacityThreshold") != null) {
+                    try {
+                        map.put("capacityThreshold", Integer.parseInt(props.getProperty("capacityThreshold").trim()));
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+                if (props.getProperty("currency") != null) map.put("currency", normalizeCurrency(props.getProperty("currency")));
+                if (props.getProperty("broadcastMsg") != null) map.put("broadcastMsg", props.getProperty("broadcastMsg"));
+            } catch (Exception ignored) {
+            }
+        }
+
+        ensureSettingsTable(map);
+        try (Connection conn = ConnectionFactory.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT setting_key, setting_value FROM system_settings")) {
+            while (rs.next()) {
+                String k = rs.getString("setting_key");
+                String v = rs.getString("setting_value");
+                if (k == null || v == null) continue;
+                if ("capacityThreshold".equals(k)) {
+                    try {
+                        map.put(k, Integer.parseInt(v.trim()));
+                    } catch (NumberFormatException ignored) {
+                    }
+                } else if ("currency".equals(k)) {
+                    map.put(k, normalizeCurrency(v));
+                } else if (map.containsKey(k)) {
+                    map.put(k, v);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        return map;
+    }
+
+    private String handleGetSettings() {
+        return JsonUtil.toJson(loadCurrentSettingsMap());
+    }
+
+    private String handleSaveSettings(String body, User admin, String clientIp) {
+        Map<String, Object> d = JsonUtil.parseJsonObject(body);
+        try {
+            Map<String, Object> prev = loadCurrentSettingsMap();
+
+            String prevAppName = String.valueOf(prev.get("appName"));
+            String prevProvince = String.valueOf(prev.get("province"));
+            int prevThreshold = (prev.get("capacityThreshold") instanceof Number n) ? n.intValue() : Integer.parseInt(String.valueOf(prev.get("capacityThreshold")));
+            String prevCurrency = String.valueOf(prev.get("currency"));
+            String prevBroadcast = String.valueOf(prev.get("broadcastMsg"));
+
+            String newAppName = d.get("appName") != null ? String.valueOf(d.get("appName")).trim() : prevAppName;
+            if (newAppName.isEmpty()) newAppName = prevAppName;
+
+            String newProvince = d.get("province") != null ? String.valueOf(d.get("province")).trim() : prevProvince;
+            if (newProvince.isEmpty()) newProvince = prevProvince;
+
+            int newThreshold = prevThreshold;
+            if (d.get("capacityThreshold") != null) {
+                String rawThresh = String.valueOf(d.get("capacityThreshold")).replaceAll("[^0-9]", "");
+                if (!rawThresh.isEmpty()) {
+                    newThreshold = Math.max(50, Math.min(100, Integer.parseInt(rawThresh)));
+                }
+            }
+
+            String newCurrency = d.get("currency") != null ? normalizeCurrency(String.valueOf(d.get("currency"))) : prevCurrency;
+            if (newCurrency.isEmpty()) newCurrency = prevCurrency;
+
+            String newBroadcast = d.get("broadcastMsg") != null ? String.valueOf(d.get("broadcastMsg")).trim() : prevBroadcast;
+
+            // Determine which setting(s) changed
+            List<String> changedKeys = new ArrayList<>();
+            if (!Objects.equals(prevAppName, newAppName)) changedKeys.add("appName");
+            if (!Objects.equals(prevProvince, newProvince)) changedKeys.add("province");
+            if (prevThreshold != newThreshold) changedKeys.add("capacityThreshold");
+            if (!Objects.equals(prevCurrency, newCurrency)) changedKeys.add("currency");
+            if (!Objects.equals(prevBroadcast, newBroadcast)) changedKeys.add("broadcastMsg");
+
+            if (changedKeys.isEmpty() && d.get("updatedFields") instanceof List<?> ufList) {
+                for (Object item : ufList) {
+                    if (item != null) {
+                        String k = String.valueOf(item).trim();
+                        if (!k.isEmpty() && !changedKeys.contains(k)) changedKeys.add(k);
+                    }
+                }
+            }
+
+            Map<String, String> keyLabels = new LinkedHashMap<>();
+            keyLabels.put("appName", "Platform Name");
+            keyLabels.put("province", "Provincial Jurisdiction");
+            keyLabels.put("capacityThreshold", "Carrying Capacity Alert Threshold");
+            keyLabels.put("currency", "Default Currency");
+            keyLabels.put("broadcastMsg", "Live Broadcast Notice");
+
+            List<String> changedLabels = new ArrayList<>();
+            for (String k : changedKeys) {
+                if (keyLabels.containsKey(k)) changedLabels.add(keyLabels.get(k));
+            }
+
+            // Persist to properties file
+            File parent = SETTINGS_FILE.getParentFile();
+            if (parent != null && !parent.exists()) parent.mkdirs();
+            Properties props = new Properties();
+            props.setProperty("appName", newAppName);
+            props.setProperty("province", newProvince);
+            props.setProperty("capacityThreshold", String.valueOf(newThreshold));
+            props.setProperty("currency", newCurrency);
+            props.setProperty("broadcastMsg", newBroadcast);
+            try (java.io.OutputStreamWriter writer = new java.io.OutputStreamWriter(
+                    new java.io.FileOutputStream(SETTINGS_FILE), java.nio.charset.StandardCharsets.UTF_8)) {
+                props.store(writer, "Lakbay Lokal System Settings");
+            }
+
+            // Persist to MySQL system_settings table
+            Map<String, Object> savedSettings = new LinkedHashMap<>();
+            savedSettings.put("appName", newAppName);
+            savedSettings.put("province", newProvince);
+            savedSettings.put("capacityThreshold", newThreshold);
+            savedSettings.put("currency", newCurrency);
+            savedSettings.put("broadcastMsg", newBroadcast);
+
+            ensureSettingsTable(savedSettings);
+            try (Connection conn = ConnectionFactory.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?) " +
+                         "ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)")) {
+                for (Map.Entry<String, Object> entry : savedSettings.entrySet()) {
+                    ps.setString(1, entry.getKey());
+                    ps.setString(2, String.valueOf(entry.getValue()));
+                    ps.addBatch();
+                }
+                ps.executeBatch();
+            } catch (Exception ignored) {
+            }
+
+            // Build setting-specific notification message
+            String message;
+            if (changedKeys.size() == 1) {
+                String k = changedKeys.get(0);
+                message = switch (k) {
+                    case "appName" -> "Platform Name saved successfully: \"" + newAppName + "\".";
+                    case "province" -> "Provincial Jurisdiction saved successfully: \"" + newProvince + "\".";
+                    case "capacityThreshold" -> "Carrying Capacity Alert Threshold saved (" + newThreshold + "%).";
+                    case "currency" -> "Default Currency saved: " + newCurrency + ".";
+                    case "broadcastMsg" -> "Live Broadcast Notice saved successfully.";
+                    default -> "System setting saved successfully.";
+                };
+            } else if (changedLabels.size() > 1) {
+                message = "System settings saved: " + String.join(", ", changedLabels) + ".";
+            } else {
+                message = "System settings saved (Platform Name, Provincial Jurisdiction, Carrying Capacity, Default Currency, Live Broadcast Notice).";
+            }
+
+            auditService.log(admin.getUserId(), admin.getUsername(), "UPDATE_SETTINGS", "SETTINGS", 1, clientIp, message);
+
+            Map<String, Object> res = new LinkedHashMap<>();
+            res.put("success", true);
+            res.put("message", message);
+            res.put("changedSettings", changedLabels);
+            res.put("settings", savedSettings);
+            return JsonUtil.toJson(res);
+        } catch (Exception e) {
+            return error("Failed saving settings: " + e.getMessage(), 500);
+        }
+    }
+
     private boolean isAdmin(User user) {
-        return "SYSTEM_ADMIN".equalsIgnoreCase(user.getRoleCode());
+        return user != null && "SYSTEM_ADMIN".equalsIgnoreCase(user.getRoleCode());
+    }
+
+    private boolean isTourismOffice(User user) {
+        return user != null && ("TOURISM_OFFICE".equalsIgnoreCase(user.getRoleCode()) || isAdmin(user));
+    }
+
+    private boolean isLguOfficer(User user) {
+        return user != null && "LGU_OFFICER".equalsIgnoreCase(user.getRoleCode());
+    }
+
+    private boolean isLguOrHigher(User user) {
+        return user != null && ("LGU_OFFICER".equalsIgnoreCase(user.getRoleCode()) || isTourismOffice(user));
+    }
+
+    private boolean isBarangayOfficial(User user) {
+        return user != null && "BARANGAY_OFFICIAL".equalsIgnoreCase(user.getRoleCode());
+    }
+
+    private boolean isBarangayOrHigher(User user) {
+        return user != null && ("BARANGAY_OFFICIAL".equalsIgnoreCase(user.getRoleCode()) || isLguOrHigher(user));
+    }
+
+    private boolean isStakeholder(User user) {
+        return user != null && "STAKEHOLDER".equalsIgnoreCase(user.getRoleCode());
+    }
+
+    public boolean isTourist(User user) {
+        return user != null && "TOURIST".equalsIgnoreCase(user.getRoleCode());
     }
 
     private String success(String msg) {

@@ -7,6 +7,7 @@ public class VerificationRecord {
     private int stakeholderId;
     private int barangayId;
     private int reviewerId;
+    private String previousStatus;
     private String status;
     private String requirementsSubmitted;
     private String remarks;
@@ -31,6 +32,9 @@ public class VerificationRecord {
 
     public int getReviewerId() { return reviewerId; }
     public void setReviewerId(int reviewerId) { this.reviewerId = reviewerId; }
+
+    public String getPreviousStatus() { return previousStatus; }
+    public void setPreviousStatus(String previousStatus) { this.previousStatus = previousStatus; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

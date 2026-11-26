@@ -1,0 +1,457 @@
+-- ========================================================
+-- LAKBAY LOKAL DATABASE BACKUP DUMP
+-- Generated At: Thu Nov 12 06:45:24 PST 2026
+-- ========================================================
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- Table: announcements
+INSERT INTO `announcements` VALUES (1, 'Biliran Province 34th Foundation Anniversary & Tourism Expo', 'Join us from May 7 to 11 in Naval for the annual Province-Wide Tourism Expo, featuring local culinary showcases, artisanal handicrafts, and eco-tour discounts.', 'FESTIVAL', NULL, 2, '2026-04-01', '2026-05-15', 'PUBLISHED', '2026-11-11 19:43:26.0');
+INSERT INTO `announcements` VALUES (2, 'Sustainable Eco-Trekking Guidelines for Ulan-Ulan and Tinago Falls', 'All visitors are reminded to observe Leave No Trace principles: single-use plastics are prohibited within 50 meters of water basins. Certified community guides are mandatory.', 'TRAVEL_GUIDELINE', 6, 2, '2026-02-01', '2026-12-31', 'PUBLISHED', '2026-11-11 19:43:26.0');
+INSERT INTO `announcements` VALUES (3, 'Coast Guard Sea Travel Advisory: Calm Seas at Maripipi & Sambawan', 'Philippine Coast Guard reports favorable sea conditions across the Biliran Strait. Motorized tourist vessels from Kawayan and Naval are cleared for regular island crossings.', 'ANNOUNCEMENT', 1, 2, '2026-03-01', '2026-04-30', 'PUBLISHED', '2026-11-11 19:43:26.0');
+INSERT INTO `announcements` VALUES (9, 'Automated E2E Test Bulletin', 'Temporary verification announcement.', 'ANNOUNCEMENT', NULL, 2, '2026-11-12', NULL, 'PUBLISHED', '2026-11-12 06:41:12.0');
+
+-- Table: audit_logs
+INSERT INTO `audit_logs` VALUES (1, 1, 'admin', 'SYSTEM_INITIALIZATION', 'DATABASE', 1, '127.0.0.1', 'Lakbay Lokal database initialized with seed data for Biliran Province.', '2026-01-01 00:00:00.0');
+INSERT INTO `audit_logs` VALUES (2, 4, 'brgy_olog', 'STAKEHOLDER_VERIFIED', 'STAKEHOLDER_PROFILE', 1, '127.0.0.1', 'Barangay Captain Ramon Corpin verified Sambawan Island Eco-Trek Guides.', '2026-01-15 09:30:00.0');
+INSERT INTO `audit_logs` VALUES (3, 10, 'tourist_ana', 'CREATE_BOOKING', 'BOOKINGS', 1, '127.0.0.1', 'Created booking reference LL-2026-0001 for Sambawan Island Paradise Escape.', '2026-02-15 10:00:00.0');
+INSERT INTO `audit_logs` VALUES (4, 5, 'guide_pedro', 'LOGIN_SUCCESS', 'AUTH', 5, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-11 19:48:46.0');
+INSERT INTO `audit_logs` VALUES (5, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-11 19:59:10.0');
+INSERT INTO `audit_logs` VALUES (6, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '127.0.0.1', 'User logged in', '2026-11-11 20:29:08.0');
+INSERT INTO `audit_logs` VALUES (7, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-11 20:34:48.0');
+INSERT INTO `audit_logs` VALUES (8, 10, 'tourist_ana', 'LOGIN_SUCCESS', 'AUTH', 10, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-11 20:36:30.0');
+INSERT INTO `audit_logs` VALUES (9, NULL, 'lexey', 'REGISTER_TOURIST', 'USERS', NULL, '0:0:0:0:0:0:0:1', 'New tourist registered: Alexa Romania', '2026-11-11 20:38:25.0');
+INSERT INTO `audit_logs` VALUES (10, 11, 'lexey', 'LOGIN_SUCCESS', 'AUTH', 11, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-11 20:38:37.0');
+INSERT INTO `audit_logs` VALUES (11, 2, 'tourismoffice', 'LOGIN_SUCCESS', 'AUTH', 2, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-11 20:41:47.0');
+INSERT INTO `audit_logs` VALUES (12, 3, 'lgu_naval', 'LOGIN_SUCCESS', 'AUTH', 3, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-11 20:42:20.0');
+INSERT INTO `audit_logs` VALUES (13, 5, 'guide_pedro', 'LOGIN_SUCCESS', 'AUTH', 5, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-11 20:43:37.0');
+INSERT INTO `audit_logs` VALUES (14, 2, 'tourismoffice', 'LOGIN_SUCCESS', 'AUTH', 2, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-11 20:44:45.0');
+INSERT INTO `audit_logs` VALUES (15, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '127.0.0.1', 'User logged in', '2026-11-11 20:53:17.0');
+INSERT INTO `audit_logs` VALUES (16, 2, 'tourismoffice', 'LOGIN_SUCCESS', 'AUTH', 2, '127.0.0.1', 'User logged in', '2026-11-11 20:53:17.0');
+INSERT INTO `audit_logs` VALUES (17, 3, 'lgu_naval', 'LOGIN_SUCCESS', 'AUTH', 3, '127.0.0.1', 'User logged in', '2026-11-11 20:53:17.0');
+INSERT INTO `audit_logs` VALUES (18, 4, 'brgy_olog', 'LOGIN_SUCCESS', 'AUTH', 4, '127.0.0.1', 'User logged in', '2026-11-11 20:53:17.0');
+INSERT INTO `audit_logs` VALUES (19, 5, 'guide_pedro', 'LOGIN_SUCCESS', 'AUTH', 5, '127.0.0.1', 'User logged in', '2026-11-11 20:53:17.0');
+INSERT INTO `audit_logs` VALUES (20, 10, 'tourist_ana', 'LOGIN_SUCCESS', 'AUTH', 10, '127.0.0.1', 'User logged in', '2026-11-11 20:53:17.0');
+INSERT INTO `audit_logs` VALUES (22, 1, 'admin', 'UPDATE_USER_STATUS', 'USERS', 12, '127.0.0.1', 'Set status to: DEACTIVATED', '2026-11-11 20:53:17.0');
+INSERT INTO `audit_logs` VALUES (23, 1, 'admin', 'UPDATE_USER_STATUS', 'USERS', 12, '127.0.0.1', 'Set status to: ACTIVE', '2026-11-11 20:53:18.0');
+INSERT INTO `audit_logs` VALUES (24, 1, 'admin', 'RESET_PASSWORD', 'USERS', 12, '127.0.0.1', 'Password reset by admin', '2026-11-11 20:53:18.0');
+INSERT INTO `audit_logs` VALUES (28, 4, 'brgy_olog', 'VALIDATE_DESTINATION', 'DESTINATIONS', 9, '127.0.0.1', 'Validated by Captain Ramon Corpin', '2026-11-11 20:53:18.0');
+INSERT INTO `audit_logs` VALUES (29, 2, 'tourismoffice', 'DELETE_DESTINATION', 'DESTINATIONS', 9, '127.0.0.1', 'Deleted destination ID: 9', '2026-11-11 20:53:18.0');
+INSERT INTO `audit_logs` VALUES (32, 2, 'tourismoffice', 'DELETE_ANNOUNCEMENT', 'ANNOUNCEMENTS', 4, '127.0.0.1', 'Deleted announcement ID: 4', '2026-11-11 20:53:18.0');
+INSERT INTO `audit_logs` VALUES (35, 2, 'tourismoffice', 'DELETE_PACKAGE', 'PACKAGES', 5, '127.0.0.1', 'Deleted package ID: 5', '2026-11-11 20:53:18.0');
+INSERT INTO `audit_logs` VALUES (39, 5, 'guide_pedro', 'DELETE_SERVICE', 'SERVICES', 10, '127.0.0.1', 'Deleted service ID: 10', '2026-11-11 20:53:19.0');
+INSERT INTO `audit_logs` VALUES (40, 10, 'tourist_ana', 'CREATE_BOOKING', 'BOOKINGS', 4, '127.0.0.1', 'New booking created: LL-2026-8794', '2026-11-11 20:53:19.0');
+INSERT INTO `audit_logs` VALUES (41, 10, 'tourist_ana', 'CREATE_BOOKING', 'BOOKINGS', 5, '127.0.0.1', 'New booking created: LL-2026-4312', '2026-11-11 20:53:19.0');
+INSERT INTO `audit_logs` VALUES (42, 5, 'guide_pedro', 'UPDATE_BOOKING_STATUS', 'BOOKINGS', 5, '127.0.0.1', 'Booking status set to ACCEPTED', '2026-11-11 20:53:19.0');
+INSERT INTO `audit_logs` VALUES (43, 5, 'guide_pedro', 'UPDATE_BOOKING_STATUS', 'BOOKINGS', 5, '127.0.0.1', 'Booking status set to COMPLETED', '2026-11-11 20:53:19.0');
+INSERT INTO `audit_logs` VALUES (44, 10, 'tourist_ana', 'CREATE_REVIEW', 'REVIEWS', 4, '127.0.0.1', 'Rating: 5 stars', '2026-11-11 20:53:19.0');
+INSERT INTO `audit_logs` VALUES (45, 3, 'lgu_naval', 'LOG_ARRIVAL', 'ARRIVAL_LOGS', 6, '127.0.0.1', 'Visitors recorded for destination ID: 1', '2026-11-11 20:53:19.0');
+INSERT INTO `audit_logs` VALUES (46, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '127.0.0.1', 'User logged in', '2026-11-11 21:21:14.0');
+INSERT INTO `audit_logs` VALUES (47, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '127.0.0.1', 'User logged in', '2026-11-11 21:23:44.0');
+INSERT INTO `audit_logs` VALUES (48, 2, 'tourismoffice', 'LOGIN_SUCCESS', 'AUTH', 2, '127.0.0.1', 'User logged in', '2026-11-11 21:23:44.0');
+INSERT INTO `audit_logs` VALUES (49, 3, 'lgu_naval', 'LOGIN_SUCCESS', 'AUTH', 3, '127.0.0.1', 'User logged in', '2026-11-11 21:23:44.0');
+INSERT INTO `audit_logs` VALUES (50, 4, 'brgy_olog', 'LOGIN_SUCCESS', 'AUTH', 4, '127.0.0.1', 'User logged in', '2026-11-11 21:23:44.0');
+INSERT INTO `audit_logs` VALUES (51, 5, 'guide_pedro', 'LOGIN_SUCCESS', 'AUTH', 5, '127.0.0.1', 'User logged in', '2026-11-11 21:23:44.0');
+INSERT INTO `audit_logs` VALUES (52, 10, 'tourist_ana', 'LOGIN_SUCCESS', 'AUTH', 10, '127.0.0.1', 'User logged in', '2026-11-11 21:23:45.0');
+INSERT INTO `audit_logs` VALUES (55, 2, 'tourismoffice', 'DELETE_ANNOUNCEMENT', 'ANNOUNCEMENTS', 5, '127.0.0.1', 'Deleted announcement ID: 5', '2026-11-11 21:23:52.0');
+INSERT INTO `audit_logs` VALUES (58, 10, 'tourist_ana', 'CREATE_BOOKING', 'BOOKINGS', 6, '127.0.0.1', 'New booking created: LL-2026-7730', '2026-11-11 21:23:52.0');
+INSERT INTO `audit_logs` VALUES (59, 5, 'guide_pedro', 'UPDATE_BOOKING_STATUS', 'BOOKINGS', 6, '127.0.0.1', 'Booking status set to ACCEPTED', '2026-11-11 21:23:52.0');
+INSERT INTO `audit_logs` VALUES (60, 5, 'guide_pedro', 'UPDATE_BOOKING_STATUS', 'BOOKINGS', 6, '127.0.0.1', 'Booking status set to COMPLETED', '2026-11-11 21:23:52.0');
+INSERT INTO `audit_logs` VALUES (61, 10, 'tourist_ana', 'CREATE_REVIEW', 'REVIEWS', 5, '127.0.0.1', 'Rating: 5 stars', '2026-11-11 21:23:52.0');
+INSERT INTO `audit_logs` VALUES (64, 5, 'guide_pedro', 'UPDATE_STAKEHOLDER_PROFILE', 'STAKEHOLDER_PROFILES', 1, '127.0.0.1', 'Updated profile: Sambawan Island Eco-Trek \u0026 Marine Guides', '2026-11-11 21:23:53.0');
+INSERT INTO `audit_logs` VALUES (65, 5, 'guide_pedro', 'UPDATE_STAKEHOLDER_PROFILE', 'STAKEHOLDER_PROFILES', 1, '127.0.0.1', 'Updated profile: Sambawan Island Eco-Trek \u0026 Marine Guides', '2026-11-11 21:23:53.0');
+INSERT INTO `audit_logs` VALUES (66, 5, 'guide_pedro', 'DELETE_SERVICE', 'SERVICES', 11, '127.0.0.1', 'Deleted service ID: 11', '2026-11-11 21:23:53.0');
+INSERT INTO `audit_logs` VALUES (68, 4, 'brgy_olog', 'VALIDATE_DESTINATION', 'DESTINATIONS', 10, '127.0.0.1', 'Validated by Captain Ramon Corpin', '2026-11-11 21:23:53.0');
+INSERT INTO `audit_logs` VALUES (70, 4, 'brgy_olog', 'VERIFY_STAKEHOLDER', 'STAKEHOLDER_PROFILES', 6, '127.0.0.1', 'Decision: APPROVED | Approved in test', '2026-11-11 21:23:53.0');
+INSERT INTO `audit_logs` VALUES (71, 4, 'brgy_olog', 'UPDATE_BARANGAY', 'BARANGAYS', 1, '127.0.0.1', 'Updated focal contact: Hon. Ramon Corpin', '2026-11-11 21:23:53.0');
+INSERT INTO `audit_logs` VALUES (72, 2, 'tourismoffice', 'DELETE_DESTINATION', 'DESTINATIONS', 10, '127.0.0.1', 'Deleted destination ID: 10', '2026-11-11 21:23:53.0');
+INSERT INTO `audit_logs` VALUES (75, 1, 'admin', 'RESET_PASSWORD', 'USERS', 14, '127.0.0.1', 'Password reset by admin', '2026-11-11 21:23:54.0');
+INSERT INTO `audit_logs` VALUES (76, NULL, 'temp_admin_test_user', 'LOGIN_SUCCESS', 'AUTH', 14, '127.0.0.1', 'User logged in', '2026-11-11 21:23:54.0');
+INSERT INTO `audit_logs` VALUES (77, 1, 'admin', 'UPDATE_USER_STATUS', 'USERS', 14, '127.0.0.1', 'Set status to: DEACTIVATED', '2026-11-11 21:23:54.0');
+INSERT INTO `audit_logs` VALUES (78, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '127.0.0.1', 'User logged in', '2026-11-11 21:28:09.0');
+INSERT INTO `audit_logs` VALUES (79, 2, 'tourismoffice', 'LOGIN_SUCCESS', 'AUTH', 2, '127.0.0.1', 'User logged in', '2026-11-11 21:28:09.0');
+INSERT INTO `audit_logs` VALUES (80, 3, 'lgu_naval', 'LOGIN_SUCCESS', 'AUTH', 3, '127.0.0.1', 'User logged in', '2026-11-11 21:28:09.0');
+INSERT INTO `audit_logs` VALUES (81, 4, 'brgy_olog', 'LOGIN_SUCCESS', 'AUTH', 4, '127.0.0.1', 'User logged in', '2026-11-11 21:28:09.0');
+INSERT INTO `audit_logs` VALUES (82, 5, 'guide_pedro', 'LOGIN_SUCCESS', 'AUTH', 5, '127.0.0.1', 'User logged in', '2026-11-11 21:28:10.0');
+INSERT INTO `audit_logs` VALUES (83, 10, 'tourist_ana', 'LOGIN_SUCCESS', 'AUTH', 10, '127.0.0.1', 'User logged in', '2026-11-11 21:28:10.0');
+INSERT INTO `audit_logs` VALUES (86, 2, 'tourismoffice', 'DELETE_ANNOUNCEMENT', 'ANNOUNCEMENTS', 6, '127.0.0.1', 'Deleted announcement ID: 6', '2026-11-11 21:28:17.0');
+INSERT INTO `audit_logs` VALUES (89, 10, 'tourist_ana', 'CREATE_BOOKING', 'BOOKINGS', 7, '127.0.0.1', 'New booking created: LL-2026-4563', '2026-11-11 21:28:17.0');
+INSERT INTO `audit_logs` VALUES (90, 5, 'guide_pedro', 'UPDATE_BOOKING_STATUS', 'BOOKINGS', 7, '127.0.0.1', 'Booking status set to ACCEPTED', '2026-11-11 21:28:17.0');
+INSERT INTO `audit_logs` VALUES (91, 5, 'guide_pedro', 'UPDATE_BOOKING_STATUS', 'BOOKINGS', 7, '127.0.0.1', 'Booking status set to COMPLETED', '2026-11-11 21:28:17.0');
+INSERT INTO `audit_logs` VALUES (92, 10, 'tourist_ana', 'CREATE_REVIEW', 'REVIEWS', 6, '127.0.0.1', 'Rating: 5 stars', '2026-11-11 21:28:17.0');
+INSERT INTO `audit_logs` VALUES (95, 5, 'guide_pedro', 'UPDATE_STAKEHOLDER_PROFILE', 'STAKEHOLDER_PROFILES', 1, '127.0.0.1', 'Updated profile: Sambawan Island Eco-Trek \u0026 Marine Guides', '2026-11-11 21:28:17.0');
+INSERT INTO `audit_logs` VALUES (96, 5, 'guide_pedro', 'UPDATE_STAKEHOLDER_PROFILE', 'STAKEHOLDER_PROFILES', 1, '127.0.0.1', 'Updated profile: Sambawan Island Eco-Trek \u0026 Marine Guides', '2026-11-11 21:28:17.0');
+INSERT INTO `audit_logs` VALUES (97, 5, 'guide_pedro', 'DELETE_SERVICE', 'SERVICES', 12, '127.0.0.1', 'Deleted service ID: 12', '2026-11-11 21:28:17.0');
+INSERT INTO `audit_logs` VALUES (99, 4, 'brgy_olog', 'VALIDATE_DESTINATION', 'DESTINATIONS', 11, '127.0.0.1', 'Validated by Captain Ramon Corpin', '2026-11-11 21:28:18.0');
+INSERT INTO `audit_logs` VALUES (100, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '127.0.0.1', 'User logged in', '2026-11-11 21:29:35.0');
+INSERT INTO `audit_logs` VALUES (101, 2, 'tourismoffice', 'LOGIN_SUCCESS', 'AUTH', 2, '127.0.0.1', 'User logged in', '2026-11-11 21:29:35.0');
+INSERT INTO `audit_logs` VALUES (102, 3, 'lgu_naval', 'LOGIN_SUCCESS', 'AUTH', 3, '127.0.0.1', 'User logged in', '2026-11-11 21:29:36.0');
+INSERT INTO `audit_logs` VALUES (103, 4, 'brgy_olog', 'LOGIN_SUCCESS', 'AUTH', 4, '127.0.0.1', 'User logged in', '2026-11-11 21:29:36.0');
+INSERT INTO `audit_logs` VALUES (104, 5, 'guide_pedro', 'LOGIN_SUCCESS', 'AUTH', 5, '127.0.0.1', 'User logged in', '2026-11-11 21:29:36.0');
+INSERT INTO `audit_logs` VALUES (105, 10, 'tourist_ana', 'LOGIN_SUCCESS', 'AUTH', 10, '127.0.0.1', 'User logged in', '2026-11-11 21:29:36.0');
+INSERT INTO `audit_logs` VALUES (108, 2, 'tourismoffice', 'DELETE_ANNOUNCEMENT', 'ANNOUNCEMENTS', 7, '127.0.0.1', 'Deleted announcement ID: 7', '2026-11-11 21:29:43.0');
+INSERT INTO `audit_logs` VALUES (111, 10, 'tourist_ana', 'CREATE_BOOKING', 'BOOKINGS', 8, '127.0.0.1', 'New booking created: LL-2026-8900', '2026-11-11 21:29:43.0');
+INSERT INTO `audit_logs` VALUES (112, 5, 'guide_pedro', 'UPDATE_BOOKING_STATUS', 'BOOKINGS', 8, '127.0.0.1', 'Booking status set to ACCEPTED', '2026-11-11 21:29:44.0');
+INSERT INTO `audit_logs` VALUES (113, 5, 'guide_pedro', 'UPDATE_BOOKING_STATUS', 'BOOKINGS', 8, '127.0.0.1', 'Booking status set to COMPLETED', '2026-11-11 21:29:44.0');
+INSERT INTO `audit_logs` VALUES (114, 10, 'tourist_ana', 'CREATE_REVIEW', 'REVIEWS', 7, '127.0.0.1', 'Rating: 5 stars', '2026-11-11 21:29:44.0');
+INSERT INTO `audit_logs` VALUES (117, 5, 'guide_pedro', 'UPDATE_STAKEHOLDER_PROFILE', 'STAKEHOLDER_PROFILES', 1, '127.0.0.1', 'Updated profile: Sambawan Island Eco-Trek \u0026 Marine Guides', '2026-11-11 21:29:44.0');
+INSERT INTO `audit_logs` VALUES (118, 5, 'guide_pedro', 'UPDATE_STAKEHOLDER_PROFILE', 'STAKEHOLDER_PROFILES', 1, '127.0.0.1', 'Updated profile: Sambawan Island Eco-Trek \u0026 Marine Guides', '2026-11-11 21:29:44.0');
+INSERT INTO `audit_logs` VALUES (119, 5, 'guide_pedro', 'DELETE_SERVICE', 'SERVICES', 13, '127.0.0.1', 'Deleted service ID: 13', '2026-11-11 21:29:44.0');
+INSERT INTO `audit_logs` VALUES (121, 4, 'brgy_olog', 'VALIDATE_DESTINATION', 'DESTINATIONS', 11, '127.0.0.1', 'Validated by Captain Ramon Corpin', '2026-11-11 21:29:44.0');
+INSERT INTO `audit_logs` VALUES (122, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '127.0.0.1', 'User logged in', '2026-11-11 21:30:31.0');
+INSERT INTO `audit_logs` VALUES (123, 2, 'tourismoffice', 'LOGIN_SUCCESS', 'AUTH', 2, '127.0.0.1', 'User logged in', '2026-11-11 21:30:31.0');
+INSERT INTO `audit_logs` VALUES (124, 3, 'lgu_naval', 'LOGIN_SUCCESS', 'AUTH', 3, '127.0.0.1', 'User logged in', '2026-11-11 21:30:31.0');
+INSERT INTO `audit_logs` VALUES (125, 4, 'brgy_olog', 'LOGIN_SUCCESS', 'AUTH', 4, '127.0.0.1', 'User logged in', '2026-11-11 21:30:31.0');
+INSERT INTO `audit_logs` VALUES (126, 5, 'guide_pedro', 'LOGIN_SUCCESS', 'AUTH', 5, '127.0.0.1', 'User logged in', '2026-11-11 21:30:31.0');
+INSERT INTO `audit_logs` VALUES (127, 10, 'tourist_ana', 'LOGIN_SUCCESS', 'AUTH', 10, '127.0.0.1', 'User logged in', '2026-11-11 21:30:31.0');
+INSERT INTO `audit_logs` VALUES (130, 2, 'tourismoffice', 'DELETE_ANNOUNCEMENT', 'ANNOUNCEMENTS', 8, '127.0.0.1', 'Deleted announcement ID: 8', '2026-11-11 21:30:38.0');
+INSERT INTO `audit_logs` VALUES (133, 10, 'tourist_ana', 'CREATE_BOOKING', 'BOOKINGS', 9, '127.0.0.1', 'New booking created: LL-2026-4072', '2026-11-11 21:30:39.0');
+INSERT INTO `audit_logs` VALUES (134, 5, 'guide_pedro', 'UPDATE_BOOKING_STATUS', 'BOOKINGS', 9, '127.0.0.1', 'Booking status set to ACCEPTED', '2026-11-11 21:30:39.0');
+INSERT INTO `audit_logs` VALUES (135, 5, 'guide_pedro', 'UPDATE_BOOKING_STATUS', 'BOOKINGS', 9, '127.0.0.1', 'Booking status set to COMPLETED', '2026-11-11 21:30:39.0');
+INSERT INTO `audit_logs` VALUES (136, 10, 'tourist_ana', 'CREATE_REVIEW', 'REVIEWS', 8, '127.0.0.1', 'Rating: 5 stars', '2026-11-11 21:30:39.0');
+INSERT INTO `audit_logs` VALUES (139, 5, 'guide_pedro', 'UPDATE_STAKEHOLDER_PROFILE', 'STAKEHOLDER_PROFILES', 1, '127.0.0.1', 'Updated profile: Sambawan Island Eco-Trek \u0026 Marine Guides', '2026-11-11 21:30:39.0');
+INSERT INTO `audit_logs` VALUES (140, 5, 'guide_pedro', 'UPDATE_STAKEHOLDER_PROFILE', 'STAKEHOLDER_PROFILES', 1, '127.0.0.1', 'Updated profile: Sambawan Island Eco-Trek \u0026 Marine Guides', '2026-11-11 21:30:39.0');
+INSERT INTO `audit_logs` VALUES (141, 5, 'guide_pedro', 'DELETE_SERVICE', 'SERVICES', 14, '127.0.0.1', 'Deleted service ID: 14', '2026-11-11 21:30:39.0');
+INSERT INTO `audit_logs` VALUES (143, 4, 'brgy_olog', 'VALIDATE_DESTINATION', 'DESTINATIONS', 13, '127.0.0.1', 'Validated by Captain Ramon Corpin', '2026-11-11 21:30:39.0');
+INSERT INTO `audit_logs` VALUES (145, 4, 'brgy_olog', 'VERIFY_STAKEHOLDER', 'STAKEHOLDER_PROFILES', 7, '127.0.0.1', 'Decision: APPROVED | Approved in test', '2026-11-11 21:30:40.0');
+INSERT INTO `audit_logs` VALUES (146, 4, 'brgy_olog', 'UPDATE_BARANGAY', 'BARANGAYS', 1, '127.0.0.1', 'Updated focal contact: Hon. Ramon Corpin', '2026-11-11 21:30:40.0');
+INSERT INTO `audit_logs` VALUES (147, 2, 'tourismoffice', 'DELETE_DESTINATION', 'DESTINATIONS', 13, '127.0.0.1', 'Deleted destination ID: 13', '2026-11-11 21:30:40.0');
+INSERT INTO `audit_logs` VALUES (150, 1, 'admin', 'RESET_PASSWORD', 'USERS', 18, '127.0.0.1', 'Password reset by admin', '2026-11-11 21:30:40.0');
+INSERT INTO `audit_logs` VALUES (151, NULL, 'temp_admin_test_user', 'LOGIN_SUCCESS', 'AUTH', 18, '127.0.0.1', 'User logged in', '2026-11-11 21:30:40.0');
+INSERT INTO `audit_logs` VALUES (152, 1, 'admin', 'UPDATE_USER_STATUS', 'USERS', 18, '127.0.0.1', 'Set status to: DEACTIVATED', '2026-11-11 21:30:40.0');
+INSERT INTO `audit_logs` VALUES (153, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '127.0.0.1', 'Updated system settings (threshold=85%)', '2026-11-11 21:30:40.0');
+INSERT INTO `audit_logs` VALUES (154, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-11 21:33:21.0');
+INSERT INTO `audit_logs` VALUES (155, 1, 'admin', 'UPDATE_SERVICE', 'SERVICES', 7, '0:0:0:0:0:0:0:1', 'Updated Biliran Fiesta Seafood & Native Chicken Boodle Fight', '2026-11-11 21:35:43.0');
+INSERT INTO `audit_logs` VALUES (156, 1, 'admin', 'DELETE_SERVICE', 'SERVICES', 7, '0:0:0:0:0:0:0:1', 'Deleted service ID: 7', '2026-11-11 21:35:43.0');
+INSERT INTO `audit_logs` VALUES (157, 10, 'tourist_ana', 'LOGIN_SUCCESS', 'AUTH', 10, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-11 21:36:03.0');
+INSERT INTO `audit_logs` VALUES (158, 10, 'tourist_ana', 'CREATE_BOOKING', 'BOOKINGS', 10, '0:0:0:0:0:0:0:1', 'New booking created: LL-2026-1531', '2026-11-11 21:36:33.0');
+INSERT INTO `audit_logs` VALUES (159, 10, 'tourist_ana', 'UPDATE_BOOKING_STATUS', 'BOOKINGS', 10, '0:0:0:0:0:0:0:1', 'Booking status set to CANCELLED', '2026-11-11 21:36:54.0');
+INSERT INTO `audit_logs` VALUES (160, 10, 'tourist_ana', 'CREATE_REVIEW', 'REVIEWS', 9, '0:0:0:0:0:0:0:1', 'Rating: 3 stars', '2026-11-11 21:37:11.0');
+INSERT INTO `audit_logs` VALUES (161, 4, 'brgy_olog', 'LOGIN_SUCCESS', 'AUTH', 4, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-11 21:37:34.0');
+INSERT INTO `audit_logs` VALUES (162, 5, 'guide_pedro', 'LOGIN_SUCCESS', 'AUTH', 5, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-11 21:39:01.0');
+INSERT INTO `audit_logs` VALUES (163, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-11 21:42:52.0');
+INSERT INTO `audit_logs` VALUES (164, 1, 'admin', 'RESET_PASSWORD', 'USERS', 11, '0:0:0:0:0:0:0:1', 'Password reset by admin', '2026-11-11 21:44:45.0');
+INSERT INTO `audit_logs` VALUES (165, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Updated system settings (threshold=83%)', '2026-11-11 21:45:52.0');
+INSERT INTO `audit_logs` VALUES (166, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Updated system settings (threshold=83%)', '2026-11-11 21:52:42.0');
+INSERT INTO `audit_logs` VALUES (167, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Updated system settings (threshold=83%)', '2026-11-11 21:54:25.0');
+INSERT INTO `audit_logs` VALUES (168, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Updated system settings (threshold=84%)', '2026-11-11 21:55:25.0');
+INSERT INTO `audit_logs` VALUES (169, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Updated system settings (threshold=83%)', '2026-11-11 21:56:11.0');
+INSERT INTO `audit_logs` VALUES (170, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Updated system settings (threshold=83%)', '2026-11-11 21:57:29.0');
+INSERT INTO `audit_logs` VALUES (171, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Updated system settings (threshold=83%)', '2026-11-11 21:58:03.0');
+INSERT INTO `audit_logs` VALUES (172, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Updated system settings (threshold=83%)', '2026-11-11 21:58:22.0');
+INSERT INTO `audit_logs` VALUES (173, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Updated system settings (threshold=83%)', '2026-11-11 21:59:23.0');
+INSERT INTO `audit_logs` VALUES (174, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Updated system settings (threshold=83%)', '2026-11-11 22:03:20.0');
+INSERT INTO `audit_logs` VALUES (175, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Updated system settings (threshold=83%)', '2026-11-11 22:03:27.0');
+INSERT INTO `audit_logs` VALUES (176, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Updated system settings (threshold=83%)', '2026-11-11 22:03:33.0');
+INSERT INTO `audit_logs` VALUES (177, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Updated system settings (threshold=83%)', '2026-11-11 22:03:40.0');
+INSERT INTO `audit_logs` VALUES (178, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Updated system settings (threshold=83%)', '2026-11-11 22:03:45.0');
+INSERT INTO `audit_logs` VALUES (179, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Updated system settings (threshold=83%)', '2026-11-11 22:04:25.0');
+INSERT INTO `audit_logs` VALUES (180, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-11 23:51:57.0');
+INSERT INTO `audit_logs` VALUES (181, 5, 'guide_pedro', 'LOGIN_SUCCESS', 'AUTH', 5, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-11 23:52:41.0');
+INSERT INTO `audit_logs` VALUES (182, 2, 'tourismoffice', 'LOGIN_SUCCESS', 'AUTH', 2, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-11 23:53:37.0');
+INSERT INTO `audit_logs` VALUES (183, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-12 00:33:56.0');
+INSERT INTO `audit_logs` VALUES (184, 5, 'guide_pedro', 'LOGIN_SUCCESS', 'AUTH', 5, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-12 00:36:24.0');
+INSERT INTO `audit_logs` VALUES (185, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-12 00:47:14.0');
+INSERT INTO `audit_logs` VALUES (186, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-12 01:02:19.0');
+INSERT INTO `audit_logs` VALUES (187, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'System settings saved: Platform Name, Default Currency.', '2026-11-12 01:02:19.0');
+INSERT INTO `audit_logs` VALUES (188, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Provincial Jurisdiction saved successfully: "Biliran Island Province, Eastern Visayas (Region VIII)".', '2026-11-12 01:02:19.0');
+INSERT INTO `audit_logs` VALUES (189, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Carrying Capacity Alert Threshold saved (88%).', '2026-11-12 01:02:19.0');
+INSERT INTO `audit_logs` VALUES (190, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Default Currency saved: USD (US Dollar $).', '2026-11-12 01:02:20.0');
+INSERT INTO `audit_logs` VALUES (191, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Live Broadcast Notice saved successfully.', '2026-11-12 01:02:20.0');
+INSERT INTO `audit_logs` VALUES (192, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'System settings saved: Platform Name, Default Currency.', '2026-11-12 01:02:20.0');
+INSERT INTO `audit_logs` VALUES (193, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-12 01:02:25.0');
+INSERT INTO `audit_logs` VALUES (194, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'System settings saved: Platform Name, Provincial Jurisdiction, Carrying Capacity Alert Threshold, Default Currency, Live Broadcast Notice.', '2026-11-12 01:02:25.0');
+INSERT INTO `audit_logs` VALUES (195, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-12 01:05:21.0');
+INSERT INTO `audit_logs` VALUES (196, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Platform Name saved successfully: "Lakbay Lokal - Biliran Provincial Portal (Test)".', '2026-11-12 01:05:21.0');
+INSERT INTO `audit_logs` VALUES (197, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Provincial Jurisdiction saved successfully: "Biliran Island Province, Eastern Visayas (Region VIII)".', '2026-11-12 01:05:21.0');
+INSERT INTO `audit_logs` VALUES (198, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Carrying Capacity Alert Threshold saved (88%).', '2026-11-12 01:05:21.0');
+INSERT INTO `audit_logs` VALUES (199, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Default Currency saved: USD (US Dollar $).', '2026-11-12 01:05:21.0');
+INSERT INTO `audit_logs` VALUES (200, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Live Broadcast Notice saved successfully.', '2026-11-12 01:05:22.0');
+INSERT INTO `audit_logs` VALUES (201, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'System settings saved: Platform Name, Default Currency.', '2026-11-12 01:05:22.0');
+INSERT INTO `audit_logs` VALUES (202, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-12 01:05:27.0');
+INSERT INTO `audit_logs` VALUES (203, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'System settings saved: Platform Name, Provincial Jurisdiction, Carrying Capacity Alert Threshold, Default Currency, Live Broadcast Notice.', '2026-11-12 01:05:27.0');
+INSERT INTO `audit_logs` VALUES (204, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '0:0:0:0:0:0:0:1', 'User logged in', '2026-11-12 01:11:06.0');
+INSERT INTO `audit_logs` VALUES (205, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Live Broadcast Notice saved successfully.', '2026-11-12 01:11:42.0');
+INSERT INTO `audit_logs` VALUES (206, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Live Broadcast Notice saved successfully.', '2026-11-12 01:11:58.0');
+INSERT INTO `audit_logs` VALUES (207, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '0:0:0:0:0:0:0:1', 'Default Currency saved: USD (US Dollar $).', '2026-11-12 01:12:05.0');
+INSERT INTO `audit_logs` VALUES (208, 4, 'brgy_olog', 'LOGIN_SUCCESS', 'AUTH', 4, '127.0.0.1', 'User logged in', '2026-11-12 03:33:06.0');
+INSERT INTO `audit_logs` VALUES (209, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '127.0.0.1', 'User logged in', '2026-11-12 06:41:11.0');
+INSERT INTO `audit_logs` VALUES (210, 2, 'tourismoffice', 'LOGIN_SUCCESS', 'AUTH', 2, '127.0.0.1', 'User logged in', '2026-11-12 06:41:11.0');
+INSERT INTO `audit_logs` VALUES (211, 3, 'lgu_naval', 'LOGIN_SUCCESS', 'AUTH', 3, '127.0.0.1', 'User logged in', '2026-11-12 06:41:12.0');
+INSERT INTO `audit_logs` VALUES (212, 4, 'brgy_olog', 'LOGIN_SUCCESS', 'AUTH', 4, '127.0.0.1', 'User logged in', '2026-11-12 06:41:12.0');
+INSERT INTO `audit_logs` VALUES (213, 5, 'guide_pedro', 'LOGIN_SUCCESS', 'AUTH', 5, '127.0.0.1', 'User logged in', '2026-11-12 06:41:12.0');
+INSERT INTO `audit_logs` VALUES (214, 10, 'tourist_ana', 'LOGIN_SUCCESS', 'AUTH', 10, '127.0.0.1', 'User logged in', '2026-11-12 06:41:12.0');
+INSERT INTO `audit_logs` VALUES (215, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '127.0.0.1', 'System settings saved (Platform Name, Provincial Jurisdiction, Carrying Capacity, Default Currency, Live Broadcast Notice).', '2026-11-12 06:41:12.0');
+INSERT INTO `audit_logs` VALUES (216, 2, 'tourismoffice', 'CREATE_ANNOUNCEMENT', 'ANNOUNCEMENTS', 9, '127.0.0.1', 'Created: Automated E2E Test Bulletin', '2026-11-12 06:41:12.0');
+INSERT INTO `audit_logs` VALUES (217, 1, 'admin', 'LOGIN_SUCCESS', 'AUTH', 1, '127.0.0.1', 'User logged in', '2026-11-12 06:45:23.0');
+INSERT INTO `audit_logs` VALUES (218, 2, 'tourismoffice', 'LOGIN_SUCCESS', 'AUTH', 2, '127.0.0.1', 'User logged in', '2026-11-12 06:45:23.0');
+INSERT INTO `audit_logs` VALUES (219, 3, 'lgu_naval', 'LOGIN_SUCCESS', 'AUTH', 3, '127.0.0.1', 'User logged in', '2026-11-12 06:45:23.0');
+INSERT INTO `audit_logs` VALUES (220, 4, 'brgy_olog', 'LOGIN_SUCCESS', 'AUTH', 4, '127.0.0.1', 'User logged in', '2026-11-12 06:45:23.0');
+INSERT INTO `audit_logs` VALUES (221, 5, 'guide_pedro', 'LOGIN_SUCCESS', 'AUTH', 5, '127.0.0.1', 'User logged in', '2026-11-12 06:45:23.0');
+INSERT INTO `audit_logs` VALUES (222, 10, 'tourist_ana', 'LOGIN_SUCCESS', 'AUTH', 10, '127.0.0.1', 'User logged in', '2026-11-12 06:45:23.0');
+INSERT INTO `audit_logs` VALUES (223, 1, 'admin', 'UPDATE_SETTINGS', 'SETTINGS', 1, '127.0.0.1', 'System settings saved: Platform Name, Carrying Capacity Alert Threshold, Default Currency, Live Broadcast Notice.', '2026-11-12 06:45:24.0');
+INSERT INTO `audit_logs` VALUES (224, 2, 'tourismoffice', 'CREATE_ANNOUNCEMENT', 'ANNOUNCEMENTS', 10, '127.0.0.1', 'Created: Automated E2E Test Bulletin', '2026-11-12 06:45:24.0');
+INSERT INTO `audit_logs` VALUES (225, 2, 'tourismoffice', 'DELETE_ANNOUNCEMENT', 'ANNOUNCEMENTS', 10, '127.0.0.1', 'Deleted announcement ID: 10', '2026-11-12 06:45:24.0');
+
+-- Table: barangays
+INSERT INTO `barangays` VALUES (1, 8, 'Ol-og (Sambawan)', 'Hon. Ramon Corpin', '+63 917 111 2001');
+INSERT INTO `barangays` VALUES (2, 8, 'Bato', 'Hon. Elena Tan', '+63 917 111 2002');
+INSERT INTO `barangays` VALUES (3, 8, 'Ermita', 'Hon. Lucas Del Rosario', '+63 917 111 2003');
+INSERT INTO `barangays` VALUES (4, 5, 'Cabibihan (Tinago)', 'Hon. Roberto Gomez', '+63 918 222 3001');
+INSERT INTO `barangays` VALUES (5, 5, 'Manlabang', 'Hon. Corazon Santos', '+63 918 222 3002');
+INSERT INTO `barangays` VALUES (6, 2, 'Sampao (Ulan-Ulan)', 'Hon. Mario Morales', '+63 919 333 4001');
+INSERT INTO `barangays` VALUES (7, 2, 'Iyusan', 'Hon. Teresa Cruz', '+63 919 333 4002');
+INSERT INTO `barangays` VALUES (8, 2, 'Kawayanon', 'Hon. Daniel Navarro', '+63 919 333 4003');
+INSERT INTO `barangays` VALUES (9, 1, 'P.I. Garcia', 'Hon. Fernando Perez', '+63 920 444 5001');
+INSERT INTO `barangays` VALUES (10, 1, 'Smo. Rosario (Higatangan)', 'Hon. Gabriel Lim', '+63 920 444 5002');
+INSERT INTO `barangays` VALUES (11, 7, 'Busali', 'Hon. Gloria Bautista', '+63 921 555 6001');
+INSERT INTO `barangays` VALUES (12, 3, 'Baganito', 'Hon. Angela Rivera', '+63 922 666 7001');
+
+-- Table: booking_service_items
+INSERT INTO `booking_service_items` VALUES (6, 10, 5, 3, NULL, 3000.00, 1, 3000.00, 'PENDING');
+
+-- Table: bookings
+INSERT INTO `bookings` VALUES (1, 'LL-2026-0001', 1, 1, '2026-02-15 10:00:00.0', '2026-03-20', '2026-03-21', 4, 7400.00, 'COMPLETED', 'Group of 4 photography enthusiasts, requesting sunset trek at Sambawan hill.', '2026-11-11 19:43:26.0', '2026-11-11 19:43:26.0');
+INSERT INTO `bookings` VALUES (2, 'LL-2026-0002', 1, 2, '2026-03-01 14:30:00.0', '2026-04-10', '2026-04-10', 2, 2500.00, 'CONFIRMED', 'Vegetarian lunch request for one guest.', '2026-11-11 19:43:26.0', '2026-11-11 19:43:26.0');
+INSERT INTO `bookings` VALUES (3, 'LL-2026-0003', 1, NULL, '2026-03-05 09:15:00.0', '2026-04-18', '2026-04-18', 3, 2100.00, 'PENDING', 'Custom booking: Habal-habal tour plus Pottery workshop.', '2026-11-11 19:43:26.0', '2026-11-11 19:43:26.0');
+INSERT INTO `bookings` VALUES (10, 'LL-2026-1531', 1, NULL, '2026-11-11 21:36:33.0', '2026-11-11', '2026-11-12', 2, 3000.00, 'CANCELLED', 'Custom Community Circuit: ', '2026-11-11 21:36:33.0', '2026-11-11 21:36:54.0');
+
+-- Table: destinations
+INSERT INTO `destinations` VALUES (1, 1, 'Sambawan Island Marine Sanctuary', 'ISLAND_BEACH', 'A world-class semi-curved island paradise featuring rocky volcanic peaks, pristine white sand beaches, rich coral marine sanctuary, and a scenic observation tower.', 120.00, 'Open 24 Hours (Overnight Camping Available)', '11.6025, 124.2628', 'maripipi.tourism@biliran.gov.ph', 'sambawan_island.jpg', 'ACTIVE', 1, '2026-01-10T10:00', '2026-11-11 19:43:26.0');
+INSERT INTO `destinations` VALUES (2, 4, 'Tinago Falls Eco-Park', 'WATERFALL', 'A majestic waterfall gracefully cascading into a deep, turquoise blue natural pool framed by lush jungle foliage and wooden picnic cottages.', 50.00, '7:00 AM - 5:00 PM', '11.5367, 124.5244', 'tinago.caibiran@biliran.gov.ph', 'tinago_falls.jpg', 'ACTIVE', 1, '2026-01-10T10:00', '2026-11-11 19:43:26.0');
+INSERT INTO `destinations` VALUES (3, 6, 'Ulan-Ulan Falls', 'WATERFALL', 'A 25-meter roaring waterfall whose spray resembles a gentle rain shower (ulan), nestled in a tropical ravine perfect for nature enthusiasts.', 40.00, '6:30 AM - 4:30 PM', '11.5839, 124.4172', 'almeria.tourism@biliran.gov.ph', 'ulan_ulan_falls.jpg', 'ACTIVE', 1, '2026-01-10T10:00', '2026-11-11 19:43:26.0');
+INSERT INTO `destinations` VALUES (4, 10, 'Higatangan Island & Shifting Sandbar', 'ISLAND_BEACH', 'An island marvel featuring a 200-meter white sandbar that magically shifts direction with ocean tides, clear snorkeling waters, and volcanic rock formations.', 80.00, '6:00 AM - 6:00 PM', '11.5647, 124.2811', 'naval.tourism@biliran.gov.ph', 'higatangan_sandbar.jpg', 'ACTIVE', 1, '2026-01-10T10:00', '2026-11-11 19:43:26.0');
+INSERT INTO `destinations` VALUES (5, 5, 'Mainit Hot Spring', 'HOT_SPRING', 'Natural therapeutic mineral hot springs flowing down a geothermal river bed with temperature pools designed for relaxation and healing.', 40.00, '7:00 AM - 7:00 PM', '11.5511, 124.5422', 'caibiran.hotspring@biliran.gov.ph', 'mainit_spring.jpg', 'ACTIVE', 1, '2026-01-10T10:00', '2026-11-11 19:43:26.0');
+INSERT INTO `destinations` VALUES (6, 7, 'Iyusan Rice Terraces', 'CULTURAL_HERITAGE', 'Spectacular centuries-old stone-walled rice terraces carved onto verdant mountain slopes reflecting community agricultural heritage.', 25.00, '6:00 AM - 5:30 PM', '11.5714, 124.4022', 'iyusan.brgy@almeria.gov.ph', 'iyusan_terraces.jpg', 'ACTIVE', 1, '2026-01-10T10:00', '2026-11-11 19:43:26.0');
+INSERT INTO `destinations` VALUES (7, 2, 'Maripipi Pottery & Cultural Village', 'CULTURAL_HERITAGE', 'Traditional community hub where generational pottery artisans mold natural red clay pots (daba) and clay ovens using indigenous techniques.', 30.00, '8:00 AM - 4:00 PM', '11.7708, 124.3411', 'maripipi.artisan@biliran.gov.ph', 'maripipi_pottery.jpg', 'ACTIVE', 1, '2026-01-10T10:00', '2026-11-11 19:43:26.0');
+INSERT INTO `destinations` VALUES (8, 6, 'Reco Falls', 'WATERFALL', 'A serene and tranquil swimming hole located upstream from Ulan-Ulan falls, offering calm emerald waters and natural diving ledges.', 30.00, '7:00 AM - 4:30 PM', '11.5894, 124.4219', 'almeria.tourism@biliran.gov.ph', 'reco_falls.jpg', 'ACTIVE', 1, '2026-01-10T10:00', '2026-11-11 19:43:26.0');
+
+-- Table: municipalities
+INSERT INTO `municipalities` VALUES (1, 'Naval', 'Biliran', '6560');
+INSERT INTO `municipalities` VALUES (2, 'Almeria', 'Biliran', '6561');
+INSERT INTO `municipalities` VALUES (3, 'Kawayan', 'Biliran', '6562');
+INSERT INTO `municipalities` VALUES (4, 'Culaba', 'Biliran', '6563');
+INSERT INTO `municipalities` VALUES (5, 'Caibiran', 'Biliran', '6564');
+INSERT INTO `municipalities` VALUES (6, 'Cabucgayan', 'Biliran', '6565');
+INSERT INTO `municipalities` VALUES (7, 'Biliran', 'Biliran', '6566');
+INSERT INTO `municipalities` VALUES (8, 'Maripipi', 'Biliran', '6567');
+
+-- Table: package_destinations
+INSERT INTO `package_destinations` VALUES (1, 1, 1);
+INSERT INTO `package_destinations` VALUES (2, 2, 1);
+INSERT INTO `package_destinations` VALUES (2, 3, 2);
+INSERT INTO `package_destinations` VALUES (2, 8, 3);
+INSERT INTO `package_destinations` VALUES (3, 4, 1);
+INSERT INTO `package_destinations` VALUES (4, 7, 1);
+
+-- Table: package_services
+INSERT INTO `package_services` VALUES (1, 1);
+INSERT INTO `package_services` VALUES (2, 2);
+INSERT INTO `package_services` VALUES (2, 3);
+INSERT INTO `package_services` VALUES (1, 5);
+INSERT INTO `package_services` VALUES (3, 6);
+INSERT INTO `package_services` VALUES (4, 9);
+
+-- Table: permissions
+INSERT INTO `permissions` VALUES (1, 'DESTINATION_VIEW', 'DESTINATIONS', 'View published eco-destinations and tourist spots');
+INSERT INTO `permissions` VALUES (2, 'DESTINATION_CREATE', 'DESTINATIONS', 'Register and publish new tourism destinations in Biliran');
+INSERT INTO `permissions` VALUES (3, 'DESTINATION_UPDATE', 'DESTINATIONS', 'Modify destination details, entrance fees, and descriptions');
+INSERT INTO `permissions` VALUES (4, 'DESTINATION_DELETE', 'DESTINATIONS', 'Remove or archive destination records');
+INSERT INTO `permissions` VALUES (5, 'DESTINATION_VALIDATE', 'DESTINATIONS', 'Validate and endorse destination within authorized jurisdiction');
+INSERT INTO `permissions` VALUES (6, 'PACKAGE_VIEW', 'PACKAGES', 'Browse community-curated tour circuits and packages');
+INSERT INTO `permissions` VALUES (7, 'PACKAGE_CREATE', 'PACKAGES', 'Create new community tourism packages and itinerary circuits');
+INSERT INTO `permissions` VALUES (8, 'PACKAGE_UPDATE', 'PACKAGES', 'Edit package pricing, itinerary inclusions, and durations');
+INSERT INTO `permissions` VALUES (9, 'PACKAGE_DELETE', 'PACKAGES', 'Remove or archive community travel packages');
+INSERT INTO `permissions` VALUES (10, 'SERVICE_VIEW', 'SERVICES', 'View accredited stakeholder rate cards and services');
+INSERT INTO `permissions` VALUES (11, 'SERVICE_MANAGE_OWN', 'SERVICES', 'Manage, create, and update own stakeholder service offerings');
+INSERT INTO `permissions` VALUES (12, 'SERVICE_MANAGE_ALL', 'SERVICES', 'Manage, edit, or adjust all stakeholder services province-wide');
+INSERT INTO `permissions` VALUES (13, 'STAKEHOLDER_VIEW', 'STAKEHOLDERS', 'Access verified stakeholder registry and contact details');
+INSERT INTO `permissions` VALUES (14, 'STAKEHOLDER_MANAGE_OWN', 'STAKEHOLDERS', 'Manage personal stakeholder business profile');
+INSERT INTO `permissions` VALUES (15, 'STAKEHOLDER_VERIFY', 'STAKEHOLDERS', 'Conduct verification, inspect documents, and endorse local stakeholders');
+INSERT INTO `permissions` VALUES (16, 'BOOKING_CREATE', 'BOOKINGS', 'Submit custom and pre-designed travel bookings');
+INSERT INTO `permissions` VALUES (17, 'BOOKING_VIEW_OWN', 'BOOKINGS', 'View own tourist reservations or stakeholder assigned bookings');
+INSERT INTO `permissions` VALUES (18, 'BOOKING_VIEW_JURISDICTION', 'BOOKINGS', 'View bookings for attractions and services within assigned jurisdiction');
+INSERT INTO `permissions` VALUES (19, 'BOOKING_VIEW_ALL', 'BOOKINGS', 'View all provincial bookings and reservations');
+INSERT INTO `permissions` VALUES (20, 'BOOKING_UPDATE_STATUS', 'BOOKINGS', 'Accept, reject, confirm, or complete booking items');
+INSERT INTO `permissions` VALUES (21, 'REVIEW_VIEW', 'REVIEWS', 'Read traveler feedback and ratings');
+INSERT INTO `permissions` VALUES (22, 'REVIEW_CREATE', 'REVIEWS', 'Submit reviews and ratings for verified travel bookings');
+INSERT INTO `permissions` VALUES (23, 'REVIEW_MANAGE', 'REVIEWS', 'Moderate and manage published user reviews');
+INSERT INTO `permissions` VALUES (24, 'ANNOUNCEMENT_VIEW', 'ANNOUNCEMENTS', 'Read provincial travel advisories and weather alerts');
+INSERT INTO `permissions` VALUES (25, 'ANNOUNCEMENT_PUBLISH', 'ANNOUNCEMENTS', 'Draft and broadcast provincial travel announcements');
+INSERT INTO `permissions` VALUES (26, 'ANNOUNCEMENT_DELETE', 'ANNOUNCEMENTS', 'Delete expired announcements');
+INSERT INTO `permissions` VALUES (27, 'REPORT_RECORD_ARRIVAL', 'REPORTS', 'Log tourist footfall and carrying-capacity headcounts');
+INSERT INTO `permissions` VALUES (28, 'REPORT_VIEW_BARANGAY', 'REPORTS', 'Access barangay footfall records and carrying-capacity indicators');
+INSERT INTO `permissions` VALUES (29, 'REPORT_VIEW_MUNICIPALITY', 'REPORTS', 'Access municipal consolidated tourism statistics');
+INSERT INTO `permissions` VALUES (30, 'REPORT_VIEW_PROVINCIAL', 'REPORTS', 'Access province-wide arrival statistics, trends, and analytics');
+INSERT INTO `permissions` VALUES (31, 'USER_MANAGE', 'ADMINISTRATION', 'Manage user accounts, assign roles, and handle account status');
+INSERT INTO `permissions` VALUES (32, 'AUDIT_VIEW', 'ADMINISTRATION', 'Inspect immutable security audit logs');
+INSERT INTO `permissions` VALUES (33, 'DATABASE_MANAGE', 'ADMINISTRATION', 'Generate database snapshots and perform maintenance');
+
+-- Table: reviews
+INSERT INTO `reviews` VALUES (1, 1, 1, 'PACKAGE', 1, 5, 'Sambawan Island is sheer paradise! The boat ride was smooth, our guide Kuya Pedro took magnificent photos, and the seafood boodle fight was delicious!', '2026-03-22 08:30:00.0');
+INSERT INTO `reviews` VALUES (2, 1, 1, 'STAKEHOLDER', 1, 5, 'Kuya Pedro is very knowledgeable about the coral reefs and ensured all of us wore life jackets while snorkeling. Truly community-based excellence!', '2026-03-22 08:35:00.0');
+INSERT INTO `reviews` VALUES (3, 1, 1, 'DESTINATION', 1, 5, 'The view from the Sambawan hill at sunrise took our breath away. Clean facilities and well-maintained trail.', '2026-03-22 08:40:00.0');
+INSERT INTO `reviews` VALUES (9, 1, 1, 'PACKAGE', 1, 3, 'good', '2026-11-11 21:37:11.0');
+
+-- Table: role_permissions
+INSERT INTO `role_permissions` VALUES (1, 1);
+INSERT INTO `role_permissions` VALUES (2, 1);
+INSERT INTO `role_permissions` VALUES (3, 1);
+INSERT INTO `role_permissions` VALUES (4, 1);
+INSERT INTO `role_permissions` VALUES (5, 1);
+INSERT INTO `role_permissions` VALUES (6, 1);
+INSERT INTO `role_permissions` VALUES (1, 2);
+INSERT INTO `role_permissions` VALUES (2, 2);
+INSERT INTO `role_permissions` VALUES (1, 3);
+INSERT INTO `role_permissions` VALUES (2, 3);
+INSERT INTO `role_permissions` VALUES (1, 4);
+INSERT INTO `role_permissions` VALUES (2, 4);
+INSERT INTO `role_permissions` VALUES (1, 5);
+INSERT INTO `role_permissions` VALUES (2, 5);
+INSERT INTO `role_permissions` VALUES (4, 5);
+INSERT INTO `role_permissions` VALUES (1, 6);
+INSERT INTO `role_permissions` VALUES (2, 6);
+INSERT INTO `role_permissions` VALUES (3, 6);
+INSERT INTO `role_permissions` VALUES (4, 6);
+INSERT INTO `role_permissions` VALUES (5, 6);
+INSERT INTO `role_permissions` VALUES (6, 6);
+INSERT INTO `role_permissions` VALUES (1, 7);
+INSERT INTO `role_permissions` VALUES (2, 7);
+INSERT INTO `role_permissions` VALUES (1, 8);
+INSERT INTO `role_permissions` VALUES (2, 8);
+INSERT INTO `role_permissions` VALUES (1, 9);
+INSERT INTO `role_permissions` VALUES (2, 9);
+INSERT INTO `role_permissions` VALUES (1, 10);
+INSERT INTO `role_permissions` VALUES (2, 10);
+INSERT INTO `role_permissions` VALUES (3, 10);
+INSERT INTO `role_permissions` VALUES (4, 10);
+INSERT INTO `role_permissions` VALUES (5, 10);
+INSERT INTO `role_permissions` VALUES (6, 10);
+INSERT INTO `role_permissions` VALUES (1, 11);
+INSERT INTO `role_permissions` VALUES (5, 11);
+INSERT INTO `role_permissions` VALUES (1, 12);
+INSERT INTO `role_permissions` VALUES (2, 12);
+INSERT INTO `role_permissions` VALUES (1, 13);
+INSERT INTO `role_permissions` VALUES (2, 13);
+INSERT INTO `role_permissions` VALUES (3, 13);
+INSERT INTO `role_permissions` VALUES (4, 13);
+INSERT INTO `role_permissions` VALUES (5, 13);
+INSERT INTO `role_permissions` VALUES (6, 13);
+INSERT INTO `role_permissions` VALUES (1, 14);
+INSERT INTO `role_permissions` VALUES (5, 14);
+INSERT INTO `role_permissions` VALUES (1, 15);
+INSERT INTO `role_permissions` VALUES (4, 15);
+INSERT INTO `role_permissions` VALUES (1, 16);
+INSERT INTO `role_permissions` VALUES (6, 16);
+INSERT INTO `role_permissions` VALUES (1, 17);
+INSERT INTO `role_permissions` VALUES (5, 17);
+INSERT INTO `role_permissions` VALUES (6, 17);
+INSERT INTO `role_permissions` VALUES (1, 18);
+INSERT INTO `role_permissions` VALUES (3, 18);
+INSERT INTO `role_permissions` VALUES (4, 18);
+INSERT INTO `role_permissions` VALUES (1, 19);
+INSERT INTO `role_permissions` VALUES (2, 19);
+INSERT INTO `role_permissions` VALUES (1, 20);
+INSERT INTO `role_permissions` VALUES (5, 20);
+INSERT INTO `role_permissions` VALUES (1, 21);
+INSERT INTO `role_permissions` VALUES (2, 21);
+INSERT INTO `role_permissions` VALUES (3, 21);
+INSERT INTO `role_permissions` VALUES (4, 21);
+INSERT INTO `role_permissions` VALUES (5, 21);
+INSERT INTO `role_permissions` VALUES (6, 21);
+INSERT INTO `role_permissions` VALUES (1, 22);
+INSERT INTO `role_permissions` VALUES (6, 22);
+INSERT INTO `role_permissions` VALUES (1, 23);
+INSERT INTO `role_permissions` VALUES (2, 23);
+INSERT INTO `role_permissions` VALUES (1, 24);
+INSERT INTO `role_permissions` VALUES (2, 24);
+INSERT INTO `role_permissions` VALUES (3, 24);
+INSERT INTO `role_permissions` VALUES (4, 24);
+INSERT INTO `role_permissions` VALUES (5, 24);
+INSERT INTO `role_permissions` VALUES (6, 24);
+INSERT INTO `role_permissions` VALUES (1, 25);
+INSERT INTO `role_permissions` VALUES (2, 25);
+INSERT INTO `role_permissions` VALUES (1, 26);
+INSERT INTO `role_permissions` VALUES (2, 26);
+INSERT INTO `role_permissions` VALUES (1, 27);
+INSERT INTO `role_permissions` VALUES (2, 27);
+INSERT INTO `role_permissions` VALUES (3, 27);
+INSERT INTO `role_permissions` VALUES (4, 27);
+INSERT INTO `role_permissions` VALUES (1, 28);
+INSERT INTO `role_permissions` VALUES (2, 28);
+INSERT INTO `role_permissions` VALUES (3, 28);
+INSERT INTO `role_permissions` VALUES (4, 28);
+INSERT INTO `role_permissions` VALUES (1, 29);
+INSERT INTO `role_permissions` VALUES (2, 29);
+INSERT INTO `role_permissions` VALUES (3, 29);
+INSERT INTO `role_permissions` VALUES (1, 30);
+INSERT INTO `role_permissions` VALUES (2, 30);
+INSERT INTO `role_permissions` VALUES (1, 31);
+INSERT INTO `role_permissions` VALUES (1, 32);
+INSERT INTO `role_permissions` VALUES (1, 33);
+
+-- Table: roles
+INSERT INTO `roles` VALUES (1, 'SYSTEM_ADMIN', 'System Administrator', 'Full administrative authority across all modules, roles, security, and databases.');
+INSERT INTO `roles` VALUES (2, 'TOURISM_OFFICE', 'Tourism Office Officer', 'Province-wide promotion, announcements, arrival trend analytics, and project supervision.');
+INSERT INTO `roles` VALUES (3, 'LGU_OFFICER', 'Local Government Unit Officer', 'Municipal-level tourism monitoring, inter-barangay coordination, and consolidated reporting.');
+INSERT INTO `roles` VALUES (4, 'BARANGAY_OFFICIAL', 'Barangay Official', 'Local stakeholder verification, attraction validation, footfall logging, and barangay records.');
+INSERT INTO `roles` VALUES (5, 'STAKEHOLDER', 'Local Tourism Stakeholder', 'Community guides, drivers, boat operators, cooks, and artisans managing services and bookings.');
+INSERT INTO `roles` VALUES (6, 'TOURIST', 'Tourist', 'Visitors exploring destinations, customizing packages, booking services, and leaving reviews.');
+
+-- Table: stakeholder_profiles
+INSERT INTO `stakeholder_profiles` VALUES (1, 5, 1, 'Sambawan Island Eco-Trek \u0026 Marine Guides', 'TOUR_GUIDE', 'DOT-R8-TG-2024-001', '+63 928 111 8888', 6, 'VERIFIED', 4, '2026-01-15T09:30');
+INSERT INTO `stakeholder_profiles` VALUES (2, 6, 6, 'Almeria Habal-Habal & Van Adventure Transport', 'TRANSPORT_DRIVER', 'LGU-ALM-TR-2025-014', '+63 928 222 9999', 4, 'VERIFIED', 4, '2026-02-10T14:00');
+INSERT INTO `stakeholder_profiles` VALUES (3, 7, 1, 'Maripipi Seafarers Motorized Pumpboat Cooperative', 'BOAT_OPERATOR', 'MARINA-EV-2024-099', '+63 928 333 7777', 10, 'VERIFIED', 4, '2026-01-20T11:15');
+INSERT INTO `stakeholder_profiles` VALUES (4, 8, 4, 'Nanay Luz Traditional Biliran Kakanin & Beach Feasts', 'LOCAL_COOK', 'BRGY-CAB-LK-2025-003', '+63 928 444 6666', 8, 'VERIFIED', 4, '2026-02-05T10:00');
+INSERT INTO `stakeholder_profiles` VALUES (5, 9, 2, 'Maripipi Heritage Clay Pottery & Woven Handicrafts', 'ARTISAN', 'DTI-BIL-ART-2024-042', '+63 928 555 5555', 12, 'VERIFIED', 4, '2026-01-18T16:45');
+
+-- Table: system_settings
+INSERT INTO `system_settings` VALUES ('appName', 'Lakbay Lokal - Biliran Tourism Information System', '2026-11-12 06:45:24.0');
+INSERT INTO `system_settings` VALUES ('broadcastMsg', 'Welcome to Lakbay Lokal! Experience Biliran\u0027s natural wonders responsibly.', '2026-11-12 06:45:24.0');
+INSERT INTO `system_settings` VALUES ('capacityThreshold', '85', '2026-11-12 06:45:24.0');
+INSERT INTO `system_settings` VALUES ('currency', 'PHP (Philippine Peso ₱)', '2026-11-12 06:45:24.0');
+INSERT INTO `system_settings` VALUES ('province', 'Biliran Province, Region VIII, Philippines', '2026-11-12 01:05:27.0');
+
+-- Table: tourism_arrival_logs
+INSERT INTO `tourism_arrival_logs` VALUES (1, 1, '2026-03-01', 45, 120, 18, 21960.00, 4, '2026-11-11 19:43:26.0');
+INSERT INTO `tourism_arrival_logs` VALUES (2, 1, '2026-03-02', 30, 85, 12, 15240.00, 4, '2026-11-11 19:43:26.0');
+INSERT INTO `tourism_arrival_logs` VALUES (3, 2, '2026-03-01', 60, 140, 5, 10250.00, 1, '2026-11-11 19:43:26.0');
+INSERT INTO `tourism_arrival_logs` VALUES (4, 3, '2026-03-01', 25, 90, 8, 4920.00, 1, '2026-11-11 19:43:26.0');
+INSERT INTO `tourism_arrival_logs` VALUES (5, 4, '2026-03-01', 20, 65, 4, 7120.00, 1, '2026-11-11 19:43:26.0');
+
+-- Table: tourism_packages
+INSERT INTO `tourism_packages` VALUES (1, 'Sambawan Island Marine Paradise Escape', 'Experience Biliran’s premier marine sanctuary with roundtrip boat charter from Kawayan, hilltop viewpoint trek, snorkeling guide, and beach boodle feast.', 'PRE_DESIGNED', 1850.00, 2, 4, 10, 'Boat charter, entrance fees, certified guide, camping tent/cottage, seafood lunch feast', 'Personal snacks, snorkeling gear rental', 'ACTIVE', 'package_sambawan.jpg', 1, '2026-11-11 19:43:26.0');
+INSERT INTO `tourism_packages` VALUES (2, 'Biliran Chasing Waterfalls Eco-Trek', 'A full-day thrilling adventure traversing Tinago Falls, Ulan-Ulan Falls, and Reco Falls with habal-habal transport and native lunch.', 'PRE_DESIGNED', 1250.00, 1, 2, 8, 'Habal-habal transport, safety helmets, entrance fees to 3 falls, local trek guide, native lunch', 'Tips and personal souvenirs', 'ACTIVE', 'package_waterfalls.jpg', 1, '2026-11-11 19:43:26.0');
+INSERT INTO `tourism_packages` VALUES (3, 'Higatangan Shifting Sandbar & Heritage Cruise', 'Sail to Higatangan Island, walk the legendary shifting sandbar, and discover local weaving communities.', 'PRE_DESIGNED', 1400.00, 1, 4, 8, 'Roundtrip chartered boat, environmental fee, seafood picnic, community guide', 'Alcoholic beverages', 'ACTIVE', 'package_higatangan.jpg', 1, '2026-11-11 19:43:26.0');
+INSERT INTO `tourism_packages` VALUES (4, 'Maripipi Artisan Culture & Pottery Immersion', 'Discover ancient pottery making in Bato, visit the historic watchtower, and sample authentic Maripipi delicacies.', 'PRE_DESIGNED', 950.00, 1, 2, 6, 'Pottery clay workshop materials, local guide, afternoon native snack, village tour', 'Personal transport to Maripipi', 'ACTIVE', 'package_artisan.jpg', 1, '2026-11-11 19:43:26.0');
+
+-- Table: tourism_services
+INSERT INTO `tourism_services` VALUES (1, 1, 'Sambawan Marine Sanctuary Snorkel & Viewpoint Guide', 'GUIDING', 'Guided trek to the iconic Sambawan hill viewpoint and certified coral reef snorkeling orientation.', 500.00, 'PER_GROUP', 6, 1, '2026-11-11 19:43:26.0');
+INSERT INTO `tourism_services` VALUES (2, 1, 'Ulan-Ulan & Reco Falls Canyon Trekking Guide', 'GUIDING', 'Expert guided jungle trek navigating the lush rainforest trails of Sampao waterfalls.', 600.00, 'PER_GROUP', 5, 1, '2026-11-11 19:43:26.0');
+INSERT INTO `tourism_services` VALUES (3, 2, 'Biliran Waterfalls Circuit Habal-Habal Tour (Driver & Fuel)', 'TRANSPORT', 'Full-day motorcycle transport with helmet covering Tinago, Ulan-Ulan, and Iyusan terraces.', 800.00, 'PER_PERSON', 1, 1, '2026-11-11 19:43:26.0');
+INSERT INTO `tourism_services` VALUES (4, 2, 'Naval to Kawayan / Caibiran Tourist Van Transfer', 'TRANSPORT', 'Air-conditioned van charter for group transfers across mainland Biliran destinations.', 2500.00, 'PER_TRIP', 12, 1, '2026-11-11 19:43:26.0');
+INSERT INTO `tourism_services` VALUES (5, 3, 'Kawayan Port to Sambawan Island Roundtrip Boat Charter', 'BOAT_CHARTER', 'Coast Guard approved motorized pumpboat with life vests for up to 10 passengers.', 3000.00, 'PER_TRIP', 10, 1, '2026-11-11 19:43:26.0');
+INSERT INTO `tourism_services` VALUES (6, 3, 'Naval Port to Higatangan Shifting Sandbar Island Boat Charter', 'BOAT_CHARTER', 'Roundtrip scenic boat crossing to Higatangan with crystal clear waters and sandbar.', 2200.00, 'PER_TRIP', 8, 1, '2026-11-11 19:43:26.0');
+INSERT INTO `tourism_services` VALUES (8, 4, 'Traditional Biliran Suman & Native Hot Chocolate Breakfast', 'FOOD_CATERING', 'Authentic sticky rice roll with latik syrup paired with artisanal tablea hot cocoa.', 150.00, 'PER_PERSON', 15, 1, '2026-11-11 19:43:26.0');
+INSERT INTO `tourism_services` VALUES (9, 5, 'Traditional Maripipi Terracotta Pottery Workshop', 'HANDICRAFT', 'Hands-on molding experience using local Maripipi clay led by master local potters.', 400.00, 'PER_PERSON', 8, 1, '2026-11-11 19:43:26.0');
+
+-- Table: tourist_profiles
+INSERT INTO `tourist_profiles` VALUES (1, 10, 'Cebu City', 'Filipino', 'Marco Cortez (Father)', '+63 915 888 4444', 'Eco-tourism, island hopping, waterfall trekking, cultural handicraft exploration');
+INSERT INTO `tourist_profiles` VALUES (2, 11, 'Tacloban', 'Filipino', NULL, NULL, NULL);
+
+-- Table: users
+INSERT INTO `users` VALUES (1, 'admin', 'pbkdf2$65536$6261f7135dad74b0afb00a6124edb48f5990953b15d4ee2519b5c4c87b225be5', 'lakbaysalt2026', 'admin@lakbaylokal.gov.ph', 'Administrator Maria Santos', '+63 917 000 0001', 1, 9, NULL, 'ACTIVE', '2026-11-11 19:43:25.0', '2026-11-11 21:21:13.0');
+INSERT INTO `users` VALUES (2, 'tourismoffice', 'pbkdf2$65536$6261f7135dad74b0afb00a6124edb48f5990953b15d4ee2519b5c4c87b225be5', 'lakbaysalt2026', 'tourism@biliran.gov.ph', 'Director Eduardo Reyes', '+63 917 000 0002', 2, 9, NULL, 'ACTIVE', '2026-11-11 19:43:25.0', '2026-11-11 21:23:44.0');
+INSERT INTO `users` VALUES (3, 'lgu_naval', 'pbkdf2$65536$6261f7135dad74b0afb00a6124edb48f5990953b15d4ee2519b5c4c87b225be5', 'lakbaysalt2026', 'lgu.naval@biliran.gov.ph', 'Officer Katrina Gonzales', '+63 917 000 0003', 3, 9, 1, 'ACTIVE', '2026-11-11 19:43:25.0', '2026-11-11 21:23:44.0');
+INSERT INTO `users` VALUES (4, 'brgy_olog', 'pbkdf2$65536$6261f7135dad74b0afb00a6124edb48f5990953b15d4ee2519b5c4c87b225be5', 'lakbaysalt2026', 'brgy.olog@maripipi.gov.ph', 'Captain Ramon Corpin', '+63 917 111 2001', 4, 1, NULL, 'ACTIVE', '2026-11-11 19:43:25.0', '2026-11-11 21:23:44.0');
+INSERT INTO `users` VALUES (5, 'guide_pedro', 'pbkdf2$65536$6261f7135dad74b0afb00a6124edb48f5990953b15d4ee2519b5c4c87b225be5', 'lakbaysalt2026', 'pedro.guide@gmail.com', 'Pedro Penduko', '+63 928 111 8888', 5, 1, NULL, 'ACTIVE', '2026-11-11 19:43:25.0', '2026-11-11 21:23:44.0');
+INSERT INTO `users` VALUES (6, 'driver_juan', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'juan.transpo@gmail.com', 'Juan Dela Cruz', '+63 928 222 9999', 5, 6, NULL, 'ACTIVE', '2026-11-11 19:43:25.0', '2026-11-11 19:43:25.0');
+INSERT INTO `users` VALUES (7, 'boat_capitan', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'maripipi.boats@gmail.com', 'Capitan Danilo Flores', '+63 928 333 7777', 5, 1, NULL, 'ACTIVE', '2026-11-11 19:43:25.0', '2026-11-11 19:43:25.0');
+INSERT INTO `users` VALUES (8, 'cook_nanay_luz', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'nanayluz.catering@gmail.com', 'Luzviminda Ocampo', '+63 928 444 6666', 5, 4, NULL, 'ACTIVE', '2026-11-11 19:43:25.0', '2026-11-11 19:43:25.0');
+INSERT INTO `users` VALUES (9, 'artisan_rosa', '8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6', 'lakbaysalt2026', 'maripipi.pottery@gmail.com', 'Rosa Mangahas', '+63 928 555 5555', 5, 2, NULL, 'ACTIVE', '2026-11-11 19:43:25.0', '2026-11-11 19:43:25.0');
+INSERT INTO `users` VALUES (10, 'tourist_ana', 'pbkdf2$65536$6261f7135dad74b0afb00a6124edb48f5990953b15d4ee2519b5c4c87b225be5', 'lakbaysalt2026', 'ana.tourist@gmail.com', 'Ana Sophia Cortez', '+63 915 777 3333', 6, NULL, NULL, 'ACTIVE', '2026-11-11 19:43:25.0', '2026-11-11 21:23:45.0');
+INSERT INTO `users` VALUES (11, 'lexey', 'pbkdf2$65536$7eb1725075ca135e876c4399f712b28c30f1ec9d7126888f2875005f5e73e138', '8277d85f2acc1ef1fc35b6e4d6a41184', 'romanialexa@gmail.com', 'Alexa Romania', '+639262333060', 6, NULL, NULL, 'ACTIVE', '2026-11-11 20:38:25.0', '2026-11-11 21:44:45.0');
+
+-- Table: verification_records
+
+SET FOREIGN_KEY_CHECKS = 1;
+-- Backup completed successfully.

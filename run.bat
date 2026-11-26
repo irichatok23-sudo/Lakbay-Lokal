@@ -74,7 +74,7 @@ echo [1/2] Compiling Java source files...
     )
 )
 
-"%JAVAC_CMD%" -encoding UTF-8 -d "bin" @sources.txt
+"%JAVAC_CMD%" -encoding UTF-8 -cp "lib/*" -d "bin" @sources.txt
 if %errorlevel% neq 0 (
     echo [ERROR] Compilation failed.
     del sources.txt >nul 2>nul
@@ -82,14 +82,23 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 del sources.txt >nul 2>nul
+if exist "target\classes" (
+    xcopy /s /y /q "bin\*" "target\classes\" >nul 2>nul
+)
 
-echo [2/2] Launching Lakbay Lokal Portal...
+echo [2/2] Launching Lakbay Lokal Standalone Desktop Application...
 set "CP=bin"
 if exist "lib\*.jar" set "CP=bin;lib/*"
 for /r "%USERPROFILE%\.m2\repository\com\mysql\mysql-connector-j" %%J in (*.jar) do (
     if exist "%%J" set "CP=!CP!;%%J"
 )
-start "" "%JAVA_CMD%" -cp "!CP!" com.lakbaylokal.Main
-echo [SUCCESS] Application is now running!
-echo [INFO] Web Portal: http://localhost:8080/
+start "LakbayLokalBackend" /min "%JAVA_CMD%" -cp "!CP!" com.lakbaylokal.Main --headless
+if exist "dist\win-unpacked\Lakbay Lokal.exe" (
+    start "" "dist\win-unpacked\Lakbay Lokal.exe"
+) else if exist "node_modules\electron\dist\electron.exe" (
+    start "" "node_modules\electron\dist\electron.exe" .
+) else if exist "LakbayLokalLauncher.exe" (
+    start "" "LakbayLokalLauncher.exe"
+)
+echo [SUCCESS] Lakbay Lokal Desktop Application is now running!
 exit /b 0

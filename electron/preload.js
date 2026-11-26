@@ -9,5 +9,6 @@ contextBridge.exposeInMainWorld('desktopAPI', {
     maximizeWindow: () => ipcRenderer.send('window-maximize'),
     closeWindow: () => ipcRenderer.send('window-close'),
     openExternal: (url) => ipcRenderer.send('open-external', url),
-    checkBackendHealth: () => ipcRenderer.invoke('check-backend-health')
+    checkBackendHealth: () => ipcRenderer.invoke('check-backend-health'),
+    restoreFocus: () => ipcRenderer.send('restore-focus')
 });

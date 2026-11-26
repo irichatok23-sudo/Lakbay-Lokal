@@ -1,0 +1,5 @@
+const fs = require('fs');
+const content = fs.readFileSync('src/main/resources/web/js/app.js', 'utf8');
+
+const s = content.indexOf('function redirectToRoleHomepage');
+console.log(content.substring(s + 1200, s + 3000));

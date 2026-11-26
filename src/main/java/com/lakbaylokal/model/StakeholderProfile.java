@@ -18,6 +18,7 @@ public class StakeholderProfile {
     // Joined fields
     private String ownerName;
     private String email;
+    private Integer municipalityId;
     private String barangayName;
     private String municipalityName;
 
@@ -61,6 +62,9 @@ public class StakeholderProfile {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public Integer getMunicipalityId() { return municipalityId; }
+    public void setMunicipalityId(Integer municipalityId) { this.municipalityId = municipalityId; }
 
     public String getBarangayName() { return barangayName; }
     public void setBarangayName(String barangayName) { this.barangayName = barangayName; }

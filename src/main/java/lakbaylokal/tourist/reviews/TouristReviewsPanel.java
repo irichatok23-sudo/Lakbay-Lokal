@@ -16,7 +16,6 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.util.ArrayList;
 import java.util.List;
 
 public class TouristReviewsPanel extends JPanel {
@@ -234,7 +233,7 @@ public class TouristReviewsPanel extends JPanel {
         }
     }
 
-    public void loadMyReviews() {
+    public final void loadMyReviews() {
         tableModel.setRowCount(0);
         List<Review> reviews = reviewService.getAllReviews();
         for (Review r : reviews) {

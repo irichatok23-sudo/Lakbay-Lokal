@@ -16,8 +16,20 @@ public class UserService {
         return userDAO.findAll();
     }
 
+    public List<User> getUsersFiltered(String roleCode, Integer municipalityId, Integer barangayId) {
+        return userDAO.findFiltered(roleCode, municipalityId, barangayId);
+    }
+
     public User getUserById(int userId) {
         return userDAO.findById(userId);
+    }
+
+    public User getUserByUsername(String username) {
+        return userDAO.findByUsername(username);
+    }
+
+    public User getUserByEmail(String email) {
+        return userDAO.findByEmail(email);
     }
 
     public List<Role> getAllRoles() {
@@ -26,7 +38,7 @@ public class UserService {
 
     public int createUser(User user, String rawPassword) {
         String salt = PasswordUtil.generateSalt();
-        String hash = PasswordUtil.hashPassword(rawPassword, salt);
+        String hash = PasswordUtil.hashPasswordAdaptive(rawPassword, salt);
         user.setSalt(salt);
         user.setPasswordHash(hash);
         return userDAO.create(user);
@@ -38,7 +50,7 @@ public class UserService {
 
     public boolean resetPassword(int userId, String newPassword) {
         String salt = PasswordUtil.generateSalt();
-        String hash = PasswordUtil.hashPassword(newPassword, salt);
+        String hash = PasswordUtil.hashPasswordAdaptive(newPassword, salt);
         return userDAO.updatePassword(userId, hash, salt);
     }
 

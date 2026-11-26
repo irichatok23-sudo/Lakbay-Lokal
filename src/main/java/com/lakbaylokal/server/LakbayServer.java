@@ -96,9 +96,22 @@ public class LakbayServer {
 
             String response = apiController.handleRequest(path, method, queryParams, body, token, clientIp);
 
+            int statusCode = 200;
+            if (response.contains("\"success\":false") && response.contains("\"code\":")) {
+                try {
+                    int codeIdx = response.indexOf("\"code\":");
+                    int commaIdx = response.indexOf(",", codeIdx);
+                    int braceIdx = response.indexOf("}", codeIdx);
+                    int endIdx = (commaIdx != -1 && commaIdx < braceIdx) ? commaIdx : braceIdx;
+                    if (endIdx != -1) {
+                        statusCode = Integer.parseInt(response.substring(codeIdx + 7, endIdx).trim());
+                    }
+                } catch (Exception ignored) {}
+            }
+
             byte[] respBytes = response.getBytes(StandardCharsets.UTF_8);
             headers.add("Content-Type", "application/json; charset=utf-8");
-            exchange.sendResponseHeaders(200, respBytes.length);
+            exchange.sendResponseHeaders(statusCode, respBytes.length);
             try (OutputStream os = exchange.getResponseBody()) {
                 os.write(respBytes);
             }
@@ -116,9 +129,11 @@ public class LakbayServer {
                 path = "/index.html";
             }
 
+            String relativePath = path.startsWith("/") ? path.substring(1) : path;
+
             // Look in file system resources first
             File webDir = new File("src/main/resources/web");
-            File requestedFile = new File(webDir, path);
+            File requestedFile = new File(webDir, relativePath);
 
             byte[] content = null;
             if (requestedFile.exists() && requestedFile.isFile() && requestedFile.getCanonicalPath().startsWith(webDir.getCanonicalPath())) {
@@ -126,14 +141,21 @@ public class LakbayServer {
             } else {
                 // Check if file exists in bin/web
                 File binWebDir = new File("bin/web");
-                File binFile = new File(binWebDir, path);
-                if (binFile.exists() && binFile.isFile()) {
+                File binFile = new File(binWebDir, relativePath);
+                if (binFile.exists() && binFile.isFile() && binFile.getCanonicalPath().startsWith(binWebDir.getCanonicalPath())) {
                     content = Files.readAllBytes(binFile.toPath());
+                }
+
+                if (content == null && relativePath.startsWith("uploads/")) {
+                    File upFile = new File(relativePath);
+                    if (upFile.exists() && upFile.isFile()) {
+                        content = Files.readAllBytes(upFile.toPath());
+                    }
                 }
 
                 if (content == null) {
                     // Fallback to classpath
-                    String resourcePath = "web" + path;
+                    String resourcePath = "web/" + relativePath;
                     try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
                         if (is != null) {
                             content = is.readAllBytes();
@@ -169,6 +191,7 @@ public class LakbayServer {
         if (path.endsWith(".json")) return "application/json; charset=utf-8";
         if (path.endsWith(".png")) return "image/png";
         if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
+        if (path.endsWith(".webp")) return "image/webp";
         if (path.endsWith(".svg")) return "image/svg+xml";
         if (path.endsWith(".ico")) return "image/x-icon";
         return "application/octet-stream";

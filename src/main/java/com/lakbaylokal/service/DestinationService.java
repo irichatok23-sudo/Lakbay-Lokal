@@ -15,6 +15,10 @@ public class DestinationService {
         return destinationDAO.findAll(category, barangayId, status);
     }
 
+    public List<Destination> getDestinations(String category, Integer barangayId, Integer municipalityId, String status) {
+        return destinationDAO.findAll(category, barangayId, municipalityId, status);
+    }
+
     public Destination getDestinationById(int destinationId) {
         return destinationDAO.findById(destinationId);
     }
@@ -37,5 +41,13 @@ public class DestinationService {
 
     public List<Barangay> getBarangays() {
         return destinationDAO.findAllBarangays();
+    }
+
+    public boolean updateBarangayContact(int barangayId, String contactPerson, String contactNumber) {
+        return destinationDAO.updateBarangayContact(barangayId, contactPerson, contactNumber);
+    }
+
+    public boolean deleteBarangay(int barangayId) {
+        return destinationDAO.deleteBarangay(barangayId);
     }
 }

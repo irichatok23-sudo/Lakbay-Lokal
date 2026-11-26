@@ -27,11 +27,35 @@ public class DatabaseInitializer {
                 executeSqlScript(conn, "sql/02_seed_data.sql");
                 executeSqlScript(conn, "sql/03_views_procedures.sql");
                 System.out.println("[DatabaseInitializer] Database initialized successfully.");
+            } else {
+                syncSeedPasswords(conn);
             }
             return true;
         } catch (SQLException e) {
             System.err.println("[DatabaseInitializer] Database initialization error: " + e.getMessage());
             return false;
+        }
+    }
+
+    private static void syncSeedPasswords(Connection conn) {
+        String validHash = "8c16d0213fba89b11e704e1dc1dbf539343f256ea837ce61ac78d6533c3857c6";
+        String legacyHash = "4f686c125d0c7f21508933b91ef5220c3886be737190db72429dc1eb2eb1c853";
+        try (Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate(
+                "INSERT INTO roles (role_id, role_code, role_name, description) VALUES " +
+                "(1, 'SYSTEM_ADMIN', 'System Administrator', 'Full administrative authority across all modules, roles, security, and databases.') " +
+                "ON DUPLICATE KEY UPDATE role_code = 'SYSTEM_ADMIN'"
+            );
+            stmt.executeUpdate(
+                "INSERT IGNORE INTO users (user_id, username, password_hash, salt, email, full_name, phone, role_id, status) VALUES " +
+                "(1, 'admin', '" + validHash + "', 'lakbaysalt2026', 'admin@lakbaylokal.gov.ph', 'Administrator Maria Santos', '+63 917 000 0001', 1, 'ACTIVE')"
+            );
+            stmt.executeUpdate(
+                "UPDATE users SET password_hash = '" + validHash + "' " +
+                "WHERE (password_hash = '" + legacyHash + "' OR password_hash IS NULL) " +
+                "AND salt = 'lakbaysalt2026'"
+            );
+        } catch (SQLException ignored) {
         }
     }
 

@@ -9,14 +9,14 @@ if (-not (Test-Path "bin\com\lakbaylokal\Main.class")) {
     .\powershell.cmd -File build.ps1
 }
 
-# 2. Package into unpacked directory first
-Write-Host "[Packager] Packing Windows application directory (dist/win-unpacked)..."
-& ".\node_modules\.bin\electron-builder.cmd" --win --dir
+# 2. Package into unpacked directory
+Write-Host "[Packager] Assembling Windows application directory (dist/win-unpacked)..."
+& .\powershell.cmd -File scripts\assemble_unpacked.ps1
 
-if ($LASTEXITCODE -eq 0) {
+if ($LASTEXITCODE -eq 0 -and (Test-Path "dist\win-unpacked\Lakbay Lokal.exe")) {
     Write-Host "[Packager] Successfully generated unpacked desktop build!"
-    Get-ChildItem "dist\win-unpacked" | Select-Object Name, Length
+    Get-ChildItem "dist\win-unpacked\*.exe" | Select-Object Name, Length
 } else {
-    Write-Error "[Packager] Directory packaging failed with exit code $LASTEXITCODE"
-    exit $LASTEXITCODE
+    Write-Error "[Packager] Directory packaging failed."
+    exit 1
 }

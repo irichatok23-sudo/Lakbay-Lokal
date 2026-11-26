@@ -6,6 +6,8 @@ import com.lakbaylokal.dao.UserDAO;
 import com.lakbaylokal.dao.impl.BookingDAOImpl;
 import com.lakbaylokal.dao.impl.StakeholderDAOImpl;
 import com.lakbaylokal.dao.impl.UserDAOImpl;
+import com.lakbaylokal.database.ConnectionFactory;
+import com.lakbaylokal.database.DatabaseInitializer;
 import com.lakbaylokal.model.StakeholderProfile;
 import com.lakbaylokal.model.TouristProfile;
 import com.lakbaylokal.model.User;
@@ -23,6 +25,7 @@ public class AuthService {
     private final UserDAO userDAO = new UserDAOImpl();
     private final BookingDAO bookingDAO = new BookingDAOImpl();
     private final StakeholderDAO stakeholderDAO = new StakeholderDAOImpl();
+    private static volatile boolean dbSynced = false;
 
     public Map<String, Object> login(String usernameOrEmail, String password) {
         Map<String, Object> result = new HashMap<>();
@@ -32,9 +35,27 @@ public class AuthService {
             return result;
         }
 
-        User user = userDAO.findByUsername(usernameOrEmail.trim());
+        // Validate database connection upfront to distinguish server connection errors from bad credentials
+        if (!ConnectionFactory.testConnection()) {
+            result.put("success", false);
+            result.put("errorType", "SERVER_CONNECTION_ERROR");
+            result.put("message", "Database server connection error. Unable to reach MySQL server on localhost:3306.");
+            return result;
+        }
+
+        if (!dbSynced) {
+            synchronized (AuthService.class) {
+                if (!dbSynced) {
+                    DatabaseInitializer.initializeIfNeeded();
+                    dbSynced = true;
+                }
+            }
+        }
+
+        String identifier = usernameOrEmail.trim();
+        User user = userDAO.findByUsername(identifier);
         if (user == null) {
-            user = userDAO.findByEmail(usernameOrEmail.trim());
+            user = userDAO.findByEmail(identifier);
         }
 
         if (user == null) {
@@ -56,22 +77,39 @@ public class AuthService {
             return result;
         }
 
+        // Safe automatic migration from legacy SHA-256 to adaptive PBKDF2-HMAC-SHA256
+        if (PasswordUtil.needsUpgrade(user.getPasswordHash())) {
+            String upgradedHash = PasswordUtil.hashPasswordAdaptive(password.trim(), user.getSalt());
+            userDAO.updatePassword(user.getUserId(), upgradedHash, user.getSalt());
+            user.setPasswordHash(upgradedHash);
+        }
+
         String token = SessionManager.createSession(user);
+        Map<String, Object> sanitizedUser = sanitize(user);
         result.put("success", true);
         result.put("token", token);
-        result.put("user", sanitize(user));
 
         // Attach profile IDs if applicable
         if ("TOURIST".equalsIgnoreCase(user.getRoleCode())) {
             TouristProfile tp = bookingDAO.findTouristProfileByUserId(user.getUserId());
-            if (tp != null) result.put("touristProfileId", tp.getProfileId());
+            if (tp != null) {
+                result.put("touristProfileId", tp.getProfileId());
+                sanitizedUser.put("touristProfileId", tp.getProfileId());
+            }
         } else if ("STAKEHOLDER".equalsIgnoreCase(user.getRoleCode())) {
             StakeholderProfile sp = stakeholderDAO.findByUserId(user.getUserId());
             if (sp != null) {
                 result.put("stakeholderProfileId", sp.getProfileId());
                 result.put("verificationStatus", sp.getVerificationStatus());
+                result.put("category", sp.getCategory());
+                result.put("businessName", sp.getBusinessName());
+                sanitizedUser.put("stakeholderProfileId", sp.getProfileId());
+                sanitizedUser.put("verificationStatus", sp.getVerificationStatus());
+                sanitizedUser.put("category", sp.getCategory());
+                sanitizedUser.put("businessName", sp.getBusinessName());
             }
         }
+        result.put("user", sanitizedUser);
 
         return result;
     }
@@ -98,7 +136,7 @@ public class AuthService {
         }
 
         String salt = PasswordUtil.generateSalt();
-        String hash = PasswordUtil.hashPassword(password, salt);
+        String hash = PasswordUtil.hashPasswordAdaptive(password, salt);
 
         User user = new User();
         user.setUsername(username.trim());
@@ -125,6 +163,119 @@ public class AuthService {
             result.put("message", "Registration failed due to a database error.");
         }
 
+        return result;
+    }
+
+    public Map<String, Object> registerStakeholder(String username, String password, String email,
+                                                   String fullName, String phone, String businessName,
+                                                   String category, Integer municipalityId, Integer barangayId,
+                                                   String accreditationNo, int yearsExperience, String bio) {
+        Map<String, Object> result = new HashMap<>();
+        if (username == null || password == null || email == null || fullName == null || businessName == null) {
+            result.put("success", false);
+            result.put("message", "All mandatory registration fields must be provided.");
+            return result;
+        }
+
+        if (barangayId == null || barangayId <= 0) {
+            result.put("success", false);
+            result.put("message", "Assigned barangay is required for stakeholder registration.");
+            return result;
+        }
+
+        if (userDAO.findByUsername(username.trim()) != null) {
+            result.put("success", false);
+            result.put("message", "Username is already registered.");
+            return result;
+        }
+
+        if (userDAO.findByEmail(email.trim()) != null) {
+            result.put("success", false);
+            result.put("message", "Email address is already registered.");
+            return result;
+        }
+
+        String salt = PasswordUtil.generateSalt();
+        String hash = PasswordUtil.hashPasswordAdaptive(password, salt);
+
+        User user = new User();
+        user.setUsername(username.trim());
+        user.setPasswordHash(hash);
+        user.setSalt(salt);
+        user.setEmail(email.trim());
+        user.setFullName(fullName.trim());
+        user.setPhone(phone);
+        user.setRoleId(5); // STAKEHOLDER
+        user.setBarangayId(barangayId);
+        user.setMunicipalityId(municipalityId);
+        user.setStatus("ACTIVE");
+
+        int newUserId = userDAO.create(user);
+        if (newUserId > 0) {
+            StakeholderProfile profile = new StakeholderProfile();
+            profile.setUserId(newUserId);
+            profile.setBarangayId(barangayId);
+            profile.setBusinessName(businessName.trim());
+            profile.setCategory(category != null && !category.isBlank() ? category.trim() : "TOUR_GUIDE");
+            profile.setAccreditationNo(accreditationNo != null ? accreditationNo.trim() : "");
+            profile.setContactNumber(phone != null ? phone.trim() : "");
+            profile.setYearsExperience(yearsExperience > 0 ? yearsExperience : 1);
+            profile.setVerificationStatus("PENDING"); // Guaranteed PENDING
+
+            int profileId = stakeholderDAO.create(profile);
+            if (profileId > 0) {
+                result.put("success", true);
+                result.put("profileId", profileId);
+                result.put("userId", newUserId);
+                result.put("message", "Stakeholder application submitted successfully! Your application is now in your Barangay Official's verification queue.");
+            } else {
+                result.put("success", false);
+                result.put("message", "Failed to create stakeholder profile record.");
+            }
+        } else {
+            result.put("success", false);
+            result.put("message", "Registration failed due to a database error.");
+        }
+
+        return result;
+    }
+
+    public Map<String, Object> forgotPassword(String usernameOrEmail, String newPassword) {
+        Map<String, Object> result = new HashMap<>();
+        if (usernameOrEmail == null || usernameOrEmail.isBlank()) {
+            result.put("success", false);
+            result.put("message", "Username or email is required.");
+            return result;
+        }
+
+        User user = userDAO.findByUsername(usernameOrEmail.trim());
+        if (user == null) {
+            user = userDAO.findByEmail(usernameOrEmail.trim());
+        }
+
+        if (user == null) {
+            result.put("success", false);
+            result.put("message", "No account found matching that username or email address.");
+            return result;
+        }
+
+        if (newPassword == null || newPassword.isBlank()) {
+            result.put("success", true);
+            result.put("message", "Account verified for " + user.getFullName() + ". Please provide a new password.");
+            return result;
+        }
+
+        String salt = PasswordUtil.generateSalt();
+        String hash = PasswordUtil.hashPasswordAdaptive(newPassword.trim(), salt);
+        boolean updated = userDAO.updatePassword(user.getUserId(), hash, salt);
+
+        if (updated) {
+            result.put("success", true);
+            result.put("message", "Password successfully updated for " + user.getUsername() + ". You can now sign in.");
+        } else {
+            result.put("success", false);
+            result.put("message", "Database error updating password.");
+        }
         return result;
     }
 

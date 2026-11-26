@@ -11,19 +11,32 @@ public class ReportDAOImpl implements ReportDAO {
 
     @Override
     public List<Map<String, Object>> getDestinationFootfallSummaries() {
+        return getDestinationFootfallSummaries(null);
+    }
+
+    @Override
+    public List<Map<String, Object>> getDestinationFootfallSummaries(Integer municipalityId) {
         List<Map<String, Object>> list = new ArrayList<>();
-        String sql = "SELECT * FROM v_destination_footfall_summary ORDER BY grand_total_visitors DESC";
+        StringBuilder sql = new StringBuilder("SELECT * FROM v_destination_footfall_summary ");
+        if (municipalityId != null && municipalityId > 0) {
+            sql.append("WHERE municipality_name = (SELECT name FROM municipalities WHERE municipality_id = ?) ");
+        }
+        sql.append("ORDER BY grand_total_visitors DESC");
         try (Connection conn = ConnectionFactory.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            ResultSetMetaData meta = rs.getMetaData();
-            int colCount = meta.getColumnCount();
-            while (rs.next()) {
-                Map<String, Object> row = new LinkedHashMap<>();
-                for (int i = 1; i <= colCount; i++) {
-                    row.put(meta.getColumnLabel(i), rs.getObject(i));
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            if (municipalityId != null && municipalityId > 0) {
+                ps.setInt(1, municipalityId);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                ResultSetMetaData meta = rs.getMetaData();
+                int colCount = meta.getColumnCount();
+                while (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    for (int i = 1; i <= colCount; i++) {
+                        row.put(meta.getColumnLabel(i), rs.getObject(i));
+                    }
+                    list.add(row);
                 }
-                list.add(row);
             }
         } catch (SQLException e) {
             System.err.println("[ReportDAO] getDestinationFootfallSummaries error: " + e.getMessage());
@@ -33,19 +46,32 @@ public class ReportDAOImpl implements ReportDAO {
 
     @Override
     public List<Map<String, Object>> getStakeholderSummaries() {
+        return getStakeholderSummaries(null);
+    }
+
+    @Override
+    public List<Map<String, Object>> getStakeholderSummaries(Integer municipalityId) {
         List<Map<String, Object>> list = new ArrayList<>();
-        String sql = "SELECT * FROM v_stakeholder_performance_summary ORDER BY estimated_gross_income DESC";
+        StringBuilder sql = new StringBuilder("SELECT * FROM v_stakeholder_performance_summary ");
+        if (municipalityId != null && municipalityId > 0) {
+            sql.append("WHERE municipality_name = (SELECT name FROM municipalities WHERE municipality_id = ?) ");
+        }
+        sql.append("ORDER BY estimated_gross_income DESC");
         try (Connection conn = ConnectionFactory.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            ResultSetMetaData meta = rs.getMetaData();
-            int colCount = meta.getColumnCount();
-            while (rs.next()) {
-                Map<String, Object> row = new LinkedHashMap<>();
-                for (int i = 1; i <= colCount; i++) {
-                    row.put(meta.getColumnLabel(i), rs.getObject(i));
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            if (municipalityId != null && municipalityId > 0) {
+                ps.setInt(1, municipalityId);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                ResultSetMetaData meta = rs.getMetaData();
+                int colCount = meta.getColumnCount();
+                while (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    for (int i = 1; i <= colCount; i++) {
+                        row.put(meta.getColumnLabel(i), rs.getObject(i));
+                    }
+                    list.add(row);
                 }
-                list.add(row);
             }
         } catch (SQLException e) {
             System.err.println("[ReportDAO] getStakeholderSummaries error: " + e.getMessage());
@@ -55,19 +81,32 @@ public class ReportDAOImpl implements ReportDAO {
 
     @Override
     public List<Map<String, Object>> getBarangaySummaries() {
+        return getBarangaySummaries(null);
+    }
+
+    @Override
+    public List<Map<String, Object>> getBarangaySummaries(Integer municipalityId) {
         List<Map<String, Object>> list = new ArrayList<>();
-        String sql = "SELECT * FROM v_barangay_tourism_overview ORDER BY municipality_name ASC, barangay_name ASC";
+        StringBuilder sql = new StringBuilder("SELECT * FROM v_barangay_tourism_overview ");
+        if (municipalityId != null && municipalityId > 0) {
+            sql.append("WHERE municipality_name = (SELECT name FROM municipalities WHERE municipality_id = ?) ");
+        }
+        sql.append("ORDER BY municipality_name ASC, barangay_name ASC");
         try (Connection conn = ConnectionFactory.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            ResultSetMetaData meta = rs.getMetaData();
-            int colCount = meta.getColumnCount();
-            while (rs.next()) {
-                Map<String, Object> row = new LinkedHashMap<>();
-                for (int i = 1; i <= colCount; i++) {
-                    row.put(meta.getColumnLabel(i), rs.getObject(i));
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            if (municipalityId != null && municipalityId > 0) {
+                ps.setInt(1, municipalityId);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                ResultSetMetaData meta = rs.getMetaData();
+                int colCount = meta.getColumnCount();
+                while (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    for (int i = 1; i <= colCount; i++) {
+                        row.put(meta.getColumnLabel(i), rs.getObject(i));
+                    }
+                    list.add(row);
                 }
-                list.add(row);
             }
         } catch (SQLException e) {
             System.err.println("[ReportDAO] getBarangaySummaries error: " + e.getMessage());
@@ -161,41 +200,96 @@ public class ReportDAOImpl implements ReportDAO {
 
     @Override
     public Map<String, Object> getOverviewKPIs() {
-        Map<String, Object> kpis = new LinkedHashMap<>();
-        try (Connection conn = ConnectionFactory.getConnection();
-             Statement stmt = conn.createStatement()) {
+        return getOverviewKPIs(null);
+    }
 
-            // Total Tourists
-            try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM users WHERE role_id = 6")) {
+    @Override
+    public Map<String, Object> getOverviewKPIs(Integer municipalityId) {
+        Map<String, Object> kpis = new LinkedHashMap<>();
+        try (Connection conn = ConnectionFactory.getConnection()) {
+            boolean scoped = municipalityId != null && municipalityId > 0;
+
+            // Total Tourists (all-time visitors or global)
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM users WHERE role_id = 6")) {
                 if (rs.next()) kpis.put("totalTourists", rs.getInt(1));
             }
+
             // Active Bookings
-            try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM bookings WHERE status IN ('PENDING', 'ACCEPTED', 'CONFIRMED')")) {
-                if (rs.next()) kpis.put("activeBookings", rs.getInt(1));
+            String activeBookingsSql = scoped
+                ? "SELECT COUNT(DISTINCT b.booking_id) FROM bookings b JOIN booking_service_items bsi ON b.booking_id = bsi.booking_id JOIN stakeholder_profiles sp ON bsi.stakeholder_id = sp.profile_id JOIN barangays br ON sp.barangay_id = br.barangay_id WHERE br.municipality_id = ? AND b.status IN ('PENDING', 'ACCEPTED', 'CONFIRMED')"
+                : "SELECT COUNT(*) FROM bookings WHERE status IN ('PENDING', 'ACCEPTED', 'CONFIRMED')";
+            try (PreparedStatement ps = conn.prepareStatement(activeBookingsSql)) {
+                if (scoped) ps.setInt(1, municipalityId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) kpis.put("activeBookings", rs.getInt(1));
+                }
             }
+
             // Completed Bookings
-            try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM bookings WHERE status = 'COMPLETED'")) {
-                if (rs.next()) kpis.put("completedBookings", rs.getInt(1));
+            String compBookingsSql = scoped
+                ? "SELECT COUNT(DISTINCT b.booking_id) FROM bookings b JOIN booking_service_items bsi ON b.booking_id = bsi.booking_id JOIN stakeholder_profiles sp ON bsi.stakeholder_id = sp.profile_id JOIN barangays br ON sp.barangay_id = br.barangay_id WHERE br.municipality_id = ? AND b.status = 'COMPLETED'"
+                : "SELECT COUNT(*) FROM bookings WHERE status = 'COMPLETED'";
+            try (PreparedStatement ps = conn.prepareStatement(compBookingsSql)) {
+                if (scoped) ps.setInt(1, municipalityId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) kpis.put("completedBookings", rs.getInt(1));
+                }
             }
+
             // Total Revenue
-            try (ResultSet rs = stmt.executeQuery("SELECT COALESCE(SUM(total_amount), 0) FROM bookings WHERE status = 'COMPLETED'")) {
-                if (rs.next()) kpis.put("totalBookingRevenue", rs.getDouble(1));
+            String revSql = scoped
+                ? "SELECT COALESCE(SUM(bsi.subtotal), 0) FROM booking_service_items bsi JOIN stakeholder_profiles sp ON bsi.stakeholder_id = sp.profile_id JOIN barangays br ON sp.barangay_id = br.barangay_id WHERE br.municipality_id = ? AND bsi.status IN ('ACCEPTED', 'COMPLETED')"
+                : "SELECT COALESCE(SUM(total_amount), 0) FROM bookings WHERE status = 'COMPLETED'";
+            try (PreparedStatement ps = conn.prepareStatement(revSql)) {
+                if (scoped) ps.setInt(1, municipalityId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) kpis.put("totalBookingRevenue", rs.getDouble(1));
+                }
             }
+
             // Total Destinations
-            try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM destinations WHERE status = 'ACTIVE'")) {
-                if (rs.next()) kpis.put("totalDestinations", rs.getInt(1));
+            String destSql = scoped
+                ? "SELECT COUNT(*) FROM destinations d JOIN barangays br ON d.barangay_id = br.barangay_id WHERE br.municipality_id = ? AND d.status = 'ACTIVE'"
+                : "SELECT COUNT(*) FROM destinations WHERE status = 'ACTIVE'";
+            try (PreparedStatement ps = conn.prepareStatement(destSql)) {
+                if (scoped) ps.setInt(1, municipalityId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) kpis.put("totalDestinations", rs.getInt(1));
+                }
             }
+
             // Verified Stakeholders
-            try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM stakeholder_profiles WHERE verification_status = 'VERIFIED'")) {
-                if (rs.next()) kpis.put("verifiedStakeholders", rs.getInt(1));
+            String verStkSql = scoped
+                ? "SELECT COUNT(*) FROM stakeholder_profiles sp JOIN barangays br ON sp.barangay_id = br.barangay_id WHERE br.municipality_id = ? AND sp.verification_status = 'VERIFIED'"
+                : "SELECT COUNT(*) FROM stakeholder_profiles WHERE verification_status = 'VERIFIED'";
+            try (PreparedStatement ps = conn.prepareStatement(verStkSql)) {
+                if (scoped) ps.setInt(1, municipalityId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) kpis.put("verifiedStakeholders", rs.getInt(1));
+                }
             }
+
             // Pending Stakeholder Verifications
-            try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM stakeholder_profiles WHERE verification_status = 'PENDING'")) {
-                if (rs.next()) kpis.put("pendingStakeholders", rs.getInt(1));
+            String pendStkSql = scoped
+                ? "SELECT COUNT(*) FROM stakeholder_profiles sp JOIN barangays br ON sp.barangay_id = br.barangay_id WHERE br.municipality_id = ? AND sp.verification_status = 'PENDING'"
+                : "SELECT COUNT(*) FROM stakeholder_profiles WHERE verification_status = 'PENDING'";
+            try (PreparedStatement ps = conn.prepareStatement(pendStkSql)) {
+                if (scoped) ps.setInt(1, municipalityId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) kpis.put("pendingStakeholders", rs.getInt(1));
+                }
             }
+
             // Total Visitor Footfall (from logs)
-            try (ResultSet rs = stmt.executeQuery("SELECT COALESCE(SUM(local_tourists_count + domestic_tourists_count + foreign_tourists_count), 0) FROM tourism_arrival_logs")) {
-                if (rs.next()) kpis.put("totalVisitorFootfall", rs.getInt(1));
+            String footfallSql = scoped
+                ? "SELECT COALESCE(SUM(al.local_tourists_count + al.domestic_tourists_count + al.foreign_tourists_count), 0) FROM tourism_arrival_logs al JOIN destinations d ON al.destination_id = d.destination_id JOIN barangays br ON d.barangay_id = br.barangay_id WHERE br.municipality_id = ?"
+                : "SELECT COALESCE(SUM(local_tourists_count + domestic_tourists_count + foreign_tourists_count), 0) FROM tourism_arrival_logs";
+            try (PreparedStatement ps = conn.prepareStatement(footfallSql)) {
+                if (scoped) ps.setInt(1, municipalityId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) kpis.put("totalVisitorFootfall", rs.getInt(1));
+                }
             }
         } catch (SQLException e) {
             System.err.println("[ReportDAO] getOverviewKPIs error: " + e.getMessage());
